@@ -1,13 +1,20 @@
 use std::collections::{HashSet, BTreeSet, BTreeMap};
 use std::fmt::Display;
 use std::hash::Hash;
-use std::ops::Neg;
+use std::ops::{Neg, Add, Sub};
 
 
-pub trait LabelVector: Neg<Output = Self> + Copy + Eq + Hash {
+pub trait LabelVector:
+    Copy + Eq + Hash +
+    Neg<Output = Self> +
+    Add<Self, Output = Self> +
+    Sub<Self, Output = Self>
+{
     fn dim() -> u8;
     fn zero() -> Self;
+    fn is_zero(&self) -> bool;
     fn is_negative(&self) -> bool;
+    fn is_positive(&self) -> bool;
 }
 
 
@@ -32,9 +39,18 @@ impl LabelVector for LabelVector2d {
         Self { x: 0, y: 0 }
     }
 
+    fn is_zero(&self) -> bool {
+        self.x == 0 && self.y == 0
+    }
+
     fn is_negative(&self) -> bool {
         self.x < 0 ||
         self.x == 0 && self.y < 0
+    }
+
+    fn is_positive(&self) -> bool {
+        self.x > 0 ||
+        self.x == 0 && self.y > 0
     }
 }
 
@@ -43,6 +59,22 @@ impl Neg for LabelVector2d {
 
     fn neg(self) -> Self {
         Self { x: -self.x, y: -self.y }
+    }
+}
+
+impl Add<Self> for LabelVector2d {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self { x: self.x + rhs.x, y: self.y + rhs.y }
+    }
+}
+
+impl Sub<Self> for LabelVector2d {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self { x: self.x - rhs.x, y: self.y - rhs.y }
     }
 }
 
@@ -75,10 +107,20 @@ impl LabelVector for LabelVector3d {
         Self { x: 0, y: 0,z: 0 }
     }
 
+    fn is_zero(&self) -> bool {
+        self.x == 0 && self.y == 0 && self.z == 0
+    }
+
     fn is_negative(&self) -> bool {
         self.x < 0 ||
         self.x == 0 && self.y < 0 ||
         self.x == 0 && self.y == 0 && self.z < 0
+    }
+
+    fn is_positive(&self) -> bool {
+        self.x > 0 ||
+        self.x == 0 && self.y > 0 ||
+        self.x == 0 && self.y == 0 && self.z > 0
     }
 }
 
@@ -87,6 +129,22 @@ impl Neg for LabelVector3d {
 
     fn neg(self) -> Self {
         Self { x: -self.x, y: -self.y, z: -self.z }
+    }
+}
+
+impl Add<Self> for LabelVector3d {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self { x: self.x + rhs.x, y: self.y + rhs.y, z: self.z + rhs.z }
+    }
+}
+
+impl Sub<Self> for LabelVector3d {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self { x: self.x - rhs.x, y: self.y - rhs.y, z: self.z - rhs.z }
     }
 }
 
