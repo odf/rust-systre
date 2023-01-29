@@ -2,9 +2,19 @@ use rust_systre::pgraphs::*;
 
 
 fn main() {
-    let e1 = VectorLabelledEdge::new(1, 1, LabelVector2d::zero());
-    let e2 = VectorLabelledEdge::new(1, 1, LabelVector2d::new(1, 0));
+    let edge = |u, v, x, y| {
+        VectorLabelledEdge::new(u, v, LabelVector2d::new(x, y))
+    };
 
-    let g = Graph::new(&[e1, e2]);
+    let g = Graph::new(&[
+        edge(2, 1, 0, 0),
+        edge(1, 2, 1, 0),
+        edge(1, 2, 0, 1),
+        edge(2, 1, -1, 0),
+    ]);
+
+    println!("Edges:");
     println!("{}", g);
+
+    println!("Vertices: {:?}", g.vertices());
 }

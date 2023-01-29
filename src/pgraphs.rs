@@ -1,11 +1,11 @@
-use std::collections::HashSet;
+use std::collections::{HashSet, BTreeSet};
 use std::fmt::Display;
 use std::hash::Hash;
 use std::ops::Neg;
 
 
 pub trait LabelVector: Neg<Output = Self> + Copy + Eq + Hash {
-    fn dim() -> usize;
+    fn dim() -> u8;
     fn zero() -> Self;
     fn is_negative(&self) -> bool;
 }
@@ -24,7 +24,7 @@ impl LabelVector2d {
 }
 
 impl LabelVector for LabelVector2d {
-    fn dim() -> usize {
+    fn dim() -> u8 {
         2
     }
 
@@ -67,7 +67,7 @@ impl LabelVector3d {
 }
 
 impl LabelVector for LabelVector3d {
-    fn dim() -> usize {
+    fn dim() -> u8 {
         3
     }
 
@@ -97,17 +97,19 @@ impl Display for LabelVector3d {
 }
 
 
+type Vertex = u32;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub struct VectorLabelledEdge<T>
 {
-    pub head: usize,
-    pub tail: usize,
+    pub head: Vertex,
+    pub tail: Vertex,
     pub shift: T,
 }
 
 impl<T> VectorLabelledEdge<T>
 {
-    pub fn new(head: usize, tail: usize, shift: T) -> Self {
+    pub fn new(head: Vertex, tail: Vertex, shift: T) -> Self {
         Self { head, tail, shift }
     }
 }
@@ -160,22 +162,22 @@ pub struct Graph<T> {
 impl<T> Graph<T>
     where T: LabelVector
 {
-    pub fn dim() -> usize { T::dim() }
+    pub fn dim() -> u8 { T::dim() }
 
     pub fn new(raw_edges: &[VectorLabelledEdge<T>]) -> Self {
-        let mut edges = vec![];
-        let mut seen = HashSet::new();
-
-        for e in raw_edges {
-            let e = e.canonical();
-
-            if !seen.contains(&e) {
-                seen.insert(e);
-                edges.push(e);
-            }
-        }
+        let edges = raw_edges.iter().map(|e| e.canonical())
+            .collect::<HashSet<_>>()
+            .iter().cloned()
+            .collect();
 
         Graph { edges }
+    }
+
+    pub fn vertices(&self) -> Vec<Vertex> {
+        self.edges.iter().flat_map(|e| [e.head, e.tail])
+            .collect::<BTreeSet<_>>()
+            .iter().cloned()
+            .collect()
     }
 }
 
