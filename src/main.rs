@@ -17,4 +17,15 @@ fn main() {
     println!("{}", g);
 
     println!("Vertices: {:?}", g.vertices());
+    println!();
+
+    println!("Adjacencies:");
+    let adj = g.adjacencies();
+    for v in g.vertices() {
+        print!("{}: ", v);
+        for a in &adj[&v] {
+            print!(" {},", a);
+        }
+        println!();
+    }
 }

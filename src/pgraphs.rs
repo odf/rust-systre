@@ -1,4 +1,4 @@
-use std::collections::{HashSet, BTreeSet};
+use std::collections::{HashSet, BTreeSet, BTreeMap};
 use std::fmt::Display;
 use std::hash::Hash;
 use std::ops::Neg;
@@ -99,6 +99,30 @@ impl Display for LabelVector3d {
 
 type Vertex = u32;
 
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+pub struct ShiftedVertex<T>
+{
+    pub vertex: Vertex,
+    pub shift: T,
+}
+
+impl<T> ShiftedVertex<T>
+{
+    pub fn new(vertex: Vertex, shift: T) -> Self {
+        Self { vertex, shift }
+    }
+}
+
+impl<T> Display for ShiftedVertex<T>
+    where T: Display
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{} {}", self.vertex, self.shift))
+    }
+}
+
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub struct VectorLabelledEdge<T>
 {
@@ -148,7 +172,7 @@ impl<T> Display for VectorLabelledEdge<T>
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
-            "[{} --{}-> {}]", self.head, self.shift, self.tail
+            "{} --{}-> {}", self.head, self.shift, self.tail
         ))
     }
 }
@@ -178,6 +202,22 @@ impl<T> Graph<T>
             .collect::<BTreeSet<_>>()
             .iter().cloned()
             .collect()
+    }
+
+    pub fn adjacencies(&self) -> BTreeMap<Vertex, Vec<ShiftedVertex<T>>> {
+        let mut adj = BTreeMap::new();
+
+        for &e in &self.edges {
+            for e in [e, -e] {
+                if !adj.contains_key(&e.head) {
+                    adj.insert(e.head, vec![]);
+                }
+                adj.get_mut(&e.head).unwrap()
+                    .push(ShiftedVertex::new(e.tail, e.shift));
+            }
+        }
+
+        adj
     }
 }
 
