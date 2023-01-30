@@ -1,5 +1,5 @@
 use std::cell::UnsafeCell;
-use std::collections::{HashSet, BTreeSet, BTreeMap};
+use std::collections::{BTreeSet, BTreeMap, HashSet, VecDeque};
 use std::fmt::Display;
 use std::hash::Hash;
 use std::ops::{Neg, Add, Sub};
@@ -307,6 +307,23 @@ impl<T> Graph<T>
     {
         CoordinationSequence::new(self, v)
     }
+
+    pub fn shift_normalized(&self) -> Self {
+        let mut edges = vec![];
+        let mut seen = HashSet::new();
+
+        for v in self.vertices() {
+            if !seen.contains(&v) {
+                for e in traverse_with_shift_adjustments(&self, &v) {
+                    seen.insert(e.head);
+                    seen.insert(e.tail);
+                    edges.push(e);
+                }
+            }
+        }
+
+        Self::new(&edges)
+    }
 }
 
 impl<T> Display for Graph<T> 
@@ -369,4 +386,33 @@ impl<'a, T> Iterator for CoordinationSequence<'a, T>
 
         Some(n)
     }
+}
+
+
+fn traverse_with_shift_adjustments<T>(g: &Graph<T>, v0: &Vertex)
+    -> Vec<VectorLabelledEdge<T>>
+    where T: LabelVector
+{
+    let mut shifts = BTreeMap::from([(*v0, T::zero())]);
+    let mut seen = HashSet::new();
+    let mut queue = VecDeque::from([*v0]);
+    let mut result = Vec::new();
+
+    while let Some(v) = queue.pop_front() {
+        for ShiftedVertex { vertex: w, shift: s } in g.incidences(&v) {
+            if !shifts.contains_key(&w) {
+                shifts.insert(w, shifts[&v] + s);
+                queue.push_back(w);
+            }
+
+            let e = VectorLabelledEdge::new(v, w, s).canonical();
+            if !seen.contains(&e) {
+                let shift = shifts[&e.head] + e.shift - shifts[&e.tail];
+                result.push(VectorLabelledEdge::new(e.head, e.tail, shift));
+                seen.insert(e);
+            }
+        }
+    }
+
+    result
 }

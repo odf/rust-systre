@@ -38,4 +38,10 @@ fn main() {
         println!();
     }
     println!();
+
+    let g = g.shift_normalized();
+
+    println!("With normalized shifts:");
+    println!("{}", g);
+    println!();
 }
