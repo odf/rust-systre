@@ -20,10 +20,9 @@ fn main() {
     println!();
 
     println!("Incidences:");
-    let adj = g.incidences();
     for v in g.vertices() {
         print!("{}: ", v);
-        for a in &adj[&v] {
+        for a in g.incidences(v) {
             print!(" {},", a);
         }
         println!();

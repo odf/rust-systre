@@ -241,7 +241,7 @@ impl<T> Display for VectorLabelledEdge<T>
 pub struct Graph<T> {
     edges: Vec<VectorLabelledEdge<T>>,
     vertices: UnsafeCell<Option<Vec<Vertex>>>,
-    incidences: UnsafeCell<Option<BTreeMap<Vertex, Vec<ShiftedVertex<T>>>>>,
+    incidences: UnsafeCell<BTreeMap<Vertex, Vec<ShiftedVertex<T>>>>,
 }
 
 impl<T> Graph<T>
@@ -258,7 +258,7 @@ impl<T> Graph<T>
         Graph {
             edges,
             vertices: UnsafeCell::new(None),
-            incidences: UnsafeCell::new(None),
+            incidences: UnsafeCell::new(BTreeMap::new()),
         }
     }
 
@@ -278,9 +278,13 @@ impl<T> Graph<T>
         }
     }
 
-    pub fn incidences(&self) -> BTreeMap<Vertex, Vec<ShiftedVertex<T>>> {
-        if let Some(incidences) = unsafe { (*self.incidences.get()).clone() } {
-            incidences
+    pub fn incidences(&self, v: Vertex) -> Vec<ShiftedVertex<T>> {
+        let maybe_output = unsafe {
+            self.incidences.get().as_ref().unwrap().get(&v)
+        };
+
+        if let Some(output) = maybe_output {
+            output.clone()
         } else {
             let mut incidences = BTreeMap::new();
 
@@ -294,9 +298,11 @@ impl<T> Graph<T>
                 }
             }
 
-            unsafe { *self.incidences.get() = Some(incidences.clone()) };
+            let output = incidences[&v].clone();
 
-            incidences
+            unsafe { *self.incidences.get() = incidences };
+
+            output
         }
     }
 }
