@@ -301,6 +301,12 @@ impl<T> Graph<T>
             output
         }
     }
+
+    pub fn coordination_sequence(&self, v: &Vertex)
+        -> CoordinationSequence<T>
+    {
+        CoordinationSequence::new(self, v)
+    }
 }
 
 impl<T> Display for Graph<T> 
@@ -315,5 +321,52 @@ impl<T> Display for Graph<T>
         }
 
         f.write_str(&text[..])
+    }
+}
+
+
+pub struct CoordinationSequence<'a, T> {
+    graph: &'a Graph<T>,
+    last_shell: HashSet<ShiftedVertex<T>>,
+    this_shell: HashSet<ShiftedVertex<T>>,
+}
+
+impl <'a, T> CoordinationSequence<'a, T>
+    where T: LabelVector
+{
+    fn new(graph: &'a Graph<T>, v0: &Vertex) -> Self {
+        let last_shell = HashSet::new();
+        let this_shell = HashSet::from([ShiftedVertex::new(*v0, T::zero())]);
+
+        CoordinationSequence { graph, last_shell, this_shell }
+    }
+}
+
+impl<'a, T> Iterator for CoordinationSequence<'a, T>
+    where T: LabelVector
+{
+    type Item = usize;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut next_shell = HashSet::new();
+
+        for ShiftedVertex { vertex: v0, shift: s0 } in &self.this_shell {
+            for ShiftedVertex { vertex, shift } in self.graph.incidences(&v0) {
+                let w = ShiftedVertex::new(vertex, shift + *s0);
+
+                if !self.last_shell.contains(&w) &&
+                    !self.this_shell.contains(&w)
+                {
+                    next_shell.insert(w);
+                }
+            }
+        }
+
+        let n = next_shell.len();
+
+        self.last_shell = self.this_shell.clone();
+        self.this_shell = next_shell;
+
+        Some(n)
     }
 }

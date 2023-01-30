@@ -2,15 +2,15 @@ use rust_systre::pgraphs::*;
 
 
 fn main() {
-    let edge = |u, v, x, y| {
-        VectorLabelledEdge::new(u, v, LabelVector2d::new(x, y))
+    let edge = |u, v, x, y, z| {
+        VectorLabelledEdge::new(u, v, LabelVector3d::new(x, y, z))
     };
 
     let g = Graph::new(&[
-        edge(2, 1, 0, 0),
-        edge(1, 2, 1, 0),
-        edge(1, 2, 0, 1),
-        edge(2, 1, -1, 0),
+        edge(1, 2, 0, 0, 0),
+        edge(1, 2, 1, 0, 0),
+        edge(1, 2, 0, 1, 0),
+        edge(1, 2, 0, 0, 1),
     ]);
 
     println!("Edges:");
@@ -27,4 +27,15 @@ fn main() {
         }
         println!();
     }
+    println!();
+
+    println!("Coordination sequences:");
+    for v in g.vertices() {
+        print!("{}: ", v);
+        for n in g.coordination_sequence(&v).take(20) {
+            print!(" {}", n);
+        }
+        println!();
+    }
+    println!();
 }
