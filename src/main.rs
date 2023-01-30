@@ -19,8 +19,8 @@ fn main() {
     println!("Vertices: {:?}", g.vertices());
     println!();
 
-    println!("Adjacencies:");
-    let adj = g.adjacencies();
+    println!("Incidences:");
+    let adj = g.incidences();
     for v in g.vertices() {
         print!("{}: ", v);
         for a in &adj[&v] {

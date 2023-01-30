@@ -262,7 +262,7 @@ impl<T> Graph<T>
             .collect()
     }
 
-    pub fn adjacencies(&self) -> BTreeMap<Vertex, Vec<ShiftedVertex<T>>> {
+    pub fn incidences(&self) -> BTreeMap<Vertex, Vec<ShiftedVertex<T>>> {
         let mut adj = BTreeMap::new();
 
         for &e in &self.edges {
