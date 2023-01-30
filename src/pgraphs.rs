@@ -2,6 +2,7 @@ use std::cell::UnsafeCell;
 use std::collections::{BTreeSet, BTreeMap, HashSet, VecDeque};
 use std::fmt::Display;
 use std::hash::Hash;
+use std::mem::replace;
 use std::ops::{Neg, Add, Sub};
 
 
@@ -379,12 +380,8 @@ impl<'a, T> Iterator for CoordinationSequence<'a, T>
             }
         }
 
-        let n = next_shell.len();
-
-        self.last_shell = self.this_shell.clone();
-        self.this_shell = next_shell;
-
-        Some(n)
+        self.last_shell = replace(&mut self.this_shell, next_shell);
+        Some(self.this_shell.len())
     }
 }
 
