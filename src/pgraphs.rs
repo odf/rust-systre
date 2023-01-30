@@ -1,3 +1,4 @@
+use std::cell::UnsafeCell;
 use std::collections::{HashSet, BTreeSet, BTreeMap};
 use std::fmt::Display;
 use std::hash::Hash;
@@ -239,6 +240,8 @@ impl<T> Display for VectorLabelledEdge<T>
 #[derive(Debug)]
 pub struct Graph<T> {
     edges: Vec<VectorLabelledEdge<T>>,
+    vertices: UnsafeCell<Option<Vec<Vertex>>>,
+    incidences: UnsafeCell<Option<BTreeMap<Vertex, Vec<ShiftedVertex<T>>>>>,
 }
 
 impl<T> Graph<T>
@@ -252,30 +255,49 @@ impl<T> Graph<T>
             .iter().cloned()
             .collect();
 
-        Graph { edges }
+        Graph {
+            edges,
+            vertices: UnsafeCell::new(None),
+            incidences: UnsafeCell::new(None),
+        }
     }
 
     pub fn vertices(&self) -> Vec<Vertex> {
-        self.edges.iter().flat_map(|e| [e.head, e.tail])
-            .collect::<BTreeSet<_>>()
-            .iter().cloned()
-            .collect()
+        if let Some(vertices) = unsafe { (*self.vertices.get()).clone() } {
+            vertices
+        } else {
+            let vertices: Vec<_> = self.edges.iter()
+                .flat_map(|e| [e.head, e.tail])
+                .collect::<BTreeSet<_>>()
+                .iter().cloned()
+                .collect();
+
+            unsafe { *self.vertices.get() = Some(vertices.clone()) };
+
+            vertices
+        }
     }
 
     pub fn incidences(&self) -> BTreeMap<Vertex, Vec<ShiftedVertex<T>>> {
-        let mut adj = BTreeMap::new();
+        if let Some(incidences) = unsafe { (*self.incidences.get()).clone() } {
+            incidences
+        } else {
+            let mut incidences = BTreeMap::new();
 
-        for &e in &self.edges {
-            for e in [e, -e] {
-                if !adj.contains_key(&e.head) {
-                    adj.insert(e.head, vec![]);
+            for &e in &self.edges {
+                for e in [e, -e] {
+                    if !incidences.contains_key(&e.head) {
+                        incidences.insert(e.head, vec![]);
+                    }
+                    incidences.get_mut(&e.head).unwrap()
+                        .push(ShiftedVertex::new(e.tail, e.shift));
                 }
-                adj.get_mut(&e.head).unwrap()
-                    .push(ShiftedVertex::new(e.tail, e.shift));
             }
-        }
 
-        adj
+            unsafe { *self.incidences.get() = Some(incidences.clone()) };
+
+            incidences
+        }
     }
 }
 
