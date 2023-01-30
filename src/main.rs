@@ -22,7 +22,7 @@ fn main() {
     println!("Incidences:");
     for v in g.vertices() {
         print!("{}: ", v);
-        for a in g.incidences(v) {
+        for a in g.incidences(&v) {
             print!(" {},", a);
         }
         println!();

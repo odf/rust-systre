@@ -278,12 +278,8 @@ impl<T> Graph<T>
         }
     }
 
-    pub fn incidences(&self, v: Vertex) -> Vec<ShiftedVertex<T>> {
-        let maybe_output = unsafe {
-            self.incidences.get().as_ref().unwrap().get(&v)
-        };
-
-        if let Some(output) = maybe_output {
+    pub fn incidences(&self, v: &Vertex) -> Vec<ShiftedVertex<T>> {
+        if let Some(output) = unsafe { (*self.incidences.get()).get(v) } {
             output.clone()
         } else {
             let mut incidences = BTreeMap::new();
@@ -298,7 +294,7 @@ impl<T> Graph<T>
                 }
             }
 
-            let output = incidences[&v].clone();
+            let output = incidences[v].clone();
 
             unsafe { *self.incidences.get() = incidences };
 
