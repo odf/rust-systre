@@ -44,4 +44,8 @@ fn main() {
     println!("With normalized shifts:");
     println!("{}", g);
     println!();
+
+    let a = 51;
+    let b = 69;
+    println!("gcdx({}, {}) = {:?}", a, b, gcdx(a, b));
 }

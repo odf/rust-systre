@@ -3,7 +3,28 @@ use std::collections::{BTreeSet, BTreeMap, HashSet, VecDeque};
 use std::fmt::Display;
 use std::hash::Hash;
 use std::mem::replace;
-use std::ops::{Neg, Add, Sub};
+use std::ops::{Neg, Add, Sub, Mul, Div};
+use num_traits::{Zero, One};
+
+
+pub fn gcdx<T>(a: T, b: T) -> (T, T, T, T, T)
+    where T:
+        Copy + Eq + Zero + One +
+        Div<Output=T> + Sub<Output=T> + Mul<Output=T>
+{
+    let (mut a, mut a_next) = (a, b);
+    let (mut r, mut r_next) = (T::one(), T::zero());
+    let (mut s, mut s_next) = (T::zero(), T::one());
+
+    while !a_next.is_zero() {
+        let q = a / a_next;
+        (a, a_next) = (a_next, a - q * a_next);
+        (r, r_next) = (r_next, r - q * r_next);
+        (s, s_next) = (s_next, s - q * s_next);
+    }
+
+    (a, r, s, r_next, s_next)
+}
 
 
 pub trait LabelVector:
