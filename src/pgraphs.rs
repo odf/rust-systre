@@ -397,6 +397,15 @@ impl<T> Graph<T>
 
         Self::new(&edges)
     }
+
+    pub fn is_connected(&self) -> bool {
+        if let Some(v0) = self.vertices().first() {
+            let (size, _, multiplicity) = graph_component_measures(self, v0);
+            size == self.vertices().len() && multiplicity == Some(1)
+        } else {
+            true
+        }
+    }
 }
 
 impl<T> Display for Graph<T> 
@@ -510,7 +519,7 @@ pub fn graph_component_measures<T>(g: &Graph<T>, v0: &Vertex)
     let multiplicity = if rank == (T::dim() as usize) {
         let mut d = 1;
         for i in 0..basis.len() {
-            d = d * basis[i][i];
+            d *= basis[i][i];
         }
         Some(d.abs())
     } else {
