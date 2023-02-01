@@ -7,7 +7,7 @@ use std::ops::{Neg, Add, Sub, Mul, Div};
 use num_traits::{Zero, One, Signed};
 
 
-pub fn gcdx<T>(a: T, b: T) -> (T, T, T, T, T)
+pub fn gcdx<T>(a: T, b: T) -> (T, T, T, T, T) // TODO return a struct?
     where T:
         Copy + Eq + Zero + One +
         Div<Output=T> + Sub<Output=T> + Mul<Output=T>
@@ -79,7 +79,7 @@ pub trait LabelVector:
     Add<Self, Output = Self> +
     Sub<Self, Output = Self>
 {
-    type Item;
+    type Item: Copy + Eq + PartialOrd + One + Signed;
 
     fn dim() -> u8;
     fn zero() -> Self;
@@ -494,4 +494,38 @@ fn traverse_with_shift_adjustments<T>(g: &Graph<T>, v0: &Vertex)
     }
 
     result
+}
+
+
+pub fn graph_component_measures<T>(g: &Graph<T>, v0: &Vertex)
+    -> (usize, usize, Option<T::Item>) // TODO return a struct?
+    where T: LabelVector
+{
+    let edges = traverse_with_shift_adjustments(g, v0);
+
+    let mut vertices = BTreeSet::new();
+    for e in &edges {
+        vertices.insert(e.head);
+        vertices.insert(e.tail);
+    }
+
+    let mut basis = vec![];
+    for e in &edges {
+        extend_basis(&e.shift.to_vec(), &mut basis);
+    }
+
+    let size = vertices.len();
+    let rank = basis.len();
+
+    let multiplicity = if rank == (T::dim() as usize) {
+        let mut d = T::Item::one();
+        for i in 0..basis.len() {
+            d = d * basis[i][i];
+        }
+        Some(d.abs())
+    } else {
+        None
+    };
+
+    (size, rank, multiplicity)
 }
