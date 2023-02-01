@@ -4,7 +4,7 @@ use std::fmt::Display;
 use std::hash::Hash;
 use std::mem::replace;
 use std::ops::{Neg, Add, Sub, Mul, Div};
-use num_traits::{Zero, One};
+use num_traits::{Zero, One, Signed};
 
 
 pub fn gcdx<T>(a: T, b: T) -> (T, T, T, T, T)
@@ -27,17 +27,66 @@ pub fn gcdx<T>(a: T, b: T) -> (T, T, T, T, T)
 }
 
 
+pub fn extend_basis<T>(v: &[T], bs: &mut Vec<Vec<T>>)
+    where T:
+        Copy + Eq + PartialOrd +
+        Zero + One + Signed +
+        Neg<Output=T> + Div<Output=T> + Sub<Output=T> + Mul<Output=T>
+{
+    let negate = |v: &Vec<T>| v.iter().map(|&x| -x).collect::<Vec<T>>();
+    let pivot_column = |v: &Vec<T>| v.iter().position(|&x| !x.is_zero());
+
+    let mut v = v.to_vec();
+
+    for i in 0..bs.len() {
+        let b = bs[i].to_vec();
+        assert!(b.len() == v.len());
+
+        if let Some(col) = pivot_column(&v) {
+            let col_b = pivot_column(&b).unwrap();
+
+            if col < col_b {
+                bs.insert(i, if i % 2 == 0 { v } else { negate(&v) });
+                return;
+            } else if col == col_b {
+                if v[col].abs() > b[col].abs() {
+                    let v_next = negate(&b);
+                    bs[i] = v;
+                    v = v_next;
+                }
+                let (_, r, s, t, u) = gcdx(b[col], v[col]);
+                let det = r * u - s * t;
+
+                for k in 0..v.len() {
+                    bs[i][k] = det * (b[k] * r + v[k] * s);
+                    v[k] = b[k] * t + v[k] * u;
+                }
+            }
+        } else {
+            break;
+        }
+    }
+
+    if !v.iter().all(|x| x.is_zero()) {
+        bs.push(v);
+    }
+}
+
+
 pub trait LabelVector:
     Copy + Eq + Hash +
     Neg<Output = Self> +
     Add<Self, Output = Self> +
     Sub<Self, Output = Self>
 {
+    type Item;
+
     fn dim() -> u8;
     fn zero() -> Self;
     fn is_zero(&self) -> bool;
     fn is_negative(&self) -> bool;
     fn is_positive(&self) -> bool;
+    fn to_vec(&self) -> Vec<Self::Item>;
 }
 
 
@@ -54,6 +103,8 @@ impl LabelVector2d {
 }
 
 impl LabelVector for LabelVector2d {
+    type Item = i16;
+
     fn dim() -> u8 {
         2
     }
@@ -74,6 +125,10 @@ impl LabelVector for LabelVector2d {
     fn is_positive(&self) -> bool {
         self.x > 0 ||
         self.x == 0 && self.y > 0
+    }
+
+    fn to_vec(&self) -> Vec<Self::Item> {
+        vec![self.x, self.y]
     }
 }
 
@@ -122,6 +177,8 @@ impl LabelVector3d {
 }
 
 impl LabelVector for LabelVector3d {
+    type Item = i16;
+
     fn dim() -> u8 {
         3
     }
@@ -144,6 +201,10 @@ impl LabelVector for LabelVector3d {
         self.x > 0 ||
         self.x == 0 && self.y > 0 ||
         self.x == 0 && self.y == 0 && self.z > 0
+    }
+
+    fn to_vec(&self) -> Vec<Self::Item> {
+        vec![self.x, self.y, self.z]
     }
 }
 

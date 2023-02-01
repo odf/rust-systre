@@ -45,7 +45,19 @@ fn main() {
     println!("{}", g);
     println!();
 
-    let a = 51;
-    let b = 69;
+    let a = 39;
+    let b = 51;
     println!("gcdx({}, {}) = {:?}", a, b, gcdx(a, b));
+
+
+    let a = 39;
+    let b = 78;
+    println!("gcdx({}, {}) = {:?}", a, b, gcdx(a, b));
+    println!();
+
+    let mut basis = vec![];
+    for v in [[8, 13], [3, 5]] {
+        extend_basis(&v, &mut basis);
+        println!("add vector {:?} => {:?}", &v, &basis);
+    }
 }
