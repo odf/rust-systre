@@ -46,14 +46,10 @@ pub fn extend_basis<T>(v: &[T], bs: &mut Vec<Vec<T>>)
             let col_b = pivot_column(&b).unwrap();
 
             if col < col_b {
-                bs.insert(i, if i % 2 == 0 { v } else { negate(&v) });
+                let v = if (bs.len() - i) % 2 == 0 { v } else { negate(&v) };
+                bs.insert(i, v);
                 return;
             } else if col == col_b {
-                if v[col].abs() > b[col].abs() {
-                    let v_next = negate(&b);
-                    bs[i] = v;
-                    v = v_next;
-                }
                 let (_, r, s, t, u) = gcdx(b[col], v[col]);
                 let det = r * u - s * t;
 
