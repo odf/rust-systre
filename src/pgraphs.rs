@@ -75,32 +75,28 @@ pub trait LabelVector:
     Add<Self, Output = Self> +
     Sub<Self, Output = Self>
 {
-    type Item: Copy + Eq + PartialOrd + One + Signed;
-
     fn dim() -> u8;
     fn zero() -> Self;
     fn is_zero(&self) -> bool;
     fn is_negative(&self) -> bool;
     fn is_positive(&self) -> bool;
-    fn to_vec(&self) -> Vec<Self::Item>;
+    fn to_vec(&self) -> Vec<i32>;
 }
 
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub struct LabelVector2d {
-    x: i16,
-    y: i16,
+    x: i32,
+    y: i32,
 }
 
 impl LabelVector2d {
-    pub fn new(x: i16, y: i16) -> Self {
+    pub fn new(x: i32, y: i32) -> Self {
         Self { x, y }
     }
 }
 
 impl LabelVector for LabelVector2d {
-    type Item = i16;
-
     fn dim() -> u8 {
         2
     }
@@ -123,7 +119,7 @@ impl LabelVector for LabelVector2d {
         self.x == 0 && self.y > 0
     }
 
-    fn to_vec(&self) -> Vec<Self::Item> {
+    fn to_vec(&self) -> Vec<i32> {
         vec![self.x, self.y]
     }
 }
@@ -161,20 +157,18 @@ impl Display for LabelVector2d {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub struct LabelVector3d {
-    x: i16,
-    y: i16,
-    z: i16,
+    x: i32,
+    y: i32,
+    z: i32,
 }
 
 impl LabelVector3d {
-    pub fn new(x: i16, y: i16, z: i16) -> Self {
+    pub fn new(x: i32, y: i32, z: i32) -> Self {
         Self { x, y, z }
     }
 }
 
 impl LabelVector for LabelVector3d {
-    type Item = i16;
-
     fn dim() -> u8 {
         3
     }
@@ -199,7 +193,7 @@ impl LabelVector for LabelVector3d {
         self.x == 0 && self.y == 0 && self.z > 0
     }
 
-    fn to_vec(&self) -> Vec<Self::Item> {
+    fn to_vec(&self) -> Vec<i32> {
         vec![self.x, self.y, self.z]
     }
 }
@@ -494,7 +488,7 @@ fn traverse_with_shift_adjustments<T>(g: &Graph<T>, v0: &Vertex)
 
 
 pub fn graph_component_measures<T>(g: &Graph<T>, v0: &Vertex)
-    -> (usize, usize, Option<T::Item>) // TODO return a struct?
+    -> (usize, usize, Option<i32>) // TODO return a struct?
     where T: LabelVector
 {
     let edges = traverse_with_shift_adjustments(g, v0);
@@ -514,7 +508,7 @@ pub fn graph_component_measures<T>(g: &Graph<T>, v0: &Vertex)
     let rank = basis.len();
 
     let multiplicity = if rank == (T::dim() as usize) {
-        let mut d = T::Item::one();
+        let mut d = 1;
         for i in 0..basis.len() {
             d = d * basis[i][i];
         }

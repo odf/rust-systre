@@ -34,7 +34,7 @@ fn main() {
 }
 
 
-fn graph2d(spec: &[[i16; 4]]) -> Graph<LabelVector2d> {
+fn graph2d(spec: &[[i32; 4]]) -> Graph<LabelVector2d> {
     let mut edges = vec![];
 
     for [u, v, x, y] in spec {
@@ -49,7 +49,7 @@ fn graph2d(spec: &[[i16; 4]]) -> Graph<LabelVector2d> {
 }
 
 
-fn graph3d(spec: &[[i16; 5]]) -> Graph<LabelVector3d> {
+fn graph3d(spec: &[[i32; 5]]) -> Graph<LabelVector3d> {
     let mut edges = vec![];
 
     for [u, v, x, y, z] in spec {
@@ -65,7 +65,7 @@ fn graph3d(spec: &[[i16; 5]]) -> Graph<LabelVector3d> {
 
 
 fn test_graph<T>(g: Graph<T>)
-    where T: LabelVector<Item = i16> + Display
+    where T: LabelVector + Display
 {
     println!("Edges:");
     println!("{}", g);
