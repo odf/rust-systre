@@ -1,3 +1,7 @@
+use num_bigint::BigInt;
+use num_rational::BigRational;
+
+
 pub fn modular_inverse(argument: i64, modulus: i64) -> Option<i64> {
     let (mut t, mut t1) = (0, 1);
     let (mut r, mut r1) = (modulus, argument);
@@ -170,4 +174,68 @@ fn number_of_p_adic_steps_needed(a: &Matrix, b: &Matrix, prime: i64) -> u64
 
 fn column_log_norm(a: &Matrix, j: usize) -> f64 {
     (0..a.len()).map(|i| (a[i][j] as f64).powf(2.0)).sum::<f64>().sqrt().ln()
+}
+
+
+fn rational_reconstruction(s: &BigInt, h: &BigInt) -> BigRational {
+    let (mut u, mut u1) = (h.clone(), s.clone());
+    let (mut v, mut v1) = (BigInt::from(0), BigInt::from(1));
+    let mut sign = BigInt::from(1);
+
+    while &u1.pow(2) > &h {
+        let (q, r) = (&u / &u1, &u % &u1);
+
+        (u, u1) = (u1, r);
+
+        let v1_next = v + q * &v1;
+        (v, v1) = (v1, v1_next);
+
+        sign = -sign;
+    }
+
+    BigRational::new(sign * u1, v1)
+}
+
+
+pub fn solve(a: &Matrix, b: &Matrix) -> Option<Vec<Vec<BigRational>>> {
+    let prime = 9999991;
+
+    if let Some(c) = modular_matrix_inverse(a, prime) {
+        let nr_steps = number_of_p_adic_steps_needed(a, b, prime);
+        let nrows = b.len();
+        let ncols = b[0].len();
+
+        let mut p = BigInt::from(1);
+        let mut b = b.clone();
+
+        let mut s: Vec<Vec<_>> = (0..nrows).map(|_| {
+            (0..ncols).map(|_| { BigInt::from(0) }).collect()
+        }).collect();
+
+        for step in 0..nr_steps {
+            let x = modular_matrix_product(&c, &b, prime);
+            for i in 0..nrows {
+                for j in 0..ncols {
+                    s[i][j] += &p * x[i][j];
+                }
+            }
+
+            p *= prime;
+
+            if step + 1 < nr_steps {
+                let ax = integer_matrix_product(a, &x);
+                for i in 0..nrows {
+                    for j in 0..ncols {
+                        b[i][j] = (b[i][j] - ax[i][j]) / prime;
+                    }
+                }
+            }
+        }
+
+        Some(s.iter().map(|row| {
+            row.iter().map(|x| { rational_reconstruction(x, &p) }).collect()
+        }).collect())
+    } else {
+        None
+    }
 }
