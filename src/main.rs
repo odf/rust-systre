@@ -23,6 +23,7 @@ fn test_modular_inverse(m: Vec<Vec<i64>>, prime: i64) {
     if let Some(m_inv) = modular_matrix_inverse(&m, prime) {
         println!("m^-1 == {:?} mod {}", &m_inv, prime);
         let test = modular_matrix_product(&m, &m_inv, prime);
+        println!("m * m^-1 = {:?}", integer_matrix_product(&m, &m_inv));
         println!("m * m^-1 == {:?} mod {}", test, prime);
     } else {
         println!("m has no inverse modulo {}", prime);

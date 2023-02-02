@@ -127,3 +127,47 @@ pub fn modular_matrix_product(a: &Matrix, b: &Matrix, prime: i64) -> Matrix {
 
     product
 }
+
+
+pub fn integer_matrix_product(a: &Matrix, b: &Matrix) -> Matrix {
+    let ncols_a = a[0].len();
+    let ncols_b = b[0].len();
+
+    assert!(ncols_a == b.len());
+
+    let mut product = vec![];
+    for row in a {
+        let mut row_out = vec![];
+        for j in 0..ncols_b {
+            let p = (0..ncols_a).map(|i| row[i] * b[i][j]).sum();
+            row_out.push(p);
+        }
+        product.push(row_out);
+    }
+
+    product
+}
+
+
+fn number_of_p_adic_steps_needed(a: &Matrix, b: &Matrix, prime: i64) -> u64
+{
+    let mut log_norms: Vec<_> = (0..a[0].len())
+        .map(|j| column_log_norm(a, j))
+        .collect();
+    log_norms.push((0..b[0].len())
+        .map(|j| column_log_norm(b, j))
+        .max_by(|a, b| a.total_cmp(b))
+        .unwrap());
+
+    log_norms.sort_by(|a, b| a.total_cmp(b));
+
+    let log_delta: f64 = log_norms.iter().take(a[0].len()).sum();
+    let golden_ratio = (1.0 + (5.0 as f64).sqrt()) / 2.0;
+
+    (2.0 * (log_delta + golden_ratio.ln()) / (prime as f64).ln()).ceil() as u64
+}
+
+
+fn column_log_norm(a: &Matrix, j: usize) -> f64 {
+    (0..a.len()).map(|i| (a[i][j] as f64).powf(2.0)).sum::<f64>().sqrt().ln()
+}
