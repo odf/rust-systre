@@ -1,35 +1,10 @@
 use std::fmt::Display;
 
 use rust_systre::pgraphs::*;
-use rust_systre::modular_solver::*;
 
 
 fn main() {
     test_graph_examples();
-
-    /*
-    test_modular_inverse(
-        vec![
-            vec![1, 2, 3],
-            vec![4, 5, 6],
-            vec![7, 8, 0]
-        ],
-        127
-    );
-    */
-}
-
-
-fn test_modular_inverse(m: Vec<Vec<i64>>, prime: i64) {
-    println!("m = {:?}, p = {}", &m, prime);
-    if let Some(m_inv) = modular_matrix_inverse(&m, prime) {
-        println!("m^-1 == {:?} mod {}", &m_inv, prime);
-        let test = modular_matrix_product(&m, &m_inv, prime);
-        println!("m * m^-1 = {:?}", integer_matrix_product(&m, &m_inv));
-        println!("m * m^-1 == {:?} mod {}", test, prime);
-    } else {
-        println!("m has no inverse modulo {}", prime);
-    }
 }
 
 
@@ -172,10 +147,17 @@ fn test_graph<T>(g: Graph<T>)
             println!("pos({}) = ({})", v, p);
         }
         println!();
+        println!("stable: {}", g.is_stable());
+        println!("locally stable: {}", g.is_locally_stable());
+        println!(
+            "second order collisions: {}", g.has_second_order_collisions()
+        );
     }
 
     let (size, rank, m) = graph_component_measures(&g, &1);
-    println!("Component: size = {}, rank = {}, multiplicity = {:?}", size, rank, m);
+    println!(
+        "Component: size = {}, rank = {}, multiplicity = {:?}", size, rank, m
+    );
     println!();
 
     println!("==========");

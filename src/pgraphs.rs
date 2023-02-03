@@ -4,6 +4,7 @@ use std::fmt::Display;
 use std::hash::Hash;
 use std::mem::replace;
 use std::ops::{Neg, Add, Sub, Mul, Div};
+use num_bigint::BigInt;
 use num_rational::BigRational;
 use num_traits::{Zero, One, Signed};
 
@@ -387,6 +388,73 @@ impl<T> Graph<T>
             unsafe { *self.positions.get() = positions };
             output
         }
+    }
+
+    pub fn edge_vector(&self, head: &Vertex, tail: &Vertex, shift: &T)
+        -> Vec<BigRational>
+    {
+        let d = T::dim() as usize;
+        let p = self.position(head);
+        let q = self.position(tail);
+        let s: Vec<_> = shift.to_vec();
+
+        (0..d).map(|i| &q[i] + BigInt::from(s[i]) - &p[i]).collect()
+    }
+
+    pub fn is_stable(&self) -> bool {
+        let mut seen = HashSet::new();
+
+        for v in self.vertices() {
+            let p: Vec<_> = self.position(&v).iter()
+                .map(|q| q - q.floor())
+                .collect();
+            if seen.contains(&p) {
+                return false;
+            } else {
+                seen.insert(p);
+            }
+        }
+        true
+    }
+
+    pub fn is_locally_stable(&self) -> bool {
+        for v in self.vertices() {
+            let mut seen = HashSet::new();
+
+            for ngb in self.incidences(&v) {
+                let q = self.edge_vector(&v, &ngb.vertex, &ngb.shift);
+
+                if seen.contains(&q) {
+                    return false;
+                } else {
+                    seen.insert(q);
+                }
+            }
+        }
+        true
+    }
+
+    pub fn has_second_order_collisions(&self) -> bool {
+        let mut seen = HashSet::new();
+
+        for v in self.vertices() {
+            let mut deltas: Vec<_> = self.incidences(&v).iter()
+                .map(|ngb| self.edge_vector(&v, &ngb.vertex, &ngb.shift))
+                .collect();
+            deltas.sort();
+
+            let p: Vec<_> = self.position(&v).iter()
+                .map(|q| q - q.floor())
+                .collect();
+            deltas.push(p);
+
+            if seen.contains(&deltas) {
+                return true;
+            } else {
+                seen.insert(deltas);
+            }
+        }
+        false
     }
 
     pub fn coordination_sequence(&self, v: &Vertex)
