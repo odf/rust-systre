@@ -390,6 +390,10 @@ impl<T> Graph<T>
         }
     }
 
+    pub fn position_normalized(&self, v: &Vertex) -> Vec<BigRational> {
+        self.position(&v).iter().map(|q| q - q.floor()).collect()
+    }
+
     pub fn edge_vector(&self, head: &Vertex, tail: &Vertex, shift: &T)
         -> Vec<BigRational>
     {
@@ -405,9 +409,7 @@ impl<T> Graph<T>
         let mut seen = HashSet::new();
 
         for v in self.vertices() {
-            let p: Vec<_> = self.position(&v).iter()
-                .map(|q| q - q.floor())
-                .collect();
+            let p: Vec<_> = self.position_normalized(&v);
             if seen.contains(&p) {
                 return false;
             } else {
@@ -442,11 +444,7 @@ impl<T> Graph<T>
                 .map(|ngb| self.edge_vector(&v, &ngb.vertex, &ngb.shift))
                 .collect();
             deltas.sort();
-
-            let p: Vec<_> = self.position(&v).iter()
-                .map(|q| q - q.floor())
-                .collect();
-            deltas.push(p);
+            deltas.push(self.position_normalized(&v));
 
             if seen.contains(&deltas) {
                 return true;
