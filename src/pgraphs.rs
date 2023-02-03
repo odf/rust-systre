@@ -4,6 +4,7 @@ use std::fmt::Display;
 use std::hash::Hash;
 use std::mem::replace;
 use std::ops::{Neg, Add, Sub, Mul, Div};
+use num_rational::BigRational;
 use num_traits::{Zero, One, Signed};
 
 
@@ -315,6 +316,7 @@ pub struct Graph<T> {
     edges: Vec<VectorLabelledEdge<T>>,
     vertices: UnsafeCell<Option<Vec<Vertex>>>,
     incidences: UnsafeCell<BTreeMap<Vertex, Vec<ShiftedVertex<T>>>>,
+    positions: UnsafeCell<BTreeMap<Vertex, Vec<BigRational>>>,
 }
 
 impl<T> Graph<T>
@@ -332,6 +334,7 @@ impl<T> Graph<T>
             edges,
             vertices: UnsafeCell::new(None),
             incidences: UnsafeCell::new(BTreeMap::new()),
+            positions: UnsafeCell::new(BTreeMap::new()),
         }
     }
 
@@ -371,6 +374,17 @@ impl<T> Graph<T>
 
             unsafe { *self.incidences.get() = incidences };
 
+            output
+        }
+    }
+
+    pub fn position(&self, v: &Vertex) -> Vec<BigRational> {
+        if let Some(output) = unsafe { (*self.positions.get()).get(v) } {
+            output.clone()
+        } else {
+            let positions = barycentric_placement(self);
+            let output = positions[v].clone();
+            unsafe { *self.positions.get() = positions };
             output
         }
     }
@@ -527,4 +541,43 @@ pub fn graph_component_measures<T>(g: &Graph<T>, v0: &Vertex)
     };
 
     (size, rank, multiplicity)
+}
+
+
+fn barycentric_placement<T>(g: &Graph<T>)
+    -> BTreeMap<Vertex, Vec<BigRational>>
+    where T: LabelVector
+{
+    let verts = g.vertices();
+    let vidcs: BTreeMap<_, _> =
+        verts.iter().enumerate().map(|(i, &e)| (e, i)).collect();
+
+    let n = verts.len();
+    let d = T::dim() as usize;
+
+    let mut a = vec![vec![0 as i64; n]; n];
+    let mut t = vec![vec![0 as i64; d]; n];
+    a[0][0] = 1;
+
+    for i in 1..n {
+        for ngb in g.incidences(&verts[i]) {
+            let j = vidcs[&ngb.vertex];
+            a[i][j] -= 1;
+            a[i][i] += 1;
+
+            let s = ngb.shift.to_vec();
+            for k in 0..d {
+                t[i][k] += s[k] as i64;
+            }
+        }
+    }
+
+    let p = crate::modular_solver::solve(&a, &t).unwrap();
+
+    let mut result = BTreeMap::new();
+    for i in 0..n {
+        result.insert(verts[i], p[i].clone());
+    }
+
+    result
 }

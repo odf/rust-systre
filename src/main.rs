@@ -5,8 +5,9 @@ use rust_systre::modular_solver::*;
 
 
 fn main() {
-    //test_graph_examples();
+    test_graph_examples();
 
+    /*
     test_modular_inverse(
         vec![
             vec![1, 2, 3],
@@ -15,6 +16,7 @@ fn main() {
         ],
         127
     );
+    */
 }
 
 
@@ -145,24 +147,11 @@ fn graph3d(spec: &[[i32; 5]]) -> Graph<LabelVector3d> {
 fn test_graph<T>(g: Graph<T>)
     where T: LabelVector + Display
 {
-    println!("Edges:");
+    println!("Graph:");
     println!("{}", g);
 
-    println!("Is connected: {}", g.is_connected());
-    println!();
-
-    println!("Vertices: {:?}", g.vertices());
-    println!();
-
-    println!("Incidences:");
-    for v in g.vertices() {
-        print!("{}: ", v);
-        for a in g.incidences(&v) {
-            print!(" {},", a);
-        }
-        println!();
-    }
-    println!();
+    println!("With normalized shifts:");
+    println!("{}", g.shift_normalized());
 
     println!("Coordination sequences:");
     for v in g.vertices() {
@@ -174,10 +163,16 @@ fn test_graph<T>(g: Graph<T>)
     }
     println!();
 
-    let g = g.shift_normalized();
-
-    println!("With normalized shifts:");
-    println!("{}", g);
+    if g.is_connected() {
+        for v in g.vertices() {
+            let p = g.position(&v).iter()
+                .map(|x| x.to_string())
+                .collect::<Vec<_>>()
+                .join(", ");
+            println!("pos({}) = ({})", v, p);
+        }
+        println!();
+    }
 
     let (size, rank, m) = graph_component_measures(&g, &1);
     println!("Component: size = {}, rank = {}, multiplicity = {:?}", size, rank, m);
