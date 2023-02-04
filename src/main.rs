@@ -138,28 +138,38 @@ fn test_graph<T>(g: Graph<T>)
     }
     println!();
 
+    println!("Connected: {}", g.is_connected());
+    println!();
+
     if g.is_connected() {
         for v in g.vertices() {
-            let p = g.position(&v).iter()
-                .map(|x| x.to_string())
-                .collect::<Vec<_>>()
-                .join(", ");
-            println!("pos({}) = ({})", v, p);
+            println!("pos({}) = ({})", v, vec_to_string(&g.position(&v)));
         }
         println!();
-        println!("stable: {}", g.is_stable());
-        println!("locally stable: {}", g.is_locally_stable());
+        println!("Stable: {}", g.is_stable());
+        println!("Locally stable: {}", g.is_locally_stable());
         println!(
-            "second order collisions: {}", g.has_second_order_collisions()
+            "Second order collisions: {}", g.has_second_order_collisions()
         );
-    }
+        println!();
 
-    let (size, rank, m) = graph_component_measures(&g, &1);
-    println!(
-        "Component: size = {}, rank = {}, multiplicity = {:?}", size, rank, m
-    );
+        for v in g.vertices() {
+            for ngb in g.incidences(&v) {
+                let delta = g.edge_vector(&v, &ngb.vertex, &ngb.shift);
+                if let Some(e) = g.edge_by_unique_delta(&v, &delta) {
+                    println!("{} => ({}) => {}", v, vec_to_string(&delta), e);
+                } else {
+                    println!("{} => ({}) => None", v, vec_to_string(&delta));
+                }
+            }
+        }
+    }
     println!();
 
     println!("==========");
     println!();
+}
+
+fn vec_to_string<T: Display>(p: &Vec<T>) -> String {
+    p.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(", ")
 }

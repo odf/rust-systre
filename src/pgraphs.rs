@@ -1,5 +1,5 @@
 use std::cell::UnsafeCell;
-use std::collections::{BTreeSet, BTreeMap, HashSet, VecDeque};
+use std::collections::{BTreeSet, BTreeMap, HashSet, HashMap, VecDeque};
 use std::fmt::Display;
 use std::hash::Hash;
 use std::mem::replace;
@@ -232,6 +232,7 @@ impl Display for LabelVector3d {
 
 
 type Vertex = u32;
+type QVec = Vec<BigRational>;
 
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
@@ -317,7 +318,10 @@ pub struct Graph<T> {
     edges: Vec<VectorLabelledEdge<T>>,
     vertices: UnsafeCell<Option<Vec<Vertex>>>,
     incidences: UnsafeCell<BTreeMap<Vertex, Vec<ShiftedVertex<T>>>>,
-    positions: UnsafeCell<BTreeMap<Vertex, Vec<BigRational>>>,
+    positions: UnsafeCell<BTreeMap<Vertex, QVec>>,
+    edge_lookup: UnsafeCell<
+        BTreeMap<Vertex, HashMap<QVec, VectorLabelledEdge<T>>>
+    >,
 }
 
 impl<T> Graph<T>
@@ -336,6 +340,7 @@ impl<T> Graph<T>
             vertices: UnsafeCell::new(None),
             incidences: UnsafeCell::new(BTreeMap::new()),
             positions: UnsafeCell::new(BTreeMap::new()),
+            edge_lookup: UnsafeCell::new(BTreeMap::new()),
         }
     }
 
@@ -379,7 +384,7 @@ impl<T> Graph<T>
         }
     }
 
-    pub fn position(&self, v: &Vertex) -> Vec<BigRational> {
+    pub fn position(&self, v: &Vertex) -> QVec {
         if let Some(output) = unsafe { (*self.positions.get()).get(v) } {
             output.clone()
         } else {
@@ -390,12 +395,24 @@ impl<T> Graph<T>
         }
     }
 
-    pub fn position_normalized(&self, v: &Vertex) -> Vec<BigRational> {
+    pub fn edge_by_unique_delta(&self, v: &Vertex, delta: &QVec)
+        -> Option<VectorLabelledEdge<T>>
+    {
+        if (unsafe { (*self.edge_lookup.get()).get(v) }).is_none() {
+            let data = edges_by_unique_deltas(self);
+            unsafe { *self.edge_lookup.get() = data };
+        }
+
+        let lookup = unsafe { self.edge_lookup.get().as_ref() };
+        Some(lookup?.get(v)?.get(delta)?.clone())
+    }
+
+    pub fn position_normalized(&self, v: &Vertex) -> QVec {
         self.position(&v).iter().map(|q| q - q.floor()).collect()
     }
 
     pub fn edge_vector(&self, head: &Vertex, tail: &Vertex, shift: &T)
-        -> Vec<BigRational>
+        -> QVec
     {
         let d = T::dim() as usize;
         let p = self.position(head);
@@ -611,7 +628,7 @@ pub fn graph_component_measures<T>(g: &Graph<T>, v0: &Vertex)
 
 
 fn barycentric_placement<T>(g: &Graph<T>)
-    -> BTreeMap<Vertex, Vec<BigRational>>
+    -> BTreeMap<Vertex, QVec>
     where T: LabelVector
 {
     let verts = g.vertices();
@@ -643,6 +660,34 @@ fn barycentric_placement<T>(g: &Graph<T>)
     let mut result = BTreeMap::new();
     for i in 0..n {
         result.insert(verts[i], p[i].clone());
+    }
+
+    result
+}
+
+
+fn edges_by_unique_deltas<T>(g: &Graph<T>)
+    -> BTreeMap<Vertex, HashMap<QVec, VectorLabelledEdge<T>>>
+    where T: LabelVector
+{
+    let mut result = BTreeMap::new();
+
+    for head in g.vertices() {
+        let mut seen = HashSet::new();
+        let mut to_edge = HashMap::new();
+
+        for ShiftedVertex { vertex: tail, shift } in g.incidences(&head) {
+            let delta = g.edge_vector(&head, &tail, &shift);
+            if seen.contains(&delta) {
+                to_edge.remove(&delta);
+            } else {
+                let e = VectorLabelledEdge { head, tail, shift };
+                to_edge.insert(delta.clone(), e);
+                seen.insert(delta);
+            }
+        }
+
+        result.insert(head, to_edge);
     }
 
     result
