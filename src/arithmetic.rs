@@ -1,4 +1,4 @@
-use std::ops::{Add, Sub, Mul, Div};
+use std::ops::{Add, Sub, Mul, Div, Index, IndexMut};
 use std::ops::{AddAssign, SubAssign, MulAssign, DivAssign};
 use num_traits::{Zero, One};
 
@@ -7,6 +7,32 @@ use num_traits::{Zero, One};
 pub struct Matrix<T> {
     ncols: usize,
     data: Vec<T>,
+}
+
+impl<T> Matrix<T> {
+    pub fn shape(&self) -> (usize, usize) {
+        (self.data.len() / self.ncols, self.ncols)
+    }
+}
+
+impl<T> Index<(usize, usize)> for Matrix<T> {
+    type Output = T;
+
+    fn index(&self, (i, j): (usize, usize)) -> &T {
+        assert!(i * self.ncols < self.data.len());
+        assert!(j < self.ncols);
+
+        &self.data[i * self.ncols + j]
+    }
+}
+
+impl<T> IndexMut<(usize, usize)> for Matrix<T> {
+    fn index_mut(&mut self, (i, j): (usize, usize)) -> &mut T {
+        assert!(i * self.ncols < self.data.len());
+        assert!(j < self.ncols);
+
+        &mut self.data[i * self.ncols + j]
+    }
 }
 
 impl<T: Clone> Matrix<T> {
@@ -30,27 +56,63 @@ impl<T: Clone + Zero> Matrix<T> {
         Matrix { ncols, data }
     }
 
+    pub fn transpose(& self) -> Matrix<T> {
+        let (nrows, ncols) = self.shape();
+
+        let mut result = Matrix::zero(ncols, nrows);
+
+        for i in 0..nrows {
+            for j in 0..ncols {
+                result[(j, i)] = self[(i, j)].clone();
+            }
+        }
+
+        result
+    }
 }
 
 impl<T: Clone + Zero + One> Matrix<T> {
     pub fn unit_vector(n: usize, k: usize) -> Matrix<T> {
         assert!(k < n);
-
-        let mut data = vec![T::zero(); n];
-        data[k] = T::one();
-
-        Matrix { ncols: n, data }
+        let mut row = Matrix::zero(1, n);
+        row[(0, k)] = T::one();
+        row
     }
 
     pub fn identity(n: usize) -> Matrix<T> {
-        let mut data = vec![T::zero(); n * n];
+        let mut id = Matrix::zero(n, n);
         for i in 0..n {
-            data[i * (n + 1)] = T::one();
+            id[(i, i)] = T::one();
         }
-
-        Matrix { ncols: n, data }
+        id
     }
 }
+
+
+#[test]
+fn test_matrix_basics() {
+    let a = Matrix::new(3, &[1, 2, 3, 4, 5, 6]);
+
+    assert_eq!(a.shape(), (2, 3));
+    assert_eq!(a[(0, 1)], 2);
+    assert_eq!(a[(1, 2)], 6);
+
+    assert_eq!(a.transpose(), Matrix::new(2, &[1, 4, 2, 5, 3, 6]));
+
+    let mut a = a;
+    a[(1, 1)] = -5;
+    assert_eq!(a, Matrix::new(3, &[1, 2, 3, 4, -5, 6]));
+
+    assert_eq!(
+        Matrix::unit_vector(5, 2),
+        Matrix::new(5, &[0, 0, 1, 0, 0])
+    );
+    assert_eq!(
+        Matrix::identity(3),
+        Matrix::new(3, &[1, 0, 0, 0, 1, 0, 0, 0, 1])
+    );
+}
+
 
 impl<T> AddAssign<&Matrix<T>> for Matrix<T>
     where T: for <'a> AddAssign<&'a T>
@@ -265,11 +327,8 @@ impl<T> Mul<&Matrix<T>> for &Matrix<T>
     type Output = Matrix<T>;
 
     fn mul(self, rhs: &Matrix<T>) -> Matrix<T> {
-        let rowslft = self.data.len() / self.ncols;
-        let colslft = self.ncols;
-        let rowsrgt = rhs.data.len() / rhs.ncols;
-        let colsrgt = rhs.ncols;
-
+        let (rowslft, colslft) = self.shape();
+        let (rowsrgt, colsrgt) = rhs.shape();
         assert!(colslft == rowsrgt);
 
         let mut result: Matrix<T> = Matrix::zero(rowslft, colsrgt);
@@ -278,11 +337,11 @@ impl<T> Mul<&Matrix<T>> for &Matrix<T>
             for j in 0..colsrgt {
                 let mut s = T::zero();
                 for k in 0..colslft {
-                    let mut t = self.data[i * colslft + k].clone();
-                    t *= &rhs.data[k * colsrgt + j];
+                    let mut t = self[(i, k)].clone();
+                    t *= &rhs[(k, j)];
                     s += &t;
                 }
-                result.data[i * colsrgt + j] = s;
+                result[(i, j)] = s;
             }
         }
 
