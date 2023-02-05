@@ -52,8 +52,21 @@ impl<T: Clone + Zero + One> Matrix<T> {
     }
 }
 
-impl<S, T> AddAssign<Matrix<T>> for Matrix<S>
-    where S: for <'a> AddAssign<&'a T>
+impl<T> AddAssign<&Matrix<T>> for Matrix<T>
+    where T: for <'a> AddAssign<&'a T>
+{
+    fn add_assign(&mut self, rhs: &Matrix<T>) {
+        assert!(self.data.len() == rhs.data.len());
+        assert!(self.ncols == rhs.ncols);
+
+        for i in 0..self.data.len() {
+            self.data[i] += &rhs.data[i];
+        }
+    }
+}
+
+impl<T> AddAssign<Matrix<T>> for Matrix<T>
+    where T: for <'a> AddAssign<&'a T>
 {
     fn add_assign(&mut self, rhs: Matrix<T>) {
         assert!(self.data.len() == rhs.data.len());
@@ -65,15 +78,13 @@ impl<S, T> AddAssign<Matrix<T>> for Matrix<S>
     }
 }
 
-impl<S, T> Add<Matrix<T>> for Matrix<S>
-    where S: Clone + for <'a> AddAssign<&'a T>
+impl<T> AddAssign<&T> for Matrix<T>
+    where T: for <'a> AddAssign<&'a T>
 {
-    type Output = Matrix<S>;
-
-    fn add(self, rhs: Matrix<T>) -> Matrix<S> {
-        let mut tmp = self.clone();
-        tmp += rhs;
-        tmp
+    fn add_assign(&mut self, rhs: &T) {
+        for i in 0..self.data.len() {
+            self.data[i] += &rhs;
+        }
     }
 }
 
@@ -87,20 +98,56 @@ impl<T> AddAssign<T> for Matrix<T>
     }
 }
 
-impl<T> Add<T> for Matrix<T>
-    where T: Clone + for <'a> AddAssign<&'a T>
+impl<'a, S, T: 'a> Add<S> for &'a Matrix<T>
+    where T: Clone, Matrix<T>: AddAssign<S>
 {
     type Output = Matrix<T>;
 
-    fn add(self, rhs: T) -> Matrix<T> {
-        let mut tmp = self.clone();
+    fn add(self, rhs: S) -> Matrix<T> {
+        let mut tmp = (*self).clone();
         tmp += rhs;
         tmp
     }
 }
 
-impl<S, T> SubAssign<Matrix<T>> for Matrix<S>
-    where S: for <'a> SubAssign<&'a T>
+impl<S, T> Add<S> for Matrix<T>
+    where T: Clone, Matrix<T>: AddAssign<S>
+{
+    type Output = Matrix<T>;
+
+    fn add(self, rhs: S) -> Matrix<T> {
+        &self + rhs
+    }
+}
+
+
+#[test]
+fn test_matrix_add() {
+    let a = Matrix::new(2, &[1, 2, 3, 4]);
+
+    assert_eq!(&a + 2, Matrix::new(2, &[3, 4, 5, 6]));
+    assert_eq!(&a + &5, Matrix::new(2, &[6, 7, 8, 9]));
+    assert_eq!(a.clone() + &a, Matrix::new(2, &[2, 4, 6, 8]));
+    assert_eq!(&a + a.clone() + &1, Matrix::new(2, &[3, 5, 7, 9]));
+    assert_eq!(a.clone() + a.clone() + -2, Matrix::new(2, &[0, 2, 4, 6]));
+}
+
+
+impl<T> SubAssign<&Matrix<T>> for Matrix<T>
+    where T: for <'a> SubAssign<&'a T>
+{
+    fn sub_assign(&mut self, rhs: &Matrix<T>) {
+        assert!(self.data.len() == rhs.data.len());
+        assert!(self.ncols == rhs.ncols);
+
+        for i in 0..self.data.len() {
+            self.data[i] -= &rhs.data[i];
+        }
+    }
+}
+
+impl<T> SubAssign<Matrix<T>> for Matrix<T>
+    where T: for <'a> SubAssign<&'a T>
 {
     fn sub_assign(&mut self, rhs: Matrix<T>) {
         assert!(self.data.len() == rhs.data.len());
@@ -112,15 +159,13 @@ impl<S, T> SubAssign<Matrix<T>> for Matrix<S>
     }
 }
 
-impl<S, T> Sub<Matrix<T>> for Matrix<S>
-    where S: Clone + for <'a> SubAssign<&'a T>
+impl<T> SubAssign<&T> for Matrix<T>
+    where T: for <'a> SubAssign<&'a T>
 {
-    type Output = Matrix<S>;
-
-    fn sub(self, rhs: Matrix<T>) -> Matrix<S> {
-        let mut tmp = self.clone();
-        tmp -= rhs;
-        tmp
+    fn sub_assign(&mut self, rhs: &T) {
+        for i in 0..self.data.len() {
+            self.data[i] -= &rhs;
+        }
     }
 }
 
@@ -134,15 +179,48 @@ impl<T> SubAssign<T> for Matrix<T>
     }
 }
 
-impl<T> Sub<T> for Matrix<T>
-    where T: Clone + for <'a> SubAssign<&'a T>
+impl<'a, S, T: 'a> Sub<S> for &'a Matrix<T>
+    where T: Clone, Matrix<T>: SubAssign<S>
 {
     type Output = Matrix<T>;
 
-    fn sub(self, rhs: T) -> Matrix<T> {
-        let mut tmp = self.clone();
+    fn sub(self, rhs: S) -> Matrix<T> {
+        let mut tmp = (*self).clone();
         tmp -= rhs;
         tmp
+    }
+}
+
+impl<S, T> Sub<S> for Matrix<T>
+    where T: Clone, Matrix<T>: SubAssign<S>
+{
+    type Output = Matrix<T>;
+
+    fn sub(self, rhs: S) -> Matrix<T> {
+        &self - rhs
+    }
+}
+
+
+#[test]
+fn test_matrix_sub() {
+    let a = Matrix::new(2, &[1, 2, 3, 4]);
+
+    assert_eq!(&a - 2, Matrix::new(2, &[-1, 0, 1, 2]));
+    assert_eq!(&a - &5, Matrix::new(2, &[-4, -3, -2, -1]));
+    assert_eq!(a.clone() - &a, Matrix::zero(2, 2));
+    assert_eq!(&a - a.clone() - &1, Matrix::new(2, &[-1, -1, -1, -1]));
+    assert_eq!(a.clone() - a.clone() - -2, Matrix::new(2, &[2, 2, 2, 2]));
+}
+
+
+impl<T> MulAssign<&T> for Matrix<T>
+    where T: for <'a> MulAssign<&'a T>
+{
+    fn mul_assign(&mut self, rhs: &T) {
+        for i in 0..self.data.len() {
+            self.data[i] *= &rhs;
+        }
     }
 }
 
@@ -156,15 +234,45 @@ impl<T> MulAssign<T> for Matrix<T>
     }
 }
 
-impl<T> Mul<T> for Matrix<T>
-    where T: Clone + for <'a> MulAssign<&'a T>
+impl<'a, S, T: 'a> Mul<S> for &'a Matrix<T>
+    where T: Clone, Matrix<T>: MulAssign<S>
 {
     type Output = Matrix<T>;
 
-    fn mul(self, rhs: T) -> Matrix<T> {
-        let mut tmp = self.clone();
+    fn mul(self, rhs: S) -> Matrix<T> {
+        let mut tmp = (*self).clone();
         tmp *= rhs;
         tmp
+    }
+}
+
+impl<S, T> Mul<S> for Matrix<T>
+    where T: Clone, Matrix<T>: MulAssign<S>
+{
+    type Output = Matrix<T>;
+
+    fn mul(self, rhs: S) -> Matrix<T> {
+        &self * rhs
+    }
+}
+
+
+#[test]
+fn test_matrix_mul() {
+    let a = Matrix::new(2, &[1, 2, 3, 4]);
+
+    assert_eq!(&a * 2 * &3, Matrix::new(2, &[6, 12, 18, 24]));
+    assert_eq!(a * &3 * 5, Matrix::new(2, &[15, 30, 45, 60]));
+}
+
+
+impl<T> DivAssign<&T> for Matrix<T>
+    where T: for <'a> DivAssign<&'a T>
+{
+    fn div_assign(&mut self, rhs: &T) {
+        for i in 0..self.data.len() {
+            self.data[i] /= &rhs;
+        }
     }
 }
 
@@ -178,43 +286,38 @@ impl<T> DivAssign<T> for Matrix<T>
     }
 }
 
-impl<T> Div<T> for Matrix<T>
-    where T: Clone + for <'a> DivAssign<&'a T>
+impl<'a, S, T: 'a> Div<S> for &'a Matrix<T>
+    where T: Clone, Matrix<T>: DivAssign<S>
 {
     type Output = Matrix<T>;
 
-    fn div(self, rhs: T) -> Matrix<T> {
-        let mut tmp = self.clone();
+    fn div(self, rhs: S) -> Matrix<T> {
+        let mut tmp = (*self).clone();
         tmp /= rhs;
         tmp
     }
 }
 
+impl<S, T> Div<S> for Matrix<T>
+    where T: Clone, Matrix<T>: DivAssign<S>
+{
+    type Output = Matrix<T>;
+
+    fn div(self, rhs: S) -> Matrix<T> {
+        &self / rhs
+    }
+}
+
 
 #[test]
-fn test_matrix_ops() {
-    let m = Matrix::new(2, &[1, 2, 3, 4]);
+fn test_matrix_div() {
+    let a = Matrix::new(2, &[1, 2, 3, 4]);
 
-    let m = m + 2;
-    assert_eq!(m, Matrix::new(2, &[3, 4, 5, 6]));
-
-    let m = m - 3;
-    assert_eq!(m, Matrix::new(2, &[0, 1, 2, 3]));
-
-    let m = m.clone() + m;
-    assert_eq!(m, Matrix::new(2, &[0, 2, 4, 6]));
-
-    let m = m / 3;
-    assert_eq!(m, Matrix::new(2, &[0, 0, 1, 2]));
-
-    let m = m * 5;
-    assert_eq!(m, Matrix::new(2, &[0, 0, 5, 10]));
-
-    let m = m - Matrix::identity(2) * 5;
-    assert_eq!(m, Matrix::new(2, &[-5, 0, 5, 5]));
+    assert_eq!((&a + 3) / 2, Matrix::new(2, &[2, 2, 3, 3]));
+    assert_eq!(a / &3, Matrix::new(2, &[0, 0, 1, 1]));
 
     assert_eq!(
-        Matrix::unit_vector(5, 2),
-        Matrix::row(&[0, 0, 1, 0, 0])
+        Matrix::row(&[1.75, 2.25, 0.75]) / 0.25,
+        Matrix::row(&[7.0, 9.0, 3.0])
     );
 }
