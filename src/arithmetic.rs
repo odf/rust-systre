@@ -256,13 +256,95 @@ impl<S, T> Mul<S> for Matrix<T>
     }
 }
 
+impl<T> Mul<&Matrix<T>> for &Matrix<T>
+    where T:
+        Clone + Zero +
+        for <'a> MulAssign<&'a T> +
+        for <'a> AddAssign<&'a T>
+{
+    type Output = Matrix<T>;
+
+    fn mul(self, rhs: &Matrix<T>) -> Matrix<T> {
+        let rowslft = self.data.len() / self.ncols;
+        let colslft = self.ncols;
+        let rowsrgt = rhs.data.len() / rhs.ncols;
+        let colsrgt = rhs.ncols;
+
+        assert!(colslft == rowsrgt);
+
+        let mut result: Matrix<T> = Matrix::zero(rowslft, colsrgt);
+
+        for i in 0..rowslft {
+            for j in 0..colsrgt {
+                let mut s = T::zero();
+                for k in 0..colslft {
+                    let mut t = self.data[i * colslft + k].clone();
+                    t *= &rhs.data[k * colsrgt + j];
+                    s += &t;
+                }
+                result.data[i * colsrgt + j] = s;
+            }
+        }
+
+        result
+    }
+}
+
+impl<T> Mul<&Matrix<T>> for Matrix<T>
+    where T:
+        Clone + Zero +
+        for <'a> MulAssign<&'a T> +
+        for <'a> AddAssign<&'a T>
+{
+    type Output = Matrix<T>;
+
+    fn mul(self, rhs: &Matrix<T>) -> Matrix<T> {
+        &self * rhs
+    }
+}
+
+impl<T> Mul<Matrix<T>> for &Matrix<T>
+    where T:
+        Clone + Zero +
+        for <'a> MulAssign<&'a T> +
+        for <'a> AddAssign<&'a T>
+{
+    type Output = Matrix<T>;
+
+    fn mul(self, rhs: Matrix<T>) -> Matrix<T> {
+        self * &rhs
+    }
+}
+
+impl<T> Mul<Matrix<T>> for Matrix<T>
+    where T:
+        Clone + Zero +
+        for <'a> MulAssign<&'a T> +
+        for <'a> AddAssign<&'a T>
+{
+    type Output = Matrix<T>;
+
+    fn mul(self, rhs: Matrix<T>) -> Matrix<T> {
+        &self * &rhs
+    }
+}
+
 
 #[test]
 fn test_matrix_mul() {
     let a = Matrix::new(2, &[1, 2, 3, 4]);
 
     assert_eq!(&a * 2 * &3, Matrix::new(2, &[6, 12, 18, 24]));
-    assert_eq!(a * &3 * 5, Matrix::new(2, &[15, 30, 45, 60]));
+    assert_eq!(a.clone() * &3 * 5, Matrix::new(2, &[15, 30, 45, 60]));
+
+    assert_eq!(&a * &a, Matrix::new(2, &[7, 10, 15, 22]));
+    assert_eq!(&a * a.clone(), Matrix::new(2, &[7, 10, 15, 22]));
+    assert_eq!(a.clone() * &a, Matrix::new(2, &[7, 10, 15, 22]));
+    assert_eq!(a.clone() * a.clone(), Matrix::new(2, &[7, 10, 15, 22]));
+
+    let a = Matrix::row(&[1, 2, 3]);
+    let b = Matrix::new(2, &[1, 2, 3, 4, 5, 6]);
+    assert_eq!(a * b, Matrix::row(&[22, 28]));
 }
 
 
