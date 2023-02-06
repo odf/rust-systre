@@ -1,4 +1,4 @@
-use std::ops::{Add, SubAssign, Neg, Mul, MulAssign, Div};
+use std::ops::{Add, SubAssign, Neg, Mul, Div};
 
 use num_rational::{BigRational};
 use num_traits::{Zero, One, Inv};
@@ -12,11 +12,11 @@ impl Field for BigRational {}
 
 
 pub fn extend_basis<T>(v: &[T], bs: &mut Vec<Matrix<T>>)
-    where T: Clone + Eq + Field +
-        Neg<Output=T> +
-        for <'a> Div<&'a T, Output=T> +
-        for <'a> MulAssign<&'a T> +
-        for <'a> SubAssign<&'a T>
+    where
+        T: Field + Clone,
+        for <'a> &'a T: Div<&'a T, Output=T>,
+        Matrix<T>: Eq + Neg<Output=Matrix<T>> + SubAssign,
+        for <'a> &'a Matrix<T>: Mul<T, Output=Matrix<T>>
 {
     let pivot_column = |m: &Matrix<T>| {
         (0..m.ncols).position(|i| !m[(0, i)].is_zero())
@@ -39,7 +39,7 @@ pub fn extend_basis<T>(v: &[T], bs: &mut Vec<Matrix<T>>)
                 }
                 return;
             } else if col == col_b {
-                v -= b * (v[(0, col)].clone() / &b[(0, col)]);
+                v -= b * (&v[(0, col)] / &b[(0, col)]);
             }
         } else {
             break;
