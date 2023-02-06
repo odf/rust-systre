@@ -50,6 +50,46 @@ impl<T: Clone> Matrix<T> {
         Matrix { ncols: 1, data: data.to_vec() }
     }
 
+    pub fn hstack(parts: &[Matrix<T>]) -> Matrix<T> {
+        if parts.len() == 0 {
+            Matrix::new(0, &[])
+        } else {
+            let nrows = parts[0].shape().0;
+            assert!(parts.iter().all(|m| m.shape().0 == nrows));
+            let ncols: usize = parts.iter().map(|m| m.ncols).sum();
+            let mut data = Vec::with_capacity(nrows * ncols);
+
+            for irow in 0..nrows {
+                for p in parts {
+                    for icol in 0..p.ncols {
+                        data.push(p[(irow, icol)].clone())
+                    }
+                }
+            }
+            Matrix::new(ncols, &data)
+        }
+    }
+
+    pub fn vstack(parts: &[Matrix<T>]) -> Matrix<T> {
+        if parts.len() == 0 {
+            Matrix::new(0, &[])
+        } else {
+            let ncols = parts[0].ncols;
+            assert!(parts.iter().all(|m| m.ncols == ncols));
+            let nrows: usize = parts.iter().map(|m| m.shape().0).sum();
+            let mut data = Vec::with_capacity(nrows * ncols);
+
+            for p in parts {
+                for irow in 0..p.shape().0 {
+                    for icol in 0..p.ncols {
+                        data.push(p[(irow, icol)].clone())
+                    }
+                }
+            }
+            Matrix::new(ncols, &data)
+        }
+    }
+
     pub fn get_row(&self, i: usize) -> Vec<T> {
         let m = self.ncols;
         assert!(i * m < self.data.len());
@@ -98,6 +138,7 @@ impl<T: Clone + Zero + One> Matrix<T> {
     }
 }
 
+
 #[test]
 pub(crate) fn test_matrix_basics() {
     let a = Matrix::new(3, &[1, 2, 3, 4, 5, 6]);
@@ -125,6 +166,24 @@ pub(crate) fn test_matrix_basics() {
 
     let t: Matrix<i64> = Matrix::new(3, &[]);
     assert_eq!(t.shape(), (0, 3));
+
+    assert_eq!(
+        Matrix::hstack(&[
+            Matrix::col(&[1, 2]),
+            Matrix::new(2, &[3, 4, 5, 6]),
+            Matrix::col(&[7, 8]),
+        ]),
+        Matrix::new(4, &[1, 3, 4, 7, 2, 5, 6, 8])
+    );
+
+    assert_eq!(
+        Matrix::vstack(&[
+            Matrix::row(&[1, 2]),
+            Matrix::new(2, &[3, 4, 5, 6]),
+            Matrix::row(&[7, 8]),
+        ]),
+        Matrix::new(2, &[1, 2, 3, 4, 5, 6, 7, 8])
+    );
 }
 
 
