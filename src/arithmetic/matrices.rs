@@ -49,26 +49,35 @@ impl<T: Clone> Matrix<T> {
     pub fn col(data: &[T]) -> Matrix<T> {
         Matrix { ncols: 1, data: data.to_vec() }
     }
+
+    pub fn get_row(&self, i: usize) -> Vec<T> {
+        let m = self.ncols;
+        assert!(i * m < self.data.len());
+
+        self.data[(i * m)..(i * m + m)].to_vec()
+    }
+
+    pub fn get_col(&self, j: usize) -> Vec<T> {
+        let (nrows, ncols) = self.shape();
+        assert!(j < ncols);
+
+        (0..nrows).map(|i| self[(i, j)].clone()).collect()
+    }
+
+    pub fn transpose(& self) -> Matrix<T> {
+        let (nrows, ncols) = self.shape();
+        let data: Vec<_> = (0..ncols)
+            .flat_map(|j| (0..nrows).map(move |i| self[(i, j)].clone()))
+            .collect();
+
+        Matrix::new(nrows, &data)
+    }
 }
 
 impl<T: Clone + Zero> Matrix<T> {
     pub fn zero(nrows: usize, ncols: usize) -> Matrix<T> {
         let data = vec![T::zero(); nrows * ncols];
         Matrix { ncols, data }
-    }
-
-    pub fn transpose(& self) -> Matrix<T> {
-        let (nrows, ncols) = self.shape();
-
-        let mut result = Matrix::zero(ncols, nrows);
-
-        for i in 0..nrows {
-            for j in 0..ncols {
-                result[(j, i)] = self[(i, j)].clone();
-            }
-        }
-
-        result
     }
 }
 
@@ -97,6 +106,8 @@ pub(crate) fn test_matrix_basics() {
     assert_eq!(a[(0, 1)], 2);
     assert_eq!(a[(1, 2)], 6);
 
+    assert_eq!(a.get_row(1), vec![4, 5, 6]);
+    assert_eq!(a.get_col(1), vec![2, 5]);
     assert_eq!(a.transpose(), Matrix::new(2, &[1, 4, 2, 5, 3, 6]));
 
     let mut a = a;
