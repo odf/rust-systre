@@ -1,17 +1,7 @@
-use std::ops::Div;
-use std::ops::DivAssign;
-use std::ops::Mul;
-use std::ops::MulAssign;
-use std::ops::Sub;
-use std::ops::SubAssign;
-use std::ops::Add;
-use std::ops::AddAssign;
-
-use num_traits::One;
-use num_traits::Zero;
-
-use std::ops::IndexMut;
-use std::ops::Index;
+use std::ops::{Add, AddAssign, Sub, SubAssign};
+use std::ops::{Div, DivAssign, Mul, MulAssign};
+use std::ops::{Index, IndexMut};
+use num_traits::{One, Zero};
 
 
 #[derive(Clone, Debug, Eq, PartialEq)]
