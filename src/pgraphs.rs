@@ -655,7 +655,7 @@ fn barycentric_placement<T>(g: &Graph<T>)
         }
     }
 
-    let p = crate::modular_solver::solve(&a, &t).unwrap();
+    let p = crate::arithmetic::modular_solver::solve(&a, &t).unwrap();
 
     let mut result = BTreeMap::new();
     for i in 0..n {
