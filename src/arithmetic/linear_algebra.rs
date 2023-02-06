@@ -12,7 +12,9 @@ impl Field for BigRational {}
 
 
 pub fn extend_basis<T>(v: &[T], bs: &mut Vec<Matrix<T>>)
-    where T: Clone + Eq + Field + Neg<Output=T> + Div<Output=T> +
+    where T: Clone + Eq + Field +
+        Neg<Output=T> +
+        for <'a> Div<&'a T, Output=T> +
         for <'a> MulAssign<&'a T> +
         for <'a> SubAssign<&'a T>
 {
@@ -31,12 +33,13 @@ pub fn extend_basis<T>(v: &[T], bs: &mut Vec<Matrix<T>>)
 
             if col < col_b {
                 if (bs.len() - i) % 2 > 0 {
-                    v = v * -T::one();
+                    bs.insert(i, -v);
+                } else {
+                    bs.insert(i, v);
                 }
-                bs.insert(i, v);
                 return;
             } else if col == col_b {
-                v -= b * (v[(0, col)].clone() / b[(0, col)].clone());
+                v -= b * (v[(0, col)].clone() / &b[(0, col)]);
             }
         } else {
             break;

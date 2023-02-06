@@ -1,4 +1,4 @@
-use std::ops::{Add, AddAssign, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Sub, SubAssign, Neg};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
 use std::ops::{Index, IndexMut};
 use num_traits::{One, Zero};
@@ -126,6 +126,38 @@ pub(crate) fn test_matrix_basics() {
     let t: Matrix<i64> = Matrix::new(3, &[]);
     assert_eq!(t.shape(), (0, 3));
 }
+
+
+impl<T> Neg for &Matrix<T>
+    where T: Clone + Neg<Output=T>
+{
+    type Output = Matrix<T>;
+
+    fn neg(self) -> Self::Output {
+        let data: Vec<_> = self.data.iter().map(|x| -x.clone()).collect();
+        Matrix::new(self.ncols, &data)
+    }
+}
+
+impl<T> Neg for Matrix<T>
+    where T: Clone + Neg<Output=T>
+{
+    type Output = Matrix<T>;
+
+    fn neg(self) -> Self::Output {
+        -(&self)
+    }
+}
+
+
+#[test]
+pub(crate) fn test_matrix_neg() {
+    let a = Matrix::new(2, &[1, 2, 3, 4]);
+
+    assert_eq!(-&a, Matrix::new(2, &[-1, -2, -3, -4]));
+    assert_eq!(-a, Matrix::new(2, &[-1, -2, -3, -4]));
+}
+
 
 impl<T> AddAssign<&Matrix<T>> for Matrix<T>
     where T: for <'a> AddAssign<&'a T>
