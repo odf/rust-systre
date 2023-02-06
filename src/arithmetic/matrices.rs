@@ -122,6 +122,9 @@ pub(crate) fn test_matrix_basics() {
         Matrix::identity(3),
         Matrix::new(3, &[1, 0, 0, 0, 1, 0, 0, 0, 1])
     );
+
+    let t: Matrix<i64> = Matrix::new(3, &[]);
+    assert_eq!(t.shape(), (0, 3));
 }
 
 impl<T> AddAssign<&Matrix<T>> for Matrix<T>
