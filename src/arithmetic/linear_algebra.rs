@@ -32,11 +32,7 @@ pub fn extend_basis<T>(v: &[T], bs: &mut Vec<Matrix<T>>)
             let col_b = pivot_column(b).unwrap();
 
             if col < col_b {
-                if (bs.len() - i) % 2 > 0 {
-                    bs.insert(i, -v);
-                } else {
-                    bs.insert(i, v);
-                }
+                bs.insert(i, if (bs.len() - i) % 2 > 0 { -v } else { v });
                 return;
             } else if col == col_b {
                 v -= b * (&v[(0, col)] / &b[(0, col)]);
@@ -46,7 +42,7 @@ pub fn extend_basis<T>(v: &[T], bs: &mut Vec<Matrix<T>>)
         }
     }
 
-    if v != Matrix::zero(1, v.ncols) {
+    if !pivot_column(&v).is_none() {
         bs.push(v);
     }
 }
