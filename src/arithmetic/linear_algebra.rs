@@ -1,4 +1,4 @@
-use std::ops::{Add, SubAssign, Neg, Mul, Div, MulAssign};
+use std::ops::{Add, SubAssign, Neg, Mul, Div, MulAssign, DivAssign};
 
 use num_rational::{BigRational};
 use num_traits::{Zero, One, Inv};
@@ -46,6 +46,61 @@ pub fn extend_basis<T>(v: &[T], bs: &mut Vec<Matrix<T>>)
     if pivot_column(&v).is_some() {
         bs.push(v);
     }
+}
+
+pub fn reduced_basis<T>(m: &Matrix<T>) -> Matrix<T>
+    where
+        T: Field + Clone,
+        for <'a> &'a T: Div<&'a T, Output=T>,
+        Matrix<T>:
+            Neg<Output=Matrix<T>> + SubAssign +
+            DivAssign<T> + Mul<T, Output=Matrix<T>>,
+        for <'a> &'a Matrix<T>: Mul<T, Output=Matrix<T>>
+{
+    let (nrows, _) = m.shape();
+
+    let mut basis = vec![];
+    for i in 0..nrows {
+        extend_basis(&m.get_row(i), &mut basis);
+    }
+
+    let mut col = 0;
+    for row in 0..basis.len() {
+        while basis[row][(0, col)].is_zero() {
+            col += 1;
+        }
+
+        let f = basis[row][(0, col)].clone();
+        basis[row] /= f;
+
+        for i in 0..row {
+            let b = &basis[row] * basis[i][(0, col)].clone();
+            basis[i] -= b;
+        }
+    }
+
+    Matrix::vstack(&basis)
+}
+
+
+#[test]
+fn test_reduced_basis() {
+    fn r(m: &Matrix<i64>) -> Matrix<BigRational> {
+        m.iter()
+            .map(|&n| BigRational::from(num_bigint::BigInt::from(n)))
+            .collect::<Matrix<_>>()
+            .reshape(m.ncols)
+    }
+
+    assert_eq!(
+        reduced_basis(&r(&Matrix::new(3, &[1, 2, 3, 4, 5, 6, 7, 8, 8]))),
+        r(&Matrix::new(3, &[1, 0, 0, 0, 1, 0, 0, 0, 1]))
+    );
+
+    assert_eq!(
+        reduced_basis(&r(&Matrix::new(3, &[1, 2, 3, 4, 5, 6, 7, 8, 9]))),
+        r(&Matrix::new(3, &[1, 0, -1, 0, 1, 2]))
+    );
 }
 
 
@@ -133,10 +188,10 @@ fn test_matrix_rank_and_det() {
     assert_eq!(a.determinant(), r(0));
 
     let a = Matrix::new(3, &[
-        r(1), r(2), r(3),
-        r(4), r(5), r(6),
         r(7), r(8), r(8),
+        r(4), r(5), r(6),
+        r(1), r(2), r(3),
     ]);
     assert_eq!(a.rank(), 3);
-    assert_eq!(a.determinant(), r(3));
+    assert_eq!(a.determinant(), r(-3));
 }
