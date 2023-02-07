@@ -12,31 +12,34 @@ impl Field for f64 {}
 // tag other types as fields, e.g. prime residual classes
 
 
-pub fn extend_basis<T>(v: &[T], bs: &mut Vec<Matrix<T>>)
+pub fn extend_basis<T>(v: &[T], bs: &mut Vec<Vec<T>>)
     where
-        T: Field + Clone,
-        for <'a> &'a T: Div<&'a T, Output=T>,
-        Matrix<T>: Neg<Output=Matrix<T>> + SubAssign,
-        for <'a> &'a Matrix<T>: Mul<T, Output=Matrix<T>>
+        T: Field + Clone + SubAssign + for <'a> Div<&'a T, Output=T>,
+        for <'a> &'a T: Neg<Output=T>,
+        for <'a> &'a T: Mul<&'a T, Output=T> ,
 {
-    let pivot_column = |m: &Matrix<T>| {
-        (0..m.ncols).position(|i| !m[(0, i)].is_zero())
-    };
+    let pivot_column = |v: &Vec<T>| { v.iter().position(|x| !x.is_zero()) };
 
-    let mut v = Matrix::row(&v);
+    let mut v = v.to_vec();
 
     for i in 0..bs.len() {
         let b = &bs[i];
-        assert!(b.shape() == v.shape());
+        assert!(b.len() == v.len());
 
         if let Some(col) = pivot_column(&v) {
             let col_b = pivot_column(b).unwrap();
 
             if col < col_b {
-                bs.insert(i, if (bs.len() - i) % 2 > 0 { -v } else { v });
+                if (bs.len() - i) % 2 > 0 {
+                    v = v.iter().map(|x| -x).collect();
+                }
+                bs.insert(i, v);
                 return;
             } else if col == col_b {
-                v -= b * (&v[(0, col)] / &b[(0, col)]);
+                let f = std::mem::replace(&mut v[col], T::zero()) / &b[col];
+                for k in (col + 1)..v.len() {
+                    v[k] -= &b[k] * &f;
+                }
             }
         } else {
             break;
@@ -50,12 +53,10 @@ pub fn extend_basis<T>(v: &[T], bs: &mut Vec<Matrix<T>>)
 
 pub fn reduced_basis<T>(m: &Matrix<T>) -> Matrix<T>
     where
-        T: Field + Clone,
-        for <'a> &'a T: Div<&'a T, Output=T>,
-        Matrix<T>:
-            Neg<Output=Matrix<T>> + SubAssign +
-            DivAssign<T> + Mul<T, Output=Matrix<T>>,
-        for <'a> &'a Matrix<T>: Mul<T, Output=Matrix<T>>
+        T: Field + Clone + SubAssign + for <'a> Div<&'a T, Output=T>,
+        T: for <'a> DivAssign<&'a T>,
+        for <'a> &'a T: Neg<Output=T>,
+        for <'a> &'a T: Mul<&'a T, Output=T>,
 {
     let (nrows, _) = m.shape();
 
@@ -66,20 +67,25 @@ pub fn reduced_basis<T>(m: &Matrix<T>) -> Matrix<T>
 
     let mut col = 0;
     for row in 0..basis.len() {
-        while basis[row][(0, col)].is_zero() {
+        while basis[row][col].is_zero() {
             col += 1;
         }
 
-        let f = basis[row][(0, col)].clone();
-        basis[row] /= f;
+        let f = std::mem::replace(&mut basis[row][col], T::one());
+        for k in (col + 1)..basis[row].len() {
+            basis[row][k] /= &f;
+        }
 
         for i in 0..row {
-            let b = &basis[row] * basis[i][(0, col)].clone();
-            basis[i] -= b;
+            let f = std::mem::replace(&mut basis[i][col], T::zero());
+            for k in (col + 1)..basis[i].len() {
+                let a = &basis[row][k] * &f;
+                basis[i][k] -= a;
+            }
         }
     }
 
-    Matrix::vstack(&basis)
+    Matrix::vstack(&basis.iter().map(|v| Matrix::row(&v)).collect::<Vec<_>>())
 }
 
 
@@ -106,10 +112,10 @@ fn test_reduced_basis() {
 
 impl<T> Matrix<T>
     where
-        T: Field + Clone + for <'a> MulAssign<&'a T>,
-        for <'a> &'a T: Div<&'a T, Output=T>,
-        Matrix<T>: Neg<Output=Matrix<T>> + SubAssign,
-        for <'a> &'a Matrix<T>: Mul<T, Output=Matrix<T>>
+        T: Field + Clone + SubAssign + for <'a> Div<&'a T, Output=T>,
+        T: for <'a> DivAssign<&'a T> + for <'a> MulAssign<&'a T>,
+        for <'a> &'a T: Neg<Output=T>,
+        for <'a> &'a T: Mul<&'a T, Output=T>,
 {
     pub fn rank(&self) -> usize {
         let (nrows, _) = self.shape();
@@ -135,7 +141,7 @@ impl<T> Matrix<T>
         } else {
             let mut det = T::one();
             for i in 0..nrows {
-                det *= &basis[i][(0, i)];
+                det *= &basis[i][i];
             }
             det
         }
