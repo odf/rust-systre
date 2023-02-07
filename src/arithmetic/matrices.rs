@@ -6,6 +6,7 @@ use num_traits::{One, Zero};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Matrix<T> {
+    pub(crate) nrows: usize,
     pub(crate) ncols: usize,
     pub(crate) data: Vec<T>,
 }
@@ -39,23 +40,24 @@ impl<T> IndexMut<(usize, usize)> for Matrix<T> {
 impl<T: Clone> Matrix<T> {
     pub fn new(ncols: usize, data: &[T]) -> Matrix<T> {
         assert!(data.len() % ncols == 0);
-        Matrix { ncols, data: data.to_vec() }
+        let nrows = data.len() / ncols;
+        Matrix { nrows, ncols, data: data.to_vec() }
     }
 
     pub fn row(data: &[T]) -> Matrix<T> {
-        Matrix { ncols: data.len(), data: data.to_vec() }
+        Self::new(data.len(), data)
     }
 
     pub fn col(data: &[T]) -> Matrix<T> {
-        Matrix { ncols: 1, data: data.to_vec() }
+        Self::new(1, data)
     }
 
     pub fn hstack(parts: &[Matrix<T>]) -> Matrix<T> {
         if parts.len() == 0 {
             Matrix::new(0, &[])
         } else {
-            let nrows = parts[0].shape().0;
-            assert!(parts.iter().all(|m| m.shape().0 == nrows));
+            let nrows = parts[0].nrows;
+            assert!(parts.iter().all(|m| m.nrows == nrows));
             let ncols: usize = parts.iter().map(|m| m.ncols).sum();
             let mut data = Vec::with_capacity(nrows * ncols);
 
@@ -76,11 +78,11 @@ impl<T: Clone> Matrix<T> {
         } else {
             let ncols = parts[0].ncols;
             assert!(parts.iter().all(|m| m.ncols == ncols));
-            let nrows: usize = parts.iter().map(|m| m.shape().0).sum();
+            let nrows: usize = parts.iter().map(|m| m.nrows).sum();
             let mut data = Vec::with_capacity(nrows * ncols);
 
             for p in parts {
-                for irow in 0..p.shape().0 {
+                for irow in 0..p.nrows {
                     for icol in 0..p.ncols {
                         data.push(p[(irow, icol)].clone())
                     }
@@ -116,8 +118,7 @@ impl<T: Clone> Matrix<T> {
 
 impl<T: Clone + Zero> Matrix<T> {
     pub fn zero(nrows: usize, ncols: usize) -> Matrix<T> {
-        let data = vec![T::zero(); nrows * ncols];
-        Matrix { ncols, data }
+        Self::new(ncols, &vec![T::zero(); nrows * ncols])
     }
 }
 
