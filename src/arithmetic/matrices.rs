@@ -1,6 +1,6 @@
 use std::ops::{Add, AddAssign, Sub, SubAssign, Neg};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
-use std::ops::{Index, IndexMut};
+use std::ops::{Index, IndexMut, Range};
 use num_traits::{One, Zero};
 
 
@@ -90,6 +90,23 @@ impl<T: Clone> Matrix<T> {
             }
             Matrix::new(ncols, &data)
         }
+    }
+
+    pub fn submatrix(&self, rows: Range<usize>, cols: Range<usize>) -> Self {
+        assert!(rows.end <= self.nrows);
+        assert!(cols.end <= self.ncols);
+
+        let nrows = rows.end - rows.start;
+        let ncols = cols.end - cols.start;
+        let mut data = Vec::with_capacity(nrows * ncols);
+
+        for i in 0..nrows {
+            for j in 0..ncols {
+                data.push(self[(i + rows.start, j + cols.start)].clone());
+            }
+        }
+
+        Matrix::new(ncols, &data)
     }
 
     pub fn get_row(&self, i: usize) -> Vec<T> {
@@ -185,6 +202,11 @@ pub(crate) fn test_matrix_basics() {
         ]),
         Matrix::new(2, &[1, 2, 3, 4, 5, 6, 7, 8])
     );
+
+    assert_eq!(
+        Matrix::new(3, &[1, 2, 3, 4, 5, 6, 7, 8, 9]).submatrix(1..3, 0..2),
+        Matrix::new(2, &[4, 5, 7, 8]),
+    )
 }
 
 
