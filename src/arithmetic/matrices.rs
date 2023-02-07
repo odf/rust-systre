@@ -1,6 +1,7 @@
 use std::ops::{Add, AddAssign, Sub, SubAssign, Neg};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
 use std::ops::{Index, IndexMut, Range};
+use std::slice::Iter;
 use num_traits::{One, Zero};
 
 
@@ -37,6 +38,12 @@ impl<T> IndexMut<(usize, usize)> for Matrix<T> {
     }
 }
 
+impl<T: Clone> FromIterator<T> for Matrix<T> {
+    fn from_iter<I: IntoIterator<Item=T>>(iter: I) -> Self {
+        Matrix::new(1, &Vec::from_iter(iter))
+    }
+}
+
 impl<T: Clone> Matrix<T> {
     pub fn new(ncols: usize, data: &[T]) -> Matrix<T> {
         assert!(data.len() % ncols == 0);
@@ -50,6 +57,14 @@ impl<T: Clone> Matrix<T> {
 
     pub fn col(data: &[T]) -> Matrix<T> {
         Self::new(1, data)
+    }
+
+    pub fn iter(&self) -> Iter<T> {
+        self.data.iter()
+    }
+
+    pub fn reshape(self, ncols: usize) -> Matrix<T> {
+        Matrix::new(ncols, &self.data)
     }
 
     pub fn hstack(parts: &[Matrix<T>]) -> Matrix<T> {
@@ -123,7 +138,7 @@ impl<T: Clone> Matrix<T> {
         (0..nrows).map(|i| self[(i, j)].clone()).collect()
     }
 
-    pub fn transpose(& self) -> Matrix<T> {
+    pub fn transpose(&self) -> Matrix<T> {
         let (nrows, ncols) = self.shape();
         let data: Vec<_> = (0..ncols)
             .flat_map(|j| (0..nrows).map(move |i| self[(i, j)].clone()))
@@ -168,6 +183,16 @@ pub(crate) fn test_matrix_basics() {
     assert_eq!(a.get_row(1), vec![4, 5, 6]);
     assert_eq!(a.get_col(1), vec![2, 5]);
     assert_eq!(a.transpose(), Matrix::new(2, &[1, 4, 2, 5, 3, 6]));
+
+    assert_eq!(
+        a.iter().cloned().collect::<Vec<_>>(),
+        vec![1, 2, 3, 4, 5, 6]
+    );
+    assert_eq!(a.iter().cloned().collect::<Matrix<_>>().reshape(3), a);
+    assert_eq!(
+        a.iter().map(|i| i * i).collect::<Matrix<_>>().reshape(3),
+        Matrix::new(3, &[1, 4, 9, 16, 25, 36]),
+    );
 
     let mut a = a;
     a[(1, 1)] = -5;
