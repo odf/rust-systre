@@ -140,7 +140,8 @@ pub fn solve<T>(lft: &Matrix<T>, rgt: &Matrix<T>) -> Option<Matrix<T>>
     let u = t.submatrix(0..t.nrows, lft.nrows..t.ncols).transpose();
 
     let m = rgt.ncols;
-    Some(Matrix::vstack(&[u * rgt, Matrix::zero(lft.ncols - lft.nrows, m)]))
+    let x = Matrix::vstack(&[rgt, Matrix::zero(lft.ncols - lft.nrows, m)]);
+    Some(u * x)
 }
 
 
@@ -157,6 +158,24 @@ fn test_solve() {
     let x = r(&Matrix::new(2, &[1, 0, 1, -3]));
     let b = &a * &x;
     assert_eq!(b, r(&Matrix::new(2, &[3, -6, 7, -12])));
+    let s = solve(&a, &b).unwrap();
+    assert_eq!(s, x);
+
+    let id = Matrix::identity(2);
+    let a_inv = solve(&a, &id).unwrap();
+    assert_eq!(a * a_inv, id);
+
+    let a = r(&Matrix::new(2, &[1, 2, 3, 6]));
+    let x = r(&Matrix::new(1, &[1, 1]));
+    let b = &a * &x;
+    assert_eq!(b, r(&Matrix::new(1, &[3, 9])));
+    let s = solve(&a, &b).unwrap();
+    assert_eq!(a * s, b);
+
+    let a = Matrix::new(2, &[1.0, 2.0, 3.0, 4.0]);
+    let x = Matrix::new(2, &[1.0, 0.0, 1.0, -3.0]);
+    let b = &a * &x;
+    assert_eq!(b, Matrix::new(2, &[3.0, -6.0, 7.0, -12.0]));
     let s = solve(&a, &b).unwrap();
     assert_eq!(s, x);
 
