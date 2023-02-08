@@ -6,12 +6,12 @@ use std::mem::replace;
 use std::ops::{Neg, Add, Sub, Mul, Div};
 use num_bigint::BigInt;
 use num_rational::BigRational;
-use num_traits::{Zero, One, Signed};
+use num_traits::{Zero, One};
 
 
 pub fn gcdx<T>(a: T, b: T) -> (T, T, T, T, T) // TODO return a struct?
     where T:
-        Copy + Eq + Zero + One +
+        Copy + Zero + One +
         Div<Output=T> + Sub<Output=T> + Mul<Output=T>
 {
     let (mut a, mut a_next) = (a, b);
@@ -31,24 +31,24 @@ pub fn gcdx<T>(a: T, b: T) -> (T, T, T, T, T) // TODO return a struct?
 
 pub fn extend_basis<T>(v: &[T], bs: &mut Vec<Vec<T>>)
     where T:
-        Copy + Eq + PartialOrd +
-        Zero + One + Signed +
+        Copy + Zero + One +
         Neg<Output=T> + Div<Output=T> + Sub<Output=T> + Mul<Output=T>
 {
-    let negate = |v: &Vec<T>| v.iter().map(|&x| -x).collect::<Vec<T>>();
     let pivot_column = |v: &Vec<T>| v.iter().position(|&x| !x.is_zero());
 
     let mut v = v.to_vec();
 
     for i in 0..bs.len() {
-        let b = bs[i].to_vec();
+        let b = &bs[i].to_vec();
         assert!(b.len() == v.len());
 
         if let Some(col) = pivot_column(&v) {
             let col_b = pivot_column(&b).unwrap();
 
             if col < col_b {
-                let v = if (bs.len() - i) % 2 == 0 { v } else { negate(&v) };
+                if (bs.len() - i) % 2 > 0 {
+                    v = v.iter().map(|&x| -x).collect();
+                }
                 bs.insert(i, v);
                 return;
             } else if col == col_b {
@@ -65,7 +65,7 @@ pub fn extend_basis<T>(v: &[T], bs: &mut Vec<Vec<T>>)
         }
     }
 
-    if !v.iter().all(|x| x.is_zero()) {
+    if pivot_column(&v).is_some() {
         bs.push(v);
     }
 }
