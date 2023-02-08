@@ -110,6 +110,62 @@ fn test_reduced_basis() {
 }
 
 
+pub fn solve<T>(lft: &Matrix<T>, rgt: &Matrix<T>) -> Option<Matrix<T>>
+    where
+        T: Field + Clone + SubAssign + for <'a> Div<&'a T, Output=T>,
+        T: for <'a> DivAssign<&'a T> + for <'a> MulAssign<&'a T>,
+        for <'a> &'a T: Neg<Output=T>,
+        for <'a> &'a T: Mul<&'a T, Output=T>,
+        Matrix<T>: Mul<Output=Matrix<T>>
+{
+    let (rowslft, colslft) = lft.shape();
+    let (rowsrgt, colsrgt) = rgt.shape();
+    assert!(rowslft == rowsrgt);
+
+    let t = reduced_basis(&Matrix::hstack(&[lft.clone(), rgt.clone()]));
+    if t.nrows == 0 {
+        return Some(Matrix::zero(colslft, colsrgt));
+    }
+
+    let lft = t.submatrix(0..t.nrows, 0..colslft);
+    let rgt = t.submatrix(0..t.nrows, colslft..t.ncols);
+    if lft.rank() < lft.nrows {
+        return None;
+    }
+
+    let t = reduced_basis(&Matrix::hstack(&[
+        lft.transpose(),
+        Matrix::identity(lft.ncols)
+    ]));
+    let u = t.submatrix(0..t.nrows, lft.nrows..t.ncols).transpose();
+
+    let m = rgt.ncols;
+    Some(Matrix::vstack(&[u * rgt, Matrix::zero(lft.ncols - lft.nrows, m)]))
+}
+
+
+#[test]
+fn test_solve() {
+    fn r(m: &Matrix<i64>) -> Matrix<BigRational> {
+        m.iter()
+            .map(|&n| BigRational::from(num_bigint::BigInt::from(n)))
+            .collect::<Matrix<_>>()
+            .reshape(m.ncols)
+    }
+
+    let a = r(&Matrix::new(2, &[1, 2, 3, 4]));
+    let x = r(&Matrix::new(2, &[1, 0, 1, -3]));
+    let b = &a * &x;
+    assert_eq!(b, r(&Matrix::new(2, &[3, -6, 7, -12])));
+    let s = solve(&a, &b).unwrap();
+    assert_eq!(s, x);
+
+    let id = Matrix::identity(2);
+    let a_inv = solve(&a, &id).unwrap();
+    assert_eq!(a * a_inv, id);
+}
+
+
 impl<T> Matrix<T>
     where
         T: Field + Clone + SubAssign + for <'a> Div<&'a T, Output=T>,
