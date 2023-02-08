@@ -137,11 +137,34 @@ pub fn solve<T>(lft: &Matrix<T>, rgt: &Matrix<T>) -> Option<Matrix<T>>
         lft.transpose(),
         Matrix::identity(lft.ncols)
     ]));
-    let u = t.submatrix(0..t.nrows, lft.nrows..t.ncols).transpose();
+    let u = t.submatrix(0..lft.nrows, lft.nrows..t.ncols).transpose();
 
-    let m = rgt.ncols;
-    let x = Matrix::vstack(&[rgt, Matrix::zero(lft.ncols - lft.nrows, m)]);
-    Some(u * x)
+    Some(u * rgt)
+}
+
+
+fn null_space<T>(m: &Matrix<T>) -> Option<Matrix<T>>
+    where
+        for <'a> T: Field + Clone + SubAssign + Div<&'a T, Output=T>,
+        for <'a> T: DivAssign<&'a T> + MulAssign<&'a T>,
+        for <'a> &'a T: Neg<Output=T>,
+        for <'a> &'a T: Mul<&'a T, Output=T>,
+{
+    let m = m.transpose();
+    let nrows = m.nrows;
+    let t = reduced_basis(&Matrix::hstack(&[
+        m.clone(),
+        Matrix::identity(nrows)
+    ]));
+    let lft = t.submatrix(0..t.nrows, 0..nrows);
+    let rgt = t.submatrix(0..t.nrows, nrows..t.ncols);
+    let k = lft.rank();
+
+    if k < rgt.nrows {
+        Some(rgt.submatrix(k..rgt.nrows, 0..rgt.ncols).transpose())
+    } else {
+        None
+    }
 }
 
 
@@ -160,6 +183,8 @@ fn test_solve() {
     assert_eq!(b, r(&Matrix::new(2, &[3, -6, 7, -12])));
     let s = solve(&a, &b).unwrap();
     assert_eq!(s, x);
+    let n = null_space(&a);
+    assert_eq!(n, None);
 
     let id = Matrix::identity(2);
     let a_inv = solve(&a, &id).unwrap();
@@ -170,7 +195,9 @@ fn test_solve() {
     let b = &a * &x;
     assert_eq!(b, r(&Matrix::new(1, &[3, 9])));
     let s = solve(&a, &b).unwrap();
-    assert_eq!(a * s, b);
+    assert_eq!(&a * s, b);
+    let n = null_space(&a).unwrap();
+    assert_eq!(&a * &n, Matrix::zero(2, 1));
 
     let a = Matrix::new(2, &[1.0, 2.0, 3.0, 4.0]);
     let x = Matrix::new(2, &[1.0, 0.0, 1.0, -3.0]);
@@ -178,6 +205,8 @@ fn test_solve() {
     assert_eq!(b, Matrix::new(2, &[3.0, -6.0, 7.0, -12.0]));
     let s = solve(&a, &b).unwrap();
     assert_eq!(s, x);
+    let n = null_space(&a);
+    assert_eq!(n, None);
 
     let id = Matrix::identity(2);
     let a_inv = solve(&a, &id).unwrap();
