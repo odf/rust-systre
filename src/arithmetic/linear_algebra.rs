@@ -1,4 +1,4 @@
-use std::ops::{Add, Mul, Div, Neg};
+use std::ops::{Add, Sub, Mul, Div, Neg};
 use std::ops::{AddAssign, SubAssign, MulAssign, DivAssign};
 
 use num_rational::{BigRational};
@@ -55,8 +55,8 @@ pub fn extend_basis<T>(v: &[T], bs: &mut Vec<Vec<T>>)
 
 impl<T> Matrix<T>
     where
-        T: Field + Clone + SubAssign,
-        for <'a> T: Div<&'a T, Output=T>,
+        T: Field + Clone + Sub<Output=T> + SubAssign,
+        for <'a> T: Div<&'a T, Output=T> + Mul<&'a T, Output=T>,
         for <'a> T: AddAssign<&'a T> + DivAssign<&'a T> + MulAssign<&'a T>,
         for <'a> &'a T: Neg<Output=T> + Mul<&'a T, Output=T>,
 {
@@ -74,19 +74,36 @@ impl<T> Matrix<T>
         let (nrows, ncols) = self.shape();
         assert!(nrows == ncols, "must be a square matrix");
 
-        let mut basis = vec![];
-        for i in 0..nrows {
-            extend_basis(&self.get_row(i), &mut basis);
-        }
+        match self.nrows {
+            0 => T::one(),
+            1 => self[(0, 0)].clone(),
+            2 => {
+                &self[(0, 0)] * &self[(1, 1)] - &self[(0, 1)] * &self[(1, 0)]
+            },
+            3 => {
+                &self[(0, 0)] * &self[(1, 1)] * &self[(2, 2)] +
+                &self[(0, 1)] * &self[(1, 2)] * &self[(2, 0)] +
+                &self[(0, 2)] * &self[(1, 0)] * &self[(2, 1)] -
+                &self[(0, 2)] * &self[(1, 1)] * &self[(2, 0)] -
+                &self[(0, 0)] * &self[(1, 2)] * &self[(2, 1)] -
+                &self[(0, 1)] * &self[(1, 0)] * &self[(2, 2)]
+            },
+            _ => {
+                let mut basis = vec![];
+                for i in 0..nrows {
+                    extend_basis(&self.get_row(i), &mut basis);
+                }
 
-        if basis.len() < nrows {
-            T::zero()
-        } else {
-            let mut det = T::one();
-            for i in 0..nrows {
-                det *= &basis[i][i];
+                if basis.len() < nrows {
+                    T::zero()
+                } else {
+                    let mut det = T::one();
+                    for i in 0..nrows {
+                        det *= &basis[i][i];
+                    }
+                    det
+                }
             }
-            det
         }
     }
 
@@ -189,14 +206,37 @@ mod test {
     }
 
     #[test]
-    fn test_matrix_rank_and_det() {
+    fn test_determinant() {
+        for d in 0..=4 {
+            let t = (2 as i32).pow(d as u32);
+
+            let a = Matrix::<f64>::identity(d);
+            assert_eq!(a.determinant(), 1.0);
+            assert_eq!((&a + &a).determinant(), t as f64);
+
+            let a = Matrix::<BigRational>::identity(d);
+            assert_eq!(a.determinant(), BigRational::one());
+            assert_eq!(
+                (&a + &a).determinant(),
+                BigRational::from(BigInt::from(t))
+            );
+        }
+
+        assert_eq!(
+            Matrix::new(3, &[1.0, 0.3, 0.7, 0.0, 2.0, 1.2, 0.0, 0.0, 0.25])
+                .determinant(),
+            0.5
+        );
+    }
+
+    #[test]
+    fn test_matrix_rank() {
         let a = Matrix::new(3, &[
             1.0, 0.0, 0.0,
             0.0, 1.0, 0.0,
             0.0, 0.0, 1.0
         ]);
         assert_eq!(a.rank(), 3);
-        assert_eq!(a.determinant(), 1.0);
 
         let a = Matrix::new(3, &[
             1.0, 0.3, 0.7,
@@ -204,11 +244,9 @@ mod test {
             0.0, 0.0, 0.25,
         ]);
         assert_eq!(a.rank(), 3);
-        assert_eq!(a.determinant(), 0.5);
 
         let a = r(&Matrix::new(3, &[1, 0, 0, 0, 1, 0, 0, 0, 1]));
         assert_eq!(a.rank(), 3);
-        assert_eq!(a.determinant(), BigRational::one());
 
         let a = r(&Matrix::new(3, &[1, 2, 3, 2, 4, 6, 3, 6, 9]));
         assert_eq!(a.rank(), 1);

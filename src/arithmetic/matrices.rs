@@ -14,7 +14,7 @@ pub struct Matrix<T> {
 
 impl<T> Matrix<T> {
     pub fn shape(&self) -> (usize, usize) {
-        (self.data.len() / self.ncols, self.ncols)
+        (self.nrows, self.ncols)
     }
 }
 
@@ -46,8 +46,9 @@ impl<T: Clone> FromIterator<T> for Matrix<T> {
 
 impl<T: Clone> Matrix<T> {
     pub fn new(ncols: usize, data: &[T]) -> Matrix<T> {
-        assert!(data.len() % ncols == 0);
-        let nrows = data.len() / ncols;
+        let nrows = if data.len() == 0 { 0 } else { data.len() / ncols };
+        assert_eq!(data.len(), nrows * ncols);
+
         Matrix { nrows, ncols, data: data.to_vec() }
     }
 
