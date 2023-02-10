@@ -16,6 +16,10 @@ impl<T> Matrix<T> {
     pub fn shape(&self) -> (usize, usize) {
         (self.nrows, self.ncols)
     }
+
+    pub fn iter(&self) -> Iter<T> {
+        self.data.iter()
+    }
 }
 
 impl<T> Index<(usize, usize)> for Matrix<T> {
@@ -58,10 +62,6 @@ impl<T: Clone> Matrix<T> {
 
     pub fn col(data: &[T]) -> Matrix<T> {
         Self::new(1, data)
-    }
-
-    pub fn iter(&self) -> Iter<T> {
-        self.data.iter()
     }
 
     pub fn reshape(self, ncols: usize) -> Matrix<T> {
