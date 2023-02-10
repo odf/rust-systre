@@ -1,5 +1,5 @@
 use std::marker::PhantomData;
-use std::ops::{Neg, AddAssign, Add};
+use std::ops::{Neg, Add, AddAssign, Sub, SubAssign};
 use std::ops::{Index, IndexMut};
 use std::slice::Iter;
 
@@ -162,6 +162,46 @@ impl<S, T, CS> Add<S> for Vector<T, CS>
     }
 }
 
+impl<T,  CS> SubAssign<Vector<T,  CS>> for Vector<T,  CS>
+    where T: for <'a> SubAssign<&'a T>
+{
+    fn sub_assign(&mut self, rhs: Vector<T,  CS>) {
+        assert_eq!(self.dim(), rhs.dim());
+        self.coords -= &rhs.coords
+    }
+}
+
+impl<T,  CS> SubAssign<&Vector<T,  CS>> for Vector<T,  CS>
+    where T: for <'a> SubAssign<&'a T>
+{
+    fn sub_assign(&mut self, rhs: &Vector<T,  CS>) {
+        assert_eq!(self.dim(), rhs.dim());
+        self.coords -= &rhs.coords
+    }
+}
+
+impl<'a, S, T: 'a, CS> Sub<S> for &'a Vector<T, CS>
+    where T: Clone, CS: Clone, Vector<T, CS>: SubAssign<S>
+{
+    type Output = Vector<T, CS>;
+
+    fn sub(self, rhs: S) -> Vector<T, CS> {
+        let mut tmp = (*self).clone();
+        tmp -= rhs;
+        tmp
+    }
+}
+
+impl<S, T, CS> Sub<S> for Vector<T, CS>
+    where T: Clone, CS: Clone, Vector<T, CS>: SubAssign<S>
+{
+    type Output = Vector<T, CS>;
+
+    fn sub(self, rhs: S) -> Vector<T, CS> {
+        &self - rhs
+    }
+}
+
 
 pub struct Point<T, CS> {
     coords: Matrix<T>,
@@ -251,5 +291,28 @@ mod tests {
     fn test_bad_vector_addition() {
         let mut v: Vector<_, World> = Vector::new(&[1, 2, 3]);
         v += Vector::new(&[-1, -1, -1, -1]);
+    }
+
+    #[test]
+    fn test_vector_subtraction() {
+        let mut v: Vector<_, World> = Vector::new(&[1, 2, 3]);
+
+        v -= Vector::new(&[1, 1, 1]);
+        assert_eq!(v, Vector::new(&[0, 1, 2]));
+
+        v -= &(Vector::new(&[-1, -1, -2]));
+        assert_eq!(v, Vector::new(&[1, 2, 4]));
+
+        assert_eq!(v.clone() - Vector::unit(3, 1), Vector::new(&[1, 1, 4]));
+        assert_eq!(&v - Vector::unit(3, 0), Vector::new(&[0, 2, 4]));
+        assert_eq!(v.clone() - &Vector::unit(3, 2), Vector::new(&[1, 2, 3]));
+        assert_eq!(&v - &Vector::unit(3, 0), Vector::new(&[0, 2, 4]));
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_bad_vector_subtraction() {
+        let mut v: Vector<_, World> = Vector::new(&[1, 2, 3]);
+        v -= Vector::new(&[-1, -1, -1, -1]);
     }
 }
