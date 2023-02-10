@@ -105,9 +105,9 @@ impl<T, CS> Neg for Vector<T, CS>
 /// struct World {}
 /// struct Local {}
 /// 
-/// let mut u = Vector::<_, World>::new(&[1,2,3]);
-/// u += Vector::<_, World>::new(&[3,2,1]);
-/// assert_eq!(u, Vector::new(&[4,4,4]));
+/// let mut u = Vector::<_, World>::new(&[1, 2, 3]);
+/// u += Vector::<_, World>::new(&[3, 2, 1]);
+/// assert_eq!(u, Vector::new(&[4, 4, 4]));
 /// ```
 /// 
 /// ```compile_fail
@@ -117,23 +117,24 @@ impl<T, CS> Neg for Vector<T, CS>
 /// struct World {}
 /// struct Local {}
 /// 
-/// let mut u = Vector::<_, World>::new(&[1,2,3]);
-/// u += Vector::<_, Local>::new(&[3,2,1]);
-/// assert_eq!(u, Vector::new(&[4,4,4]));
+/// let mut u = Vector::<_, World>::new(&[1, 2, 3]);
+/// u += Vector::<_, Local>::new(&[3, 2, 1]);
+/// assert_eq!(u, Vector::new(&[4, 4, 4]));
 /// ```
-impl<T,  CS> AddAssign<&Vector<T,  CS>> for Vector<T,  CS>
-    where T: for <'a> AddAssign<&'a T>
-{
-    fn add_assign(&mut self, rhs: &Vector<T,  CS>) {
-        assert_eq!(self.dim(), rhs.dim());
-        self.coords += &rhs.coords
-    }
-}
 
 impl<T,  CS> AddAssign<Vector<T,  CS>> for Vector<T,  CS>
     where T: for <'a> AddAssign<&'a T>
 {
     fn add_assign(&mut self, rhs: Vector<T,  CS>) {
+        assert_eq!(self.dim(), rhs.dim());
+        self.coords += &rhs.coords
+    }
+}
+
+impl<T,  CS> AddAssign<&Vector<T,  CS>> for Vector<T,  CS>
+    where T: for <'a> AddAssign<&'a T>
+{
+    fn add_assign(&mut self, rhs: &Vector<T,  CS>) {
         assert_eq!(self.dim(), rhs.dim());
         self.coords += &rhs.coords
     }
@@ -191,7 +192,7 @@ pub struct CoordinateMap<T, CSIn, CSOut> {
 mod tests {
     use super::*;
 
-    #[derive(Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq)]
     struct World {}
 
     #[test]
@@ -217,7 +218,38 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn test_vector_unit_bad_arguments() {
+    fn test_bad_vector_unit() {
         Vector::<i32, World>::unit(3, 5);
+    }
+
+    #[test]
+    fn test_vector_negation() {
+        let v: Vector<_, World> = Vector::new(&[1, 2, 3]);
+
+        assert_eq!(-&v, Vector::new(&[-1, -2, -3]));
+        assert_eq!(-v, Vector::new(&[-1, -2, -3]));
+    }
+
+    #[test]
+    fn test_vector_addition() {
+        let mut v: Vector<_, World> = Vector::new(&[1, 2, 3]);
+
+        v += Vector::new(&[-1, -1, -1]);
+        assert_eq!(v, Vector::new(&[0, 1, 2]));
+
+        v += &(v.clone());
+        assert_eq!(v, Vector::new(&[0, 2, 4]));
+
+        assert_eq!(v.clone() + v.clone(), Vector::new(&[0, 4, 8]));
+        assert_eq!(&v.clone() + v.clone(), Vector::new(&[0, 4, 8]));
+        assert_eq!(v.clone() + &v.clone(), Vector::new(&[0, 4, 8]));
+        assert_eq!(&v.clone() + &v.clone(), Vector::new(&[0, 4, 8]));
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_bad_vector_addition() {
+        let mut v: Vector<_, World> = Vector::new(&[1, 2, 3]);
+        v += Vector::new(&[-1, -1, -1, -1]);
     }
 }
