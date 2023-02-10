@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 use std::ops::{Neg, Add, AddAssign, Sub, SubAssign};
+use std::ops::{Mul, MulAssign, Div, DivAssign};
 use std::ops::{Index, IndexMut};
 use std::slice::Iter;
 
@@ -202,6 +203,43 @@ impl<S, T, CS> Sub<S> for Vector<T, CS>
     }
 }
 
+impl<T, CS> MulAssign<&T> for Vector<T, CS>
+    where T: for <'a> MulAssign<&'a T>
+{
+    fn mul_assign(&mut self, rhs: &T) {
+        self.coords *= rhs;
+    }
+}
+
+impl<T, CS> MulAssign<T> for Vector<T, CS>
+    where T: for <'a> MulAssign<&'a T>
+{
+    fn mul_assign(&mut self, rhs: T) {
+        self.coords *= rhs;
+    }
+}
+
+impl<'a, S, T: 'a, CS> Mul<S> for &'a Vector<T, CS>
+    where T: Clone, CS: Clone, Vector<T, CS>: MulAssign<S>
+{
+    type Output = Vector<T, CS>;
+
+    fn mul(self, rhs: S) -> Vector<T, CS> {
+        let mut tmp = (*self).clone();
+        tmp *= rhs;
+        tmp
+    }
+}
+
+impl<S, T, CS> Mul<S> for Vector<T, CS>
+    where T: Clone, CS: Clone, Vector<T, CS>: MulAssign<S>
+{
+    type Output = Vector<T, CS>;
+
+    fn mul(self, rhs: S) -> Vector<T, CS> {
+        &self * rhs
+    }
+}
 
 pub struct Point<T, CS> {
     coords: Matrix<T>,
@@ -314,5 +352,21 @@ mod tests {
     fn test_bad_vector_subtraction() {
         let mut v: Vector<_, World> = Vector::new(&[1, 2, 3]);
         v -= Vector::new(&[-1, -1, -1, -1]);
+    }
+
+    #[test]
+    fn test_vector_multiplication() {
+        let mut v: Vector<_, World> = Vector::new(&[1, 2, 3]);
+
+        v *= 2;
+        assert_eq!(v, Vector::new(&[2, 4, 6]));
+
+        v *= &3;
+        assert_eq!(v, Vector::new(&[6, 12, 18]));
+
+        assert_eq!(v.clone() * 2, Vector::new(&[12, 24, 36]));
+        assert_eq!(&v * 3, Vector::new(&[18, 36, 54]));
+        assert_eq!(v.clone() * &4, Vector::new(&[24, 48, 72]));
+        assert_eq!(&v * &5, Vector::new(&[30, 60, 90]));
     }
 }
