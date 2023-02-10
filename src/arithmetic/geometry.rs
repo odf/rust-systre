@@ -241,6 +241,44 @@ impl<S, T, CS> Mul<S> for Vector<T, CS>
     }
 }
 
+impl<T, CS> DivAssign<&T> for Vector<T, CS>
+    where T: for <'a> DivAssign<&'a T>
+{
+    fn div_assign(&mut self, rhs: &T) {
+        self.coords /= rhs;
+    }
+}
+
+impl<T, CS> DivAssign<T> for Vector<T, CS>
+    where T: for <'a> DivAssign<&'a T>
+{
+    fn div_assign(&mut self, rhs: T) {
+        self.coords /= rhs;
+    }
+}
+
+impl<'a, S, T: 'a, CS> Div<S> for &'a Vector<T, CS>
+    where T: Clone, CS: Clone, Vector<T, CS>: DivAssign<S>
+{
+    type Output = Vector<T, CS>;
+
+    fn div(self, rhs: S) -> Vector<T, CS> {
+        let mut tmp = (*self).clone();
+        tmp /= rhs;
+        tmp
+    }
+}
+
+impl<S, T, CS> Div<S> for Vector<T, CS>
+    where T: Clone, CS: Clone, Vector<T, CS>: DivAssign<S>
+{
+    type Output = Vector<T, CS>;
+
+    fn div(self, rhs: S) -> Vector<T, CS> {
+        &self / rhs
+    }
+}
+
 pub struct Point<T, CS> {
     coords: Matrix<T>,
     phantom: PhantomData<CS>,
@@ -368,5 +406,21 @@ mod tests {
         assert_eq!(&v * 3, Vector::new(&[18, 36, 54]));
         assert_eq!(v.clone() * &4, Vector::new(&[24, 48, 72]));
         assert_eq!(&v * &5, Vector::new(&[30, 60, 90]));
+    }
+
+    #[test]
+    fn test_vector_division() {
+        let mut v: Vector<_, World> = Vector::new(&[73, 79, 83]);
+
+        v /= 2;
+        assert_eq!(v, Vector::new(&[36, 39, 41]));
+
+        v /= &3;
+        assert_eq!(v, Vector::new(&[12, 13, 13]));
+
+        assert_eq!(v.clone() / 2, Vector::new(&[6, 6, 6]));
+        assert_eq!(&v / 3, Vector::new(&[4, 4, 4]));
+        assert_eq!(v.clone() / &4, Vector::new(&[3, 3, 3]));
+        assert_eq!(&v / &5, Vector::new(&[2, 2, 2]));
     }
 }
