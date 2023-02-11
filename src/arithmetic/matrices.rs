@@ -313,7 +313,7 @@ impl<T> AddAssign<T> for Matrix<T>
     }
 }
 
-impl<'a, S, T: 'a> Add<S> for &'a Matrix<T>
+impl<S, T> Add<S> for &Matrix<T>
     where T: Clone, Matrix<T>: AddAssign<S>
 {
     type Output = Matrix<T>;
@@ -392,7 +392,7 @@ impl<T> SubAssign<T> for Matrix<T>
     }
 }
 
-impl<'a, S, T: 'a> Sub<S> for &'a Matrix<T>
+impl<S, T> Sub<S> for &Matrix<T>
     where T: Clone, Matrix<T>: SubAssign<S>
 {
     type Output = Matrix<T>;
@@ -445,7 +445,7 @@ impl<T> MulAssign<T> for Matrix<T>
     }
 }
 
-impl<'a, S, T: 'a> Mul<S> for &'a Matrix<T>
+impl<S, T> Mul<S> for &Matrix<T>
     where T: Clone, Matrix<T>: MulAssign<S>
 {
     type Output = Matrix<T>;
@@ -574,7 +574,7 @@ impl<T> DivAssign<T> for Matrix<T>
     }
 }
 
-impl<'a, S, T: 'a> Div<S> for &'a Matrix<T>
+impl<S, T> Div<S> for &Matrix<T>
     where T: Clone, Matrix<T>: DivAssign<S>
 {
     type Output = Matrix<T>;

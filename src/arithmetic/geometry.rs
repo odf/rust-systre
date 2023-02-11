@@ -253,6 +253,7 @@ impl<S, T, CS> Div<S> for Vector<T, CS>
     }
 }
 
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Point<T, CS> {
     coords: Matrix<T>,
