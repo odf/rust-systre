@@ -390,18 +390,6 @@ impl<S, T, CS> Sub<S> for Point<T, CS>
     }
 }
 
-impl <T, CS> Sub<Point<T, CS>> for Point<T, CS>
-    where T: Clone, Matrix<T>: SubAssign<Matrix<T>>
-{
-    type Output = Vector<T, CS>;
-
-    fn sub(self, rhs: Point<T, CS>) -> Self::Output {
-        let mut coords = self.coords.clone();
-        coords -= rhs.coords;
-        Vector::new(&coords.data)
-    }
-}
-
 impl <T, CS> Sub<Point<T, CS>> for &Point<T, CS>
     where T: Clone, Matrix<T>: SubAssign<Matrix<T>>
 {
@@ -410,18 +398,6 @@ impl <T, CS> Sub<Point<T, CS>> for &Point<T, CS>
     fn sub(self, rhs: Point<T, CS>) -> Self::Output {
         let mut coords = self.coords.clone();
         coords -= rhs.coords;
-        Vector::new(&coords.data)
-    }
-}
-
-impl <T, CS> Sub<&Point<T, CS>> for Point<T, CS>
-    where T: Clone, for <'a> Matrix<T>: SubAssign<&'a Matrix<T>>
-{
-    type Output = Vector<T, CS>;
-
-    fn sub(self, rhs: &Point<T, CS>) -> Self::Output {
-        let mut coords = self.coords.clone();
-        coords -= &rhs.coords;
         Vector::new(&coords.data)
     }
 }
@@ -435,6 +411,26 @@ impl <T, CS> Sub<&Point<T, CS>> for &Point<T, CS>
         let mut coords = self.coords.clone();
         coords -= &rhs.coords;
         Vector::new(&coords.data)
+    }
+}
+
+impl <T, CS> Sub<Point<T, CS>> for Point<T, CS>
+    where T: Clone, Matrix<T>: SubAssign<Matrix<T>>
+{
+    type Output = Vector<T, CS>;
+
+    fn sub(self, rhs: Point<T, CS>) -> Self::Output {
+        &self - rhs
+    }
+}
+
+impl <T, CS> Sub<&Point<T, CS>> for Point<T, CS>
+    where T: Clone, for <'a> Matrix<T>: SubAssign<&'a Matrix<T>>
+{
+    type Output = Vector<T, CS>;
+
+    fn sub(self, rhs: &Point<T, CS>) -> Self::Output {
+        &self - rhs
     }
 }
 
@@ -627,6 +623,17 @@ mod tests {
         assert_eq!(&p - Vector::unit(3, 0), Point::new(&[0, 2, 4]));
         assert_eq!(p.clone() - &Vector::unit(3, 2), Point::new(&[1, 2, 3]));
         assert_eq!(&p - &Vector::unit(3, 0), Point::new(&[0, 2, 4]));
+    }
+
+    #[test]
+    fn test_point_point_subtraction() {
+        let p: Point<_, World> = Point::new(&[1, 2, 3]);
+        let q: Point<_, World> = Point::new(&[1, 0, 1]);
+
+        assert_eq!(p.clone() - q.clone(), Vector::new(&[0, 2, 2]));
+        assert_eq!(p.clone() - &q.clone(), Vector::new(&[0, 2, 2]));
+        assert_eq!(&p.clone() - q.clone(), Vector::new(&[0, 2, 2]));
+        assert_eq!(&p.clone() - &q.clone(), Vector::new(&[0, 2, 2]));
     }
 
     #[test]
