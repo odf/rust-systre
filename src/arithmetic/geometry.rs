@@ -436,9 +436,61 @@ impl <T, CS> Sub<&Point<T, CS>> for Point<T, CS>
 }
 
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ScalarProduct<T, CS> {
     coeffs: Matrix<T>,
     phantom: PhantomData<CS>,
+}
+
+impl<T, CS> ScalarProduct<T, CS> {
+    pub fn dim(&self) -> usize {
+        self.coeffs.shape().0
+    }
+}
+
+impl<T, CS> Index<(usize, usize)> for ScalarProduct<T, CS> {
+    type Output = T;
+
+    fn index(&self, (i, j): (usize, usize)) -> &T {
+        &self.coeffs[(i, j)]
+    }
+}
+
+impl<T, CS> From<Matrix<T>> for ScalarProduct<T, CS>
+    where T: Clone + std::fmt::Debug + PartialEq
+{
+    fn from(coeffs: Matrix<T>) -> Self {
+        assert_eq!(&coeffs, &coeffs.transpose());
+        ScalarProduct { coeffs, phantom: PhantomData::default() }
+    }
+}
+
+impl<T, CS> ScalarProduct<T, CS>
+    where T: Clone + std::fmt::Debug + PartialEq + Zero + One
+{
+    pub fn default(dim: usize) -> ScalarProduct<T, CS> {
+        ScalarProduct::from(Matrix::identity(dim))
+    }
+}
+
+impl<T, CS> ScalarProduct<T, CS>
+    where
+        T: Clone + Zero + One + AddAssign<T>,
+        for <'a> T: Mul<&'a T, Output=T>,
+        for <'a> &'a T: Mul<&'a T, Output=T>
+{
+    pub fn apply(&self, u: &Vector<T, CS>, v: &Vector<T, CS>) -> T {
+        assert_eq!(u.dim(), self.dim());
+        assert_eq!(v.dim(), self.dim());
+
+        let mut t = T::zero();
+        for i in 0..u.dim() {
+            for j in 0..u.dim() {
+                t += &u[i] * &self[(i, j)] * &v[j];
+            }
+        }
+        t
+    }
 }
 
 
