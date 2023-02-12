@@ -467,7 +467,7 @@ impl<T, CS> From<Matrix<T>> for ScalarProduct<T, CS>
 {
     fn from(coeffs: Matrix<T>) -> Self {
         assert_eq!(&coeffs, &coeffs.transpose());
-        for i in 1..coeffs.shape().0 {
+        for i in 1..=coeffs.shape().0 {
             assert!(coeffs.submatrix(0..i, 0..i).determinant() > T::zero());
         }
 
@@ -747,5 +747,21 @@ mod tests {
         let v = Vector::new(&[1.0, 0.0]);
         let w = Vector::new(&[1.0, 1.0]);
         assert_eq!(dot.apply(&v, &w), 0.5);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_bad_scalar_product_not_symmetric() {
+        let dot: ScalarProduct<_, World> = ScalarProduct::from(
+            Matrix::new(2, &[1.0, -0.5, -0.51, 1.0])
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_bad_scalar_product_not_positive_definite() {
+        let dot: ScalarProduct<_, World> = ScalarProduct::from(
+            Matrix::new(2, &[1.0, -0.5, -0.5, 0.2])
+        );
     }
 }
