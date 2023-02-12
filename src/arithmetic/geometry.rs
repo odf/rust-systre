@@ -7,6 +7,7 @@ use std::slice::Iter;
 use num_traits::{Zero, One};
 
 use super::matrices::Matrix;
+use super::linear_algebra::Field;
 
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -457,19 +458,29 @@ impl<T, CS> Index<(usize, usize)> for ScalarProduct<T, CS> {
 }
 
 impl<T, CS> From<Matrix<T>> for ScalarProduct<T, CS>
-    where T: Clone + std::fmt::Debug + PartialEq
+    where
+        T: std::fmt::Debug + PartialEq + PartialOrd,
+        T: Field + Clone + Sub<Output=T> + SubAssign,
+        for <'a> T: Div<&'a T, Output=T> + Mul<&'a T, Output=T>,
+        for <'a> T: AddAssign<&'a T> + DivAssign<&'a T> + MulAssign<&'a T>,
+        for <'a> &'a T: Neg<Output=T> + Mul<&'a T, Output=T>,
 {
     fn from(coeffs: Matrix<T>) -> Self {
         assert_eq!(&coeffs, &coeffs.transpose());
+        assert!(coeffs.determinant() > T::zero());
+
         ScalarProduct { coeffs, phantom: PhantomData::default() }
     }
 }
 
 impl<T, CS> ScalarProduct<T, CS>
-    where T: Clone + std::fmt::Debug + PartialEq + Zero + One
+    where T: Clone + Zero + One + std::fmt::Debug + PartialEq + PartialOrd,
 {
     pub fn default(dim: usize) -> ScalarProduct<T, CS> {
-        ScalarProduct::from(Matrix::identity(dim))
+        ScalarProduct {
+            coeffs: Matrix::identity(dim),
+            phantom: PhantomData::default()
+        }
     }
 }
 
@@ -719,5 +730,15 @@ mod tests {
         assert_eq!(&v / 3, Vector::new(&[4, 4, 4]));
         assert_eq!(v.clone() / &4, Vector::new(&[3, 3, 3]));
         assert_eq!(&v / &5, Vector::new(&[2, 2, 2]));
+    }
+
+    #[test]
+    fn test_scalar_product() {
+        let dot: ScalarProduct<f64, World> = ScalarProduct::default(3);
+        let v: Vector<_, World> = Vector::new(&[1.0, 2.0, 3.0]);
+        let w: Vector<_, World> = Vector::new(&[-1.0, 2.0, -1.0]);
+
+        assert_eq!(dot.apply(&v, &v), 14.0);
+        assert_eq!(dot.apply(&v, &w), 0.0);
     }
 }
