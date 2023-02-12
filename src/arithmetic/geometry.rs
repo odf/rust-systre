@@ -467,15 +467,15 @@ impl<T, CS> From<Matrix<T>> for ScalarProduct<T, CS>
 {
     fn from(coeffs: Matrix<T>) -> Self {
         assert_eq!(&coeffs, &coeffs.transpose());
-        assert!(coeffs.determinant() > T::zero());
+        for i in 1..coeffs.shape().0 {
+            assert!(coeffs.submatrix(0..i, 0..i).determinant() > T::zero());
+        }
 
         ScalarProduct { coeffs, phantom: PhantomData::default() }
     }
 }
 
-impl<T, CS> ScalarProduct<T, CS>
-    where T: Clone + Zero + One + std::fmt::Debug + PartialEq + PartialOrd,
-{
+impl<T, CS> ScalarProduct<T, CS> where T: Clone + Zero + One {
     pub fn default(dim: usize) -> ScalarProduct<T, CS> {
         ScalarProduct {
             coeffs: Matrix::identity(dim),
@@ -735,10 +735,17 @@ mod tests {
     #[test]
     fn test_scalar_product() {
         let dot: ScalarProduct<f64, World> = ScalarProduct::default(3);
-        let v: Vector<_, World> = Vector::new(&[1.0, 2.0, 3.0]);
-        let w: Vector<_, World> = Vector::new(&[-1.0, 2.0, -1.0]);
+        let v = Vector::new(&[1.0, 2.0, 3.0]);
+        let w = Vector::new(&[-1.0, 2.0, -1.0]);
 
         assert_eq!(dot.apply(&v, &v), 14.0);
         assert_eq!(dot.apply(&v, &w), 0.0);
+
+        let dot: ScalarProduct<_, World> = ScalarProduct::from(
+            Matrix::new(2, &[1.0, -0.5, -0.5, 1.0])
+        );
+        let v = Vector::new(&[1.0, 0.0]);
+        let w = Vector::new(&[1.0, 1.0]);
+        assert_eq!(dot.apply(&v, &w), 0.5);
     }
 }
