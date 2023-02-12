@@ -512,22 +512,33 @@ pub struct AffineMap<T, CS> {
 }
 
 impl<T, CS> AffineMap<T, CS> {
-    pub fn new(linear_coeffs: Matrix<T>, shift: Vector<T, CS>) -> Self {
-        let n = shift.dim();
-        assert_eq!(linear_coeffs.shape().0, n);
-        assert_eq!(linear_coeffs.shape().1, n);
-
-        AffineMap { linear_coeffs, shift }
-    }
-
     pub fn dim(&self) -> usize {
         self.shift.dim()
     }
 }
 
-impl<T, CS> Mul<&AffineMap<T, CS>> for &AffineMap<T, CS>
+impl<T: Clone, CS: Clone> AffineMap<T, CS> {
+    pub fn new(linear_coeffs: &Matrix<T>, shift: &Vector<T, CS>) -> Self
+    {
+        let n = shift.dim();
+        assert_eq!(linear_coeffs.shape().0, n);
+        assert_eq!(linear_coeffs.shape().1, n);
+
+        AffineMap {
+            linear_coeffs: linear_coeffs.clone(),
+            shift: shift.clone()
+        }
+    }
+
+    pub fn identity(dim: usize) -> Self
+        where T: Zero + One
+    {
+        AffineMap::new(&Matrix::identity(dim), &Vector::zero(dim))
+    }
+}
+
+impl<T: Clone, CS: Clone> Mul<&AffineMap<T, CS>> for &AffineMap<T, CS>
     where
-        T: Clone,
         for <'a> &'a Matrix<T>: Mul<&'a Matrix<T>, Output=Matrix<T>>,
         for <'a> Matrix<T>: Add<&'a Matrix<T>, Output=Matrix<T>>
 {
@@ -539,13 +550,12 @@ impl<T, CS> Mul<&AffineMap<T, CS>> for &AffineMap<T, CS>
         let shift = Vector::from(
             &self.linear_coeffs * &rhs.shift.coords + &self.shift.coords
         );
-        AffineMap::new(linear_coeffs, shift)
+        AffineMap::new(&linear_coeffs, &shift)
     }
 }
 
-impl<T, CS> Mul<&Point<T, CS>> for &AffineMap<T, CS>
+impl<T: Clone, CS> Mul<&Point<T, CS>> for &AffineMap<T, CS>
     where
-        T: Clone,
         for <'a> &'a Matrix<T>: Mul<&'a Matrix<T>, Output=Matrix<T>>,
         for <'a> Matrix<T>: Add<&'a Matrix<T>, Output=Matrix<T>>
 {
@@ -556,10 +566,8 @@ impl<T, CS> Mul<&Point<T, CS>> for &AffineMap<T, CS>
     }
 }
 
-impl<T, CS> Mul<&Vector<T, CS>> for &AffineMap<T, CS>
-    where
-        T: Clone,
-        for <'a> &'a Matrix<T>: Mul<&'a Matrix<T>, Output=Matrix<T>>
+impl<T: Clone, CS> Mul<&Vector<T, CS>> for &AffineMap<T, CS>
+    where for <'a> &'a Matrix<T>: Mul<&'a Matrix<T>, Output=Matrix<T>>
 {
     type Output = Vector<T, CS>;
 
@@ -578,10 +586,10 @@ impl<S, T, CS> Mul<S> for &AffineMap<T, CS>
     }
 }
 
-impl<S, T, CS> Mul<S> for AffineMap<T, CS>
-    where for <'a> &'a AffineMap<T, CS>: Mul<S, Output=S>
+impl<S, T, U, CS> Mul<S> for AffineMap<T, CS>
+    where for <'a> &'a AffineMap<T, CS>: Mul<S, Output=U>
 {
-    type Output = S;
+    type Output = U;
 
     fn mul(self, rhs: S) -> Self::Output {
         &self * rhs
@@ -830,7 +838,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_bad_scalar_product_not_symmetric() {
-        let dot: ScalarProduct<_, World> = ScalarProduct::from(
+        let _dot: ScalarProduct<_, World> = ScalarProduct::from(
             Matrix::new(2, &[1.0, -0.5, -0.51, 1.0])
         );
     }
@@ -838,8 +846,22 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_bad_scalar_product_not_positive_definite() {
-        let dot: ScalarProduct<_, World> = ScalarProduct::from(
+        let _dot: ScalarProduct<_, World> = ScalarProduct::from(
             Matrix::new(2, &[1.0, -0.5, -0.5, 0.2])
         );
+    }
+
+    #[test]
+    fn test_affine_map() {
+        let a: AffineMap<_, World> = AffineMap::new(
+            &Matrix::new(2, &[0, -1, 1, 0]), &Vector::new(&[1, 0])
+        );
+        let b: AffineMap<_, World> = AffineMap::new(
+            &Matrix::new(2, &[0, 1, -1, 0]), &Vector::new(&[0, 1])
+        );
+        assert_eq!(&a * &b, AffineMap::identity(2));
+        assert_eq!(&a * b.clone(), AffineMap::identity(2));
+        assert_eq!(a.clone() * &b, AffineMap::identity(2));
+        assert_eq!(a.clone() * b.clone(), AffineMap::identity(2));
     }
 }
