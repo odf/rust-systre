@@ -505,9 +505,87 @@ impl<T, CS> ScalarProduct<T, CS>
 }
 
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AffineMap<T, CS> {
     linear_coeffs: Matrix<T>,
     shift: Vector<T, CS>,
+}
+
+impl<T, CS> AffineMap<T, CS> {
+    pub fn new(linear_coeffs: Matrix<T>, shift: Vector<T, CS>) -> Self {
+        let n = shift.dim();
+        assert_eq!(linear_coeffs.shape().0, n);
+        assert_eq!(linear_coeffs.shape().1, n);
+
+        AffineMap { linear_coeffs, shift }
+    }
+
+    pub fn dim(&self) -> usize {
+        self.shift.dim()
+    }
+}
+
+impl<T, CS> Mul<&AffineMap<T, CS>> for &AffineMap<T, CS>
+    where
+        T: Clone,
+        for <'a> &'a Matrix<T>: Mul<&'a Matrix<T>, Output=Matrix<T>>,
+        for <'a> Matrix<T>: Add<&'a Matrix<T>, Output=Matrix<T>>
+{
+    type Output = AffineMap<T, CS>;
+
+    fn mul(self, rhs: &AffineMap<T, CS>) -> Self::Output {
+        assert_eq!(self.dim(), rhs.dim());
+        let linear_coeffs = &self.linear_coeffs * &rhs.linear_coeffs;
+        let shift = Vector::from(
+            &self.linear_coeffs * &rhs.shift.coords + &self.shift.coords
+        );
+        AffineMap::new(linear_coeffs, shift)
+    }
+}
+
+impl<T, CS> Mul<&Point<T, CS>> for &AffineMap<T, CS>
+    where
+        T: Clone,
+        for <'a> &'a Matrix<T>: Mul<&'a Matrix<T>, Output=Matrix<T>>,
+        for <'a> Matrix<T>: Add<&'a Matrix<T>, Output=Matrix<T>>
+{
+    type Output = Point<T, CS>;
+
+    fn mul(self, rhs: &Point<T, CS>) -> Self::Output {
+        Point::from(&self.linear_coeffs * &rhs.coords + &self.shift.coords)
+    }
+}
+
+impl<T, CS> Mul<&Vector<T, CS>> for &AffineMap<T, CS>
+    where
+        T: Clone,
+        for <'a> &'a Matrix<T>: Mul<&'a Matrix<T>, Output=Matrix<T>>
+{
+    type Output = Vector<T, CS>;
+
+    fn mul(self, rhs: &Vector<T, CS>) -> Self::Output {
+        Vector::from(&self.linear_coeffs * &rhs.coords)
+    }
+}
+
+impl<S, T, CS> Mul<S> for &AffineMap<T, CS>
+    where for <'a> &'a AffineMap<T, CS>: Mul<&'a S, Output=S>
+{
+    type Output = S;
+
+    fn mul(self, rhs: S) -> Self::Output {
+        self * &rhs
+    }
+}
+
+impl<S, T, CS> Mul<S> for AffineMap<T, CS>
+    where for <'a> &'a AffineMap<T, CS>: Mul<S, Output=S>
+{
+    type Output = S;
+
+    fn mul(self, rhs: S) -> Self::Output {
+        &self * rhs
+    }
 }
 
 
