@@ -7,7 +7,7 @@ use std::slice::Iter;
 use num_traits::{Zero, One};
 
 use super::matrices::Matrix;
-use super::linear_algebra::Field;
+use super::linear_algebra::LinearAlgebra;
 
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -459,11 +459,8 @@ impl<T, CS> Index<(usize, usize)> for ScalarProduct<T, CS> {
 
 impl<T, CS> From<Matrix<T>> for ScalarProduct<T, CS>
     where
-        T: std::fmt::Debug + PartialEq + PartialOrd,
-        T: Field + Clone + Sub<Output=T> + SubAssign,
-        for <'a> T: Div<&'a T, Output=T> + Mul<&'a T, Output=T>,
-        for <'a> T: AddAssign<&'a T> + DivAssign<&'a T> + MulAssign<&'a T>,
-        for <'a> &'a T: Neg<Output=T> + Mul<&'a T, Output=T>,
+        T: Clone + std::fmt::Debug + Zero + PartialEq + PartialOrd,
+        Matrix<T>: LinearAlgebra<T>
 {
     fn from(coeffs: Matrix<T>) -> Self {
         assert_eq!(&coeffs, &coeffs.transpose());

@@ -53,14 +53,24 @@ pub fn extend_basis<T>(v: &[T], bs: &mut Vec<Vec<T>>)
 }
 
 
-impl<T> Matrix<T>
+pub trait LinearAlgebra<T> where Self: Sized {
+    fn rank(&self) -> usize;
+    fn determinant(&self) -> T;
+    fn reduced_basis(&self) -> Self;
+    fn solve(&self, rgt: &Self) -> Option<Self>;
+    fn null_space(&self) -> Option<Self>;
+    fn inverse(&self) -> Option<Self>;
+}
+
+
+impl<T> LinearAlgebra<T> for Matrix<T>
     where
         T: Field + Clone + Sub<Output=T> + SubAssign,
         for <'a> T: Div<&'a T, Output=T> + Mul<&'a T, Output=T>,
         for <'a> T: AddAssign<&'a T> + DivAssign<&'a T> + MulAssign<&'a T>,
         for <'a> &'a T: Neg<Output=T> + Mul<&'a T, Output=T>,
 {
-    pub fn rank(&self) -> usize {
+    fn rank(&self) -> usize {
         let (nrows, _) = self.shape();
 
         let mut basis = vec![];
@@ -70,7 +80,7 @@ impl<T> Matrix<T>
         basis.len()
     }
 
-    pub fn determinant(&self) -> T {
+    fn determinant(&self) -> T {
         let (nrows, ncols) = self.shape();
         assert!(nrows == ncols, "must be a square matrix");
 
@@ -107,7 +117,7 @@ impl<T> Matrix<T>
         }
     }
 
-    pub fn reduced_basis(&self) -> Matrix<T> {
+    fn reduced_basis(&self) -> Matrix<T> {
         let (nrows, _) = self.shape();
 
         let mut basis = vec![];
@@ -140,7 +150,7 @@ impl<T> Matrix<T>
         )
     }
 
-    pub fn solve(&self, rgt: &Matrix<T>) -> Option<Matrix<T>> {
+    fn solve(&self, rgt: &Matrix<T>) -> Option<Matrix<T>> {
         let (rowslft, colslft) = self.shape();
         let (rowsrgt, colsrgt) = rgt.shape();
         assert!(rowslft == rowsrgt);
@@ -163,7 +173,7 @@ impl<T> Matrix<T>
         Some(u * rgt)
     }
 
-    pub fn null_space(&self) -> Option<Matrix<T>> {
+    fn null_space(&self) -> Option<Matrix<T>> {
         let m = self.transpose();
         let nrows = m.nrows;
         let t = Matrix::hstack(&[m.clone(), Matrix::identity(nrows)])
@@ -179,7 +189,7 @@ impl<T> Matrix<T>
         }
     }
 
-    pub fn inverse(&self) -> Option<Matrix<T>> {
+    fn inverse(&self) -> Option<Matrix<T>> {
         let (nrows, ncols) = self.shape();
         assert_eq!(nrows, ncols);
         self.solve(&Matrix::identity(nrows))
