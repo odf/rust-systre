@@ -178,6 +178,12 @@ impl<T> Matrix<T>
             None
         }
     }
+
+    pub fn inverse(&self) -> Option<Matrix<T>> {
+        let (nrows, ncols) = self.shape();
+        assert_eq!(nrows, ncols);
+        self.solve(&Matrix::identity(nrows))
+    }
 }
 
 
@@ -185,7 +191,7 @@ mod test {
     use super::*;
     use num_bigint::BigInt;
 
-    fn r(m: &Matrix<i64>) -> Matrix<BigRational> {
+    fn _r(m: &Matrix<i64>) -> Matrix<BigRational> {
         m.iter()
             .map(|&n| BigRational::from(BigInt::from(n)))
             .collect::<Matrix<_>>()
@@ -195,13 +201,13 @@ mod test {
     #[test]
     fn test_reduced_basis() {
         assert_eq!(
-            r(&Matrix::new(3, &[1, 2, 3, 4, 5, 6, 7, 8, 8])).reduced_basis(),
-            r(&Matrix::new(3, &[1, 0, 0, 0, 1, 0, 0, 0, 1]))
+            _r(&Matrix::new(3, &[1, 2, 3, 4, 5, 6, 7, 8, 8])).reduced_basis(),
+            _r(&Matrix::new(3, &[1, 0, 0, 0, 1, 0, 0, 0, 1]))
         );
 
         assert_eq!(
-            r(&Matrix::new(3, &[1, 2, 3, 4, 5, 6, 7, 8, 9])).reduced_basis(),
-            r(&Matrix::new(3, &[1, 0, -1, 0, 1, 2]))
+            _r(&Matrix::new(3, &[1, 2, 3, 4, 5, 6, 7, 8, 9])).reduced_basis(),
+            _r(&Matrix::new(3, &[1, 0, -1, 0, 1, 2]))
         );
     }
 
@@ -245,28 +251,28 @@ mod test {
         ]);
         assert_eq!(a.rank(), 3);
 
-        let a = r(&Matrix::new(3, &[1, 0, 0, 0, 1, 0, 0, 0, 1]));
+        let a = _r(&Matrix::new(3, &[1, 0, 0, 0, 1, 0, 0, 0, 1]));
         assert_eq!(a.rank(), 3);
 
-        let a = r(&Matrix::new(3, &[1, 2, 3, 2, 4, 6, 3, 6, 9]));
+        let a = _r(&Matrix::new(3, &[1, 2, 3, 2, 4, 6, 3, 6, 9]));
         assert_eq!(a.rank(), 1);
         assert_eq!(a.determinant(), BigRational::zero());
 
-        let a = r(&Matrix::new(3, &[1, 2, 3, 4, 5, 6, 7, 8, 9]));
+        let a = _r(&Matrix::new(3, &[1, 2, 3, 4, 5, 6, 7, 8, 9]));
         assert_eq!(a.rank(), 2);
         assert_eq!(a.determinant(), BigRational::zero());
 
-        let a = r(&Matrix::new(3, &[7, 8, 8, 4, 5, 6, 1, 2, 3]));
+        let a = _r(&Matrix::new(3, &[7, 8, 8, 4, 5, 6, 1, 2, 3]));
         assert_eq!(a.rank(), 3);
         assert_eq!(a.determinant(), BigRational::from(BigInt::from(-3)));
     }
 
     #[test]
     fn test_solve() {
-        let a = r(&Matrix::new(2, &[1, 2, 3, 4]));
-        let x = r(&Matrix::new(2, &[1, 0, 1, -3]));
+        let a = _r(&Matrix::new(2, &[1, 2, 3, 4]));
+        let x = _r(&Matrix::new(2, &[1, 0, 1, -3]));
         let b = &a * &x;
-        assert_eq!(b, r(&Matrix::new(2, &[3, -6, 7, -12])));
+        assert_eq!(b, _r(&Matrix::new(2, &[3, -6, 7, -12])));
         let s = a.solve(&b).unwrap();
         assert_eq!(s, x);
         let n = a.null_space();
@@ -276,10 +282,10 @@ mod test {
         let a_inv = a.solve(&id).unwrap();
         assert_eq!(a * a_inv, id);
 
-        let a = r(&Matrix::new(2, &[1, 2, 3, 6]));
-        let x = r(&Matrix::new(1, &[1, 1]));
+        let a = _r(&Matrix::new(2, &[1, 2, 3, 6]));
+        let x = _r(&Matrix::new(1, &[1, 1]));
         let b = &a * &x;
-        assert_eq!(b, r(&Matrix::new(1, &[3, 9])));
+        assert_eq!(b, _r(&Matrix::new(1, &[3, 9])));
         let s = a.solve(&b).unwrap();
         assert_eq!(&a * s, b);
         let n = a.null_space().unwrap();
@@ -297,5 +303,12 @@ mod test {
         let id = Matrix::identity(2);
         let a_inv = a.solve(&id).unwrap();
         assert_eq!(a * a_inv, id);
+    }
+
+    #[test]
+    fn test_inverse() {
+        let a = _r(&Matrix::new(2, &[1, 2, 3, 4]));
+        let b = a.inverse().unwrap();
+        assert_eq!(a * b, Matrix::identity(2));
     }
 }
