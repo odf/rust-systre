@@ -546,6 +546,13 @@ impl<T: Clone, CS: Clone> AffineMap<T, CS> {
             None
         }
     }
+
+    fn from<CSIn>(src: AffineMap<T, CSIn>) -> Self {
+        AffineMap {
+            linear_coeffs: src.linear_coeffs,
+            shift: Vector::from(src.shift.coords),
+        }
+    }
 }
 
 impl<T: Clone, CS: Clone> Mul<&AffineMap<T, CS>> for &AffineMap<T, CS>
@@ -609,11 +616,38 @@ impl<S, T, U, CS> Mul<S> for AffineMap<T, CS>
 
 
 pub struct CoordinateMap<T, CSIn, CSOut> {
-    linear_coeffs: Matrix<T>,
-    origin_shift: Vector<T, CSOut>,
-    phantom: PhantomData<CSIn>,
+    forward: AffineMap<T, CSIn>,
+    backward: AffineMap<T, CSOut>,
 }
 
+impl<T, CSIn, CSOut> CoordinateMap<T, CSIn, CSOut> {
+    pub fn dim(&self) -> usize {
+        self.forward.dim()
+    }
+}
+
+impl<T, CSIn, CSOut> CoordinateMap<T, CSIn, CSOut>
+    where
+        T: Clone + Neg<Output=T>,
+        CSIn: Clone,
+        CSOut: Clone,
+        Matrix<T>: LinearAlgebra<T>,
+        for <'a> &'a Matrix<T>: Mul<&'a Matrix<T>, Output=Matrix<T>>
+{
+    pub fn new(forward: &AffineMap<T, CSIn>) -> Self {
+        CoordinateMap {
+            forward: forward.clone(),
+            backward: AffineMap::from(forward.inverse().unwrap()),
+        }
+    }
+
+    pub fn inverse(&self) -> CoordinateMap<T, CSOut, CSIn> {
+        CoordinateMap {
+            forward: self.backward.clone(),
+            backward: self.forward.clone()
+        }
+    }
+}
 
 /// # Examples
 /// 
