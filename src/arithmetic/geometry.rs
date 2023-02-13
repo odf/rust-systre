@@ -532,6 +532,20 @@ impl<T: Clone, CS: Clone> AffineMap<T, CS> {
     {
         AffineMap::new(&Matrix::identity(dim), &Vector::zero(dim))
     }
+
+    pub fn inverse(&self) -> Option<Self>
+        where
+            T: Neg<Output=T>,
+            Matrix<T>: LinearAlgebra<T>,
+            for <'a> &'a Matrix<T>: Mul<&'a Matrix<T>, Output=Matrix<T>>
+    {
+        if let Some(a) = self.linear_coeffs.inverse() {
+            let s = Vector::new(&(&a * &self.shift.coords).data);
+            Some(AffineMap::new(&a, &-s))
+        } else {
+            None
+        }
+    }
 }
 
 impl<T: Clone, CS: Clone> Mul<&AffineMap<T, CS>> for &AffineMap<T, CS>
@@ -860,5 +874,17 @@ mod tests {
         assert_eq!(&a * b.clone(), AffineMap::identity(2));
         assert_eq!(a.clone() * &b, AffineMap::identity(2));
         assert_eq!(a.clone() * b.clone(), AffineMap::identity(2));
+    }
+
+    #[test]
+    fn test_affine_map_inverse() {
+        let a: AffineMap<_, World> = AffineMap::new(
+            &Matrix::new(2, &[0.0, -1.0, 1.0, 0.0]), &Vector::new(&[1.0, 0.0])
+        );
+        let b: AffineMap<_, World> = AffineMap::new(
+            &Matrix::new(2, &[0.0, 1.0, -1.0, 0.0]), &Vector::new(&[0.0, 1.0])
+        );
+        assert_eq!(&a * &b, AffineMap::identity(2));
+        assert_eq!(a.inverse(), Some(b));
     }
 }
