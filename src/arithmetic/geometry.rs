@@ -863,7 +863,7 @@ mod tests {
     }
 
     #[test]
-    fn test_affine_map() {
+    fn test_affine_map_composition() {
         let a: AffineMap<_, World> = AffineMap::new(
             &Matrix::new(2, &[0, -1, 1, 0]), &Vector::new(&[1, 0])
         );
@@ -886,5 +886,21 @@ mod tests {
         );
         assert_eq!(&a * &b, AffineMap::identity(2));
         assert_eq!(a.inverse(), Some(b));
+    }
+
+    #[test]
+    fn test_affine_map_application() {
+        let a: AffineMap<_, World> = AffineMap::new(
+            &Matrix::new(2, &[0.0, -1.0, 1.0, 0.0]), &Vector::new(&[1.0, 0.0])
+        );
+        let ai = a.inverse().unwrap();
+
+        let p: Point<f64, World> = Point::origin(2);
+        assert_eq!(&a * &p, Point::new(&[1.0, 0.0]));
+        assert_eq!(&a * (&ai * &p), p);
+
+        let v: Vector<f64, World> = Vector::unit(2, 0);
+        assert_eq!(&a * &v, Vector::unit(2, 1));
+        assert_eq!(&a * (&ai * &v), v);
     }
 }
