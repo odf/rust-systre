@@ -615,6 +615,7 @@ impl<S, T, U, CS> Mul<S> for AffineMap<T, CS>
 }
 
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CoordinateMap<T, CSIn, CSOut> {
     forward: AffineMap<T, CSIn>,
     backward: AffineMap<T, CSOut>,
@@ -649,24 +650,24 @@ impl<T, CSIn, CSOut> CoordinateMap<T, CSIn, CSOut>
     }
 }
 
-impl<T, CSIn, CSOut, CSOther> Mul<&CoordinateMap<T, CSOut, CSOther>>
-    for &CoordinateMap<T, CSIn, CSOut>
+impl<T, CSIn, CSOut, CSOther> Mul<&CoordinateMap<T, CSIn, CSOut>>
+    for &CoordinateMap<T, CSOut, CSOther>
     where
         T: Clone,
         CSIn: Clone,
         CSOut: Clone,
         CSOther: Clone,
-        for <'a> &'a AffineMap<T, CSIn>:
-            Mul<AffineMap<T, CSIn>, Output=AffineMap<T, CSIn>>,
-        for <'a> &'a AffineMap<T, CSOther>:
-            Mul<AffineMap<T, CSOther>, Output=AffineMap<T, CSOther>>,
+        for <'a> AffineMap<T, CSIn>:
+            Mul<&'a AffineMap<T, CSIn>, Output=AffineMap<T, CSIn>>,
+        for <'a> AffineMap<T, CSOther>:
+            Mul<&'a AffineMap<T, CSOther>, Output=AffineMap<T, CSOther>>,
 {
     type Output = CoordinateMap<T, CSIn, CSOther>;
 
-    fn mul(self, rhs: &CoordinateMap<T, CSOut, CSOther>) -> Self::Output {
+    fn mul(self, rhs: &CoordinateMap<T, CSIn, CSOut>) -> Self::Output {
         CoordinateMap {
-            forward: &self.forward * AffineMap::from(rhs.forward.clone()),
-            backward: &rhs.backward * AffineMap::from(self.backward.clone()),
+            forward: AffineMap::from(self.forward.clone()) * &rhs.forward,
+            backward: AffineMap::from(rhs.backward.clone()) * &self.backward,
         }
     }
 }
@@ -777,6 +778,9 @@ mod tests {
 
     #[derive(Clone, Debug, PartialEq)]
     struct World {}
+
+    #[derive(Clone, Debug, PartialEq)]
+    struct Local {}
 
     #[test]
     fn test_vector_basics() {
@@ -1028,5 +1032,21 @@ mod tests {
         let v: Vector<f64, World> = Vector::unit(2, 0);
         assert_eq!(&a * &v, Vector::unit(2, 1));
         assert_eq!(&a * (&ai * &v), v);
+    }
+
+    #[test]
+    fn test_coordinate_map_composition() {
+        let a: AffineMap<_, World> = AffineMap::new(
+            &Matrix::new(2, &[0.0, -1.0, 1.0, 0.0]), &Vector::new(&[1.0, 0.0])
+        );
+        let b: AffineMap<_, Local> = AffineMap::new(
+            &Matrix::new(2, &[0.0, 1.0, -1.0, 0.0]), &Vector::new(&[0.0, 1.0])
+        );
+        let c1: CoordinateMap<_, World, Local> = CoordinateMap::new(&a);
+        let c2: CoordinateMap<_, Local, World> = CoordinateMap::new(&b);
+        let id: CoordinateMap<f64, World, World> = CoordinateMap::new(
+            &AffineMap::identity(2));
+
+        assert_eq!(c2 * c1, id);
     }
 }
