@@ -459,7 +459,7 @@ impl<T, CS> Index<(usize, usize)> for ScalarProduct<T, CS> {
 
 impl<T, CS> From<Matrix<T>> for ScalarProduct<T, CS>
     where
-        T: Clone + std::fmt::Debug + Zero + PartialEq + PartialOrd,
+        T: Clone + std::fmt::Debug + Zero + PartialOrd,
         Matrix<T>: LinearAlgebra<T>
 {
     fn from(coeffs: Matrix<T>) -> Self {
@@ -648,6 +648,98 @@ impl<T, CSIn, CSOut> CoordinateMap<T, CSIn, CSOut>
         }
     }
 }
+
+impl<T, CSIn, CSOut, CSOther> Mul<&CoordinateMap<T, CSOut, CSOther>>
+    for &CoordinateMap<T, CSIn, CSOut>
+    where
+        T: Clone,
+        CSIn: Clone,
+        CSOut: Clone,
+        CSOther: Clone,
+        for <'a> &'a AffineMap<T, CSIn>:
+            Mul<AffineMap<T, CSIn>, Output=AffineMap<T, CSIn>>,
+        for <'a> &'a AffineMap<T, CSOther>:
+            Mul<AffineMap<T, CSOther>, Output=AffineMap<T, CSOther>>,
+{
+    type Output = CoordinateMap<T, CSIn, CSOther>;
+
+    fn mul(self, rhs: &CoordinateMap<T, CSOut, CSOther>) -> Self::Output {
+        CoordinateMap {
+            forward: &self.forward * AffineMap::from(rhs.forward.clone()),
+            backward: &rhs.backward * AffineMap::from(self.backward.clone()),
+        }
+    }
+}
+
+impl<T, CSIn, CSOut> Mul<&Point<T, CSIn>> for &CoordinateMap<T, CSIn, CSOut>
+    where
+        T: Clone,
+        for <'a> &'a AffineMap<T, CSIn>:
+            Mul<&'a Point<T, CSIn>, Output=Point<T, CSIn>>
+{
+    type Output = Point<T, CSOut>;
+
+    fn mul(self, rhs: &Point<T, CSIn>) -> Self::Output {
+        Point::from((&self.forward * rhs).coords)
+    }
+}
+
+impl<T, CSIn, CSOut> Mul<&Vector<T, CSIn>> for &CoordinateMap<T, CSIn, CSOut>
+    where
+        T: Clone,
+        for <'a> &'a AffineMap<T, CSIn>:
+            Mul<&'a Vector<T, CSIn>, Output=Vector<T, CSIn>>
+{
+    type Output = Vector<T, CSOut>;
+
+    fn mul(self, rhs: &Vector<T, CSIn>) -> Self::Output {
+        Vector::from((&self.forward * rhs).coords)
+    }
+}
+
+impl<T, CSIn, CSOut> Mul<&ScalarProduct<T, CSIn>>
+    for &CoordinateMap<T, CSIn, CSOut>
+    where
+        T: Clone + std::fmt::Debug + Zero + PartialOrd,
+        Matrix<T>: LinearAlgebra<T>,
+        for <'a> Matrix<T>: Mul<&'a Matrix<T>, Output=Matrix<T>>
+{
+    type Output = ScalarProduct<T, CSOut>;
+
+    fn mul(self, rhs: &ScalarProduct<T, CSIn>) -> Self::Output {
+        let a = &self.backward.linear_coeffs;
+        ScalarProduct::from(a.transpose() * &rhs.coeffs * a)
+    }
+}
+
+impl<T, CSIn, CSOut> Mul<&AffineMap<T, CSIn>>
+    for &CoordinateMap<T, CSIn, CSOut>
+    where
+        T: Clone,
+        CSIn: Clone,
+        CSOut: Clone,
+        for <'a> &'a AffineMap<T, CSIn>:
+            Mul<&'a AffineMap<T, CSIn>, Output=AffineMap<T, CSIn>>,
+        for <'a> AffineMap<T, CSOut>:
+            Mul<&'a AffineMap<T, CSOut>, Output=AffineMap<T, CSOut>>,
+{
+    type Output = AffineMap<T, CSOut>;
+
+    fn mul(self, rhs: &AffineMap<T, CSIn>) -> Self::Output {
+        AffineMap::from(&self.forward * rhs) * &self.backward
+    }
+}
+
+impl<S, T, U, CSIn, CSOut> Mul<S> for CoordinateMap<T, CSIn, CSOut>
+    where for <'a> &'a CoordinateMap<T, CSIn, CSOut>: Mul<&'a S, Output=U>
+{
+    type Output = U;
+
+    fn mul(self, rhs: S) -> Self::Output {
+        &self * &rhs
+    }
+}
+
 
 /// # Examples
 /// 
