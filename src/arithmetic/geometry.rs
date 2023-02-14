@@ -1049,4 +1049,25 @@ mod tests {
 
         assert_eq!(c2 * c1, id);
     }
+
+    #[test]
+    fn test_coordinate_map_inverse() {
+        let a: AffineMap<_, World> = AffineMap::new(
+            &Matrix::new(2, &[0.0, -1.0, 1.0, 0.0]), &Vector::new(&[1.0, 0.0])
+        );
+        let b: AffineMap<_, Local> = AffineMap::new(
+            &Matrix::new(2, &[0.0, 1.0, -1.0, 0.0]), &Vector::new(&[0.0, 1.0])
+        );
+        let c1: CoordinateMap<_, World, Local> = CoordinateMap::new(&a);
+        let c2: CoordinateMap<_, Local, World> = CoordinateMap::new(&b);
+
+        let id_world: CoordinateMap<f64, World, World> = CoordinateMap::new(
+            &AffineMap::identity(2));
+        let id_local: CoordinateMap<f64, Local, Local> = CoordinateMap::new(
+            &AffineMap::identity(2));
+
+        assert_eq!(&c1.inverse(), &c2);
+        assert_eq!(&c2 * &c1, id_world);
+        assert_eq!(&c1 * &c2, id_local);
+    }
 }
