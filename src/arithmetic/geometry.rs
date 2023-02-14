@@ -1070,4 +1070,38 @@ mod tests {
         assert_eq!(&c2 * &c1, id_world);
         assert_eq!(&c1 * &c2, id_local);
     }
+
+    #[test]
+    fn test_coordinate_map_application() {
+        let a: AffineMap<_, World> = AffineMap::new(
+            &Matrix::new(2, &[0.0, -1.0, 1.0, 0.0]), &Vector::new(&[1.0, 0.0])
+        );
+        let c1: CoordinateMap<_, World, Local> = CoordinateMap::new(&a);
+        let c2 = c1.inverse();
+
+        let p: Point<f64, World> = Point::origin(2);
+        assert_eq!(&c1 * &p, Point::new(&[1.0, 0.0]));
+        assert_eq!(&c2 * &(&c1 * &p), p);
+
+        let v: Vector<f64, World> = Vector::unit(2, 0);
+        assert_eq!(&c1 * &v, Vector::unit(2, 1));
+        assert_eq!(&c2 * &(&c1 * &v), v);
+
+        let dot: ScalarProduct<_, World> = ScalarProduct::from(
+            Matrix::new(2, &[1.0, -0.5, -0.5, 1.0])
+        );
+        let dot_mapped: ScalarProduct<_, Local> = ScalarProduct::from(
+            Matrix::new(2, &[1.0, 0.5, 0.5, 1.0])
+        );
+        assert_eq!(&c1 * &dot, dot_mapped);
+        assert_eq!(&c2 * &(&c1 * &dot), dot);
+
+        let m: AffineMap<_, World> = AffineMap::new(
+            &Matrix::new(2, &[1.0, 0.0, 0.0, 1.0]), &Vector::new(&[1.0, 0.0])
+        );
+        let m_mapped: AffineMap<_, Local> = AffineMap::new(
+            &Matrix::new(2, &[1.0, 0.0, 0.0, 1.0]), &Vector::new(&[0.0, 1.0])
+        );
+        assert_eq!(&c1 * &m, m_mapped);
+    }
 }
