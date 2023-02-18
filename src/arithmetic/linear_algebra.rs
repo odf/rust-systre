@@ -1,5 +1,5 @@
 use std::ops::{Add, Sub, Mul, Div, Neg};
-use std::ops::{AddAssign, SubAssign, MulAssign, DivAssign};
+use std::ops::{AddAssign, MulAssign};
 
 use num_rational::{BigRational};
 use num_traits::{Zero, One};
@@ -120,9 +120,8 @@ impl Scalar for i64 {
 
 pub fn extend_basis<T>(v: &[T], bs: &mut Vec<Vec<T>>)
     where
-        for <'a> T: Scalar + Clone + SubAssign + Div<&'a T, Output=T>,
+        for <'a> T: Scalar + Clone,
         for <'a> &'a T: Neg<Output=T>,
-        for <'a> &'a T: Mul<&'a T, Output=T> ,
 {
     let pivot_column = |v: &Vec<T>| { v.iter().position(|x| !x.is_zero()) };
 
@@ -167,9 +166,8 @@ pub trait LinearAlgebra<T> where Self: Sized {
 
 impl<T> LinearAlgebra<T> for Matrix<T>
     where
-        T: Scalar + Clone + Sub<Output=T> + SubAssign,
-        for <'a> T: Div<&'a T, Output=T> + Mul<&'a T, Output=T>,
-        for <'a> T: AddAssign<&'a T> + DivAssign<&'a T> + MulAssign<&'a T>,
+        T: Scalar + Clone + Sub<Output=T>,
+        for <'a> T: Mul<&'a T, Output=T> + AddAssign<&'a T> + MulAssign<&'a T>,
         for <'a> &'a T: Neg<Output=T> + Mul<&'a T, Output=T>,
 {
     fn rank(&self) -> usize {
