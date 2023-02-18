@@ -29,6 +29,8 @@ pub fn gcdx<T>(a: T, b: T) -> (T, T, T, T, T) // TODO return a struct?
 
 pub trait Scalar: Sized + Add + Zero + Neg + Mul + One {
     fn clear_column(col: usize, v: &mut Vec<Self>, b: &mut Vec<Self>);
+    fn normalize_column(col: usize, v: &mut Vec<Self>);
+    fn reduce_column(col: usize, v: &mut Vec<Self>, b: &Vec<Self>);
 }
 
 impl Scalar for BigRational {
@@ -38,11 +40,44 @@ impl Scalar for BigRational {
             v[k] -= &b[k] * &f;
         }
     }
+
+    fn normalize_column(col: usize, v: &mut Vec<Self>) {
+        let f = std::mem::replace(&mut v[col], Self::one());
+        for k in (col + 1)..v.len() {
+            v[k] /= &f;
+        }
+    }
+
+    fn reduce_column(col: usize, v: &mut Vec<Self>, b: &Vec<Self>) {
+        let f = std::mem::replace(&mut v[col], Self::zero());
+        for k in (col + 1)..v.len() {
+            let a = &b[k] * &f;
+            v[k] -= a;
+        }
+    }
 }
 
 impl Scalar for f64 {
     fn clear_column(col: usize, v: &mut Vec<Self>, b: &mut Vec<Self>) {
         let f = v[col] / b[col];
+        v[col] = 0.0;
+
+        for k in (col + 1)..v.len() {
+            v[k] -= b[k] * f;
+        }
+    }
+
+    fn normalize_column(col: usize, v: &mut Vec<Self>) {
+        let f = v[col];
+        v[col] = 1.0;
+
+        for k in (col + 1)..v.len() {
+            v[k] /= f;
+        }
+    }
+
+    fn reduce_column(col: usize, v: &mut Vec<Self>, b: &Vec<Self>) {
+        let f = v[col];
         v[col] = 0.0;
 
         for k in (col + 1)..v.len() {
@@ -61,6 +96,14 @@ impl Scalar for i64 {
             v[k] = b[k] * t + v[k] * u;
             b[k] = tmp;
         }
+    }
+
+    fn normalize_column(col: usize, v: &mut Vec<Self>) {
+        todo!()
+    }
+
+    fn reduce_column(col: usize, v: &mut Vec<Self>, b: &Vec<Self>) {
+        todo!()
     }
 }
 
@@ -180,17 +223,11 @@ impl<T> LinearAlgebra<T> for Matrix<T>
                 col += 1;
             }
 
-            let f = std::mem::replace(&mut basis[row][col], T::one());
-            for k in (col + 1)..basis[row].len() {
-                basis[row][k] /= &f;
-            }
+            Scalar::normalize_column(col, &mut basis[row]);
+            let b = basis[row].clone();
 
             for i in 0..row {
-                let f = std::mem::replace(&mut basis[i][col], T::zero());
-                for k in (col + 1)..basis[i].len() {
-                    let a = &basis[row][k] * &f;
-                    basis[i][k] -= a;
-                }
+                Scalar::reduce_column(col, &mut basis[i], &b);
             }
         }
 
