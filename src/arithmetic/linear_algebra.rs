@@ -99,11 +99,21 @@ impl Scalar for i64 {
     }
 
     fn normalize_column(col: usize, v: &mut Vec<Self>) {
-        todo!()
+        if v[col] < 0 {
+            for k in col..v.len() {
+                v[k] = -v[k];
+            }
+        }
     }
 
     fn reduce_column(col: usize, v: &mut Vec<Self>, b: &Vec<Self>) {
-        todo!()
+        let f = v[col] / b[col] - if v[col] < 0 { 1 } else { 0 };
+
+        if f != 0 {
+            for k in col..v.len() {
+                v[k] -= b[k] * f;
+            }
+        }
     }
 }
 
@@ -224,8 +234,8 @@ impl<T> LinearAlgebra<T> for Matrix<T>
             }
 
             Scalar::normalize_column(col, &mut basis[row]);
-            let b = basis[row].clone();
 
+            let b = basis[row].clone();
             for i in 0..row {
                 Scalar::reduce_column(col, &mut basis[i], &b);
             }
@@ -318,6 +328,11 @@ mod test {
         assert_eq!(
             _r(&Matrix::new(3, &[1, 2, 3, 4, 5, 6, 7, 8, 9])).reduced_basis(),
             _r(&Matrix::new(3, &[1, 0, -1, 0, 1, 2]))
+        );
+
+        assert_eq!(
+            Matrix::new(3, &[1, 4, 7, 2, 5, 8, 3, 6, 8]).reduced_basis(),
+            Matrix::new(3, &[1, 1, 0, 0, 3, 0, 0, 0, 1])
         );
     }
 
