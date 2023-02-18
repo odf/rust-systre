@@ -2,20 +2,72 @@ use std::ops::{Add, Sub, Mul, Div, Neg};
 use std::ops::{AddAssign, SubAssign, MulAssign, DivAssign};
 
 use num_rational::{BigRational};
-use num_traits::{Zero, One, Inv};
+use num_traits::{Zero, One};
 
 use super::matrices::Matrix;
 
-pub trait Field: Sized + Add + Zero + Neg + Mul + One + Inv {}
 
-impl Field for BigRational {}
-impl Field for f64 {}
-// tag other types as fields, e.g. prime residual classes
+pub fn gcdx<T>(a: T, b: T) -> (T, T, T, T, T) // TODO return a struct?
+    where T:
+        Copy + Zero + One +
+        Div<Output=T> + Sub<Output=T> + Mul<Output=T>
+{
+    let (mut a, mut a_next) = (a, b);
+    let (mut r, mut r_next) = (T::one(), T::zero());
+    let (mut s, mut s_next) = (T::zero(), T::one());
+
+    while !a_next.is_zero() {
+        let q = a / a_next;
+        (a, a_next) = (a_next, a - q * a_next);
+        (r, r_next) = (r_next, r - q * r_next);
+        (s, s_next) = (s_next, s - q * s_next);
+    }
+
+    (a, r, s, r_next, s_next)
+}
+
+
+pub trait Scalar: Sized + Add + Zero + Neg + Mul + One {
+    fn clear_column(col: usize, v: &mut Vec<Self>, b: &mut Vec<Self>);
+}
+
+impl Scalar for BigRational {
+    fn clear_column(col: usize, v: &mut Vec<Self>, b: &mut Vec<Self>) {
+        let f = std::mem::replace(&mut v[col], Self::zero()) / &b[col];
+        for k in (col + 1)..v.len() {
+            v[k] -= &b[k] * &f;
+        }
+    }
+}
+
+impl Scalar for f64 {
+    fn clear_column(col: usize, v: &mut Vec<Self>, b: &mut Vec<Self>) {
+        let f = v[col] / b[col];
+        v[col] = 0.0;
+
+        for k in (col + 1)..v.len() {
+            v[k] -= b[k] * f;
+        }
+    }
+}
+
+impl Scalar for i64 {
+    fn clear_column(col: usize, v: &mut Vec<Self>, b: &mut Vec<Self>) {
+        let (_, r, s, t, u) = gcdx(b[col], v[col]);
+        let det = r * u - s * t;
+
+        for k in col..v.len() {
+            let tmp = det * (b[k] * r + v[k] * s);
+            v[k] = b[k] * t + v[k] * u;
+            b[k] = tmp;
+        }
+    }
+}
 
 
 pub fn extend_basis<T>(v: &[T], bs: &mut Vec<Vec<T>>)
     where
-        for <'a> T: Field + Clone + SubAssign + Div<&'a T, Output=T>,
+        for <'a> T: Scalar + Clone + SubAssign + Div<&'a T, Output=T>,
         for <'a> &'a T: Neg<Output=T>,
         for <'a> &'a T: Mul<&'a T, Output=T> ,
 {
@@ -24,7 +76,7 @@ pub fn extend_basis<T>(v: &[T], bs: &mut Vec<Vec<T>>)
     let mut v = v.to_vec();
 
     for i in 0..bs.len() {
-        let b = &bs[i];
+        let mut b = &mut bs[i];
         assert!(b.len() == v.len());
 
         if let Some(col) = pivot_column(&v) {
@@ -37,10 +89,7 @@ pub fn extend_basis<T>(v: &[T], bs: &mut Vec<Vec<T>>)
                 bs.insert(i, v);
                 return;
             } else if col == col_b {
-                let f = std::mem::replace(&mut v[col], T::zero()) / &b[col];
-                for k in (col + 1)..v.len() {
-                    v[k] -= &b[k] * &f;
-                }
+                Scalar::clear_column(col, &mut v, &mut b);
             }
         } else {
             break;
@@ -65,7 +114,7 @@ pub trait LinearAlgebra<T> where Self: Sized {
 
 impl<T> LinearAlgebra<T> for Matrix<T>
     where
-        T: Field + Clone + Sub<Output=T> + SubAssign,
+        T: Scalar + Clone + Sub<Output=T> + SubAssign,
         for <'a> T: Div<&'a T, Output=T> + Mul<&'a T, Output=T>,
         for <'a> T: AddAssign<&'a T> + DivAssign<&'a T> + MulAssign<&'a T>,
         for <'a> &'a T: Neg<Output=T> + Mul<&'a T, Output=T>,
@@ -209,6 +258,20 @@ mod test {
     }
 
     #[test]
+    fn test_extend_basis_i64() {
+        let mut basis = vec![];
+
+        extend_basis(&vec![5, 8, 13], &mut basis);
+        assert_eq!(basis, vec![vec![5, 8, 13]]);
+
+        extend_basis(&vec![7, 12, 19], &mut basis);
+        assert_eq!(basis, vec![vec![1, 0, 1], vec![0, 4, 4]]);
+
+        extend_basis(&vec![3, 5, 9], &mut basis);
+        assert_eq!(basis, vec![vec![1, 0, 1], vec![0, -1, -2], vec![0, 0, -4]]);
+    }
+
+    #[test]
     fn test_reduced_basis() {
         assert_eq!(
             _r(&Matrix::new(3, &[1, 2, 3, 4, 5, 6, 7, 8, 8])).reduced_basis(),
@@ -243,6 +306,23 @@ mod test {
                 .determinant(),
             0.5
         );
+    }
+
+    #[test]
+    fn test_determinant_i64() {
+        let a = Matrix::new(3, &[
+            5, 8, 13,
+            7, 12, 19,
+            3, 5, 9
+        ]);
+        assert_eq!(a.determinant(), 4);
+
+        let a = Matrix::new(3, &[
+            5, 8, 13,
+            7, 12, 19,
+            3, 5, 8
+        ]);
+        assert_eq!(a.determinant(), 0);
     }
 
     #[test]
