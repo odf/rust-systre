@@ -3,72 +3,11 @@ use std::collections::{BTreeSet, BTreeMap, HashSet, HashMap, VecDeque};
 use std::fmt::Display;
 use std::hash::Hash;
 use std::mem::replace;
-use std::ops::{Neg, Add, Sub, Mul, Div};
+use std::ops::{Neg, Add, Sub};
 use num_bigint::BigInt;
 use num_rational::BigRational;
-use num_traits::{Zero, One};
 
-
-pub fn gcdx<T>(a: T, b: T) -> (T, T, T, T, T) // TODO return a struct?
-    where T:
-        Copy + Zero + One +
-        Div<Output=T> + Sub<Output=T> + Mul<Output=T>
-{
-    let (mut a, mut a_next) = (a, b);
-    let (mut r, mut r_next) = (T::one(), T::zero());
-    let (mut s, mut s_next) = (T::zero(), T::one());
-
-    while !a_next.is_zero() {
-        let q = a / a_next;
-        (a, a_next) = (a_next, a - q * a_next);
-        (r, r_next) = (r_next, r - q * r_next);
-        (s, s_next) = (s_next, s - q * s_next);
-    }
-
-    (a, r, s, r_next, s_next)
-}
-
-
-pub fn extend_basis<T>(v: &[T], bs: &mut Vec<Vec<T>>)
-    where T:
-        Copy + Zero + One +
-        Neg<Output=T> + Div<Output=T> + Sub<Output=T> + Mul<Output=T>
-{
-    let pivot_column = |v: &Vec<T>| v.iter().position(|&x| !x.is_zero());
-
-    let mut v = v.to_vec();
-
-    for i in 0..bs.len() {
-        let b = &bs[i].to_vec();
-        assert!(b.len() == v.len());
-
-        if let Some(col) = pivot_column(&v) {
-            let col_b = pivot_column(&b).unwrap();
-
-            if col < col_b {
-                if (bs.len() - i) % 2 > 0 {
-                    v = v.iter().map(|&x| -x).collect();
-                }
-                bs.insert(i, v);
-                return;
-            } else if col == col_b {
-                let (_, r, s, t, u) = gcdx(b[col], v[col]);
-                let det = r * u - s * t;
-
-                for k in 0..v.len() {
-                    bs[i][k] = det * (b[k] * r + v[k] * s);
-                    v[k] = b[k] * t + v[k] * u;
-                }
-            }
-        } else {
-            break;
-        }
-    }
-
-    if pivot_column(&v).is_some() {
-        bs.push(v);
-    }
-}
+use crate::arithmetic::linear_algebra::extend_basis;
 
 
 pub trait LabelVector:
@@ -614,7 +553,7 @@ pub fn graph_component_measures<T>(g: &Graph<T>, v0: &Vertex)
     let rank = basis.len();
 
     let multiplicity = if rank == (T::dim() as usize) {
-        let mut d = 1;
+        let mut d: i32 = 1;
         for i in 0..basis.len() {
             d *= basis[i][i];
         }

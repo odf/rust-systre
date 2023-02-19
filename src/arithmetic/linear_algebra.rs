@@ -100,7 +100,7 @@ impl Scalar for f64 {
     }
 }
 
-impl Scalar for i64 {
+impl Scalar for i32 {
     fn clear_column(col: usize, v: &mut Vec<Self>, b: &mut Vec<Self>) {
         let (_, r, s, t, u) = gcdx(b[col], v[col]);
         let det = r * u - s * t;
