@@ -1,4 +1,4 @@
-use std::ops::{Add, Sub, Mul, Div, Neg};
+use std::ops::{Add, Sub, Mul, Div, Neg, SubAssign};
 use std::ops::{AddAssign, MulAssign};
 
 use num_rational::{BigRational};
@@ -102,53 +102,100 @@ impl Scalar for f64 {
 
 impl Scalar for i32 {
     fn clear_column(col: usize, v: &mut Vec<Self>, b: &mut Vec<Self>) {
-        let (_, r, s, t, u) = gcdx(b[col], v[col]);
-        let det = r * u - s * t;
-
-        for k in col..v.len() {
-            let tmp = det * (b[k] * r + v[k] * s);
-            v[k] = b[k] * t + v[k] * u;
-            b[k] = tmp;
-        }
+        clear_column_primitive_int(col, v, b);
     }
 
     fn normalize_column(col: usize, v: &mut Vec<Self>) {
-        if v[col] < 0 {
-            for k in col..v.len() {
-                v[k] = -v[k];
-            }
-        }
+        normalize_column_primitive_int(col, v);
     }
 
     fn reduce_column(col: usize, v: &mut Vec<Self>, b: &Vec<Self>) {
-        let f = v[col] / b[col] - if v[col] < 0 { 1 } else { 0 };
-
-        if f != 0 {
-            for k in col..v.len() {
-                v[k] -= b[k] * f;
-            }
-        }
+        reduce_column_primitive_int(col, v, b);
     }
 
     fn solve_row(a: &Vec<Self>, x: &Vec<Vec<Self>>, b: &Vec<Self>)
         -> Option<Vec<Self>>
     {
-        let k = x.len();
-        let mut result = vec![0; b.len()];
-
-        for col in 0..b.len() {
-            let mut t = b[col];
-            for i in 0..k {
-                t -= a[i] * x[i][col];
-            }
-            if t % a[k] == 0 {
-                result[col] = t / a[k];
-            } else {
-                return None;
-            }
-        }
-        Some(result)
+        solve_row_primitive_int(a, x, b)
     }
+}
+
+impl Scalar for i64 {
+    fn clear_column(col: usize, v: &mut Vec<Self>, b: &mut Vec<Self>) {
+        clear_column_primitive_int(col, v, b);
+    }
+
+    fn normalize_column(col: usize, v: &mut Vec<Self>) {
+        normalize_column_primitive_int(col, v);
+    }
+
+    fn reduce_column(col: usize, v: &mut Vec<Self>, b: &Vec<Self>) {
+        reduce_column_primitive_int(col, v, b);
+    }
+
+    fn solve_row(a: &Vec<Self>, x: &Vec<Vec<Self>>, b: &Vec<Self>)
+        -> Option<Vec<Self>>
+    {
+        solve_row_primitive_int(a, x, b)
+    }
+}
+
+
+fn clear_column_primitive_int<T>(col: usize, v: &mut Vec<T>, b: &mut Vec<T>)
+    where T: num_traits::PrimInt
+{
+    let (_, r, s, t, u) = gcdx(b[col], v[col]);
+    let det = r * u - s * t;
+
+    for k in col..v.len() {
+        let tmp = det * (b[k] * r + v[k] * s);
+        v[k] = b[k] * t + v[k] * u;
+        b[k] = tmp;
+    }
+}
+
+fn normalize_column_primitive_int<T>(col: usize, v: &mut Vec<T>)
+    where T: num_traits::PrimInt + Neg<Output=T>
+{    if v[col] < T::zero() {
+        for k in col..v.len() {
+            v[k] = -v[k];
+        }
+    }
+}
+
+fn reduce_column_primitive_int<T>(col: usize, v: &mut Vec<T>, b: &Vec<T>)
+    where T: num_traits::PrimInt + SubAssign
+{
+    let f = v[col] / b[col] - (
+        if v[col] < T::zero() { T::one() } else { T::zero() }
+    );
+
+    if f != T::zero() {
+        for k in col..v.len() {
+            v[k] -= b[k] * f;
+        }
+    }
+}
+
+fn solve_row_primitive_int<T>(a: &Vec<T>, x: &Vec<Vec<T>>, b: &Vec<T>)
+    -> Option<Vec<T>>
+    where T: num_traits::PrimInt + SubAssign
+{
+    let k = x.len();
+    let mut result = vec![T::zero(); b.len()];
+
+    for col in 0..b.len() {
+        let mut t = b[col];
+        for i in 0..k {
+            t -= a[i] * x[i][col];
+        }
+        if t % a[k] == T::zero() {
+            result[col] = t / a[k];
+        } else {
+            return None;
+        }
+    }
+    Some(result)
 }
 
 
