@@ -502,6 +502,9 @@ mod test {
         let a = _r(&Matrix::new(2, &[1, 2, 3, 4]));
         let b = a.inverse().unwrap();
         assert_eq!(a * b, Matrix::identity(2));
+
+        let a = _r(&Matrix::new(2, &[1, 2, 3, 6]));
+        assert_eq!(a.inverse(), None);
     }
 
     #[test]
@@ -509,5 +512,8 @@ mod test {
         let a = &Matrix::new(2, &[1, 2, 3, 5]);
         let b = a.inverse().unwrap();
         assert_eq!(a * b, Matrix::identity(2));
+
+        let a = &Matrix::new(2, &[1, 2, 3, 4]);
+        assert_eq!(a.inverse(), None);
     }
 }
