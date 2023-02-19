@@ -31,10 +31,8 @@ pub trait Scalar: Sized + Add + Zero + Neg + Mul + One {
     fn clear_column(col: usize, v: &mut Vec<Self>, b: &mut Vec<Self>);
     fn normalize_column(col: usize, v: &mut Vec<Self>);
     fn reduce_column(col: usize, v: &mut Vec<Self>, b: &Vec<Self>);
-
-    fn solve_row(
-        row: usize, a: &Vec<Self>, x: &Vec<Vec<Self>>, b: &Vec<Self>
-    ) -> Vec<Self>;
+    fn solve_row(a: &Vec<Self>, x: &Vec<Vec<Self>>, b: &Vec<Self>)
+        -> Option<Vec<Self>>;
 }
 
 impl Scalar for BigRational {
@@ -60,11 +58,10 @@ impl Scalar for BigRational {
         }
     }
 
-    fn solve_row(
-        _row: usize, _a: &Vec<Self>, _x: &Vec<Vec<Self>>, b: &Vec<Self>
-    ) -> Vec<Self>
+    fn solve_row(_a: &Vec<Self>, _x: &Vec<Vec<Self>>, b: &Vec<Self>)
+        -> Option<Vec<Self>>
     {
-        b.clone()
+        Some(b.clone())
     }
 }
 
@@ -96,11 +93,10 @@ impl Scalar for f64 {
         }
     }
 
-    fn solve_row(
-        _row: usize, _a: &Vec<Self>, _x: &Vec<Vec<Self>>, b: &Vec<Self>
-    ) -> Vec<Self>
+    fn solve_row(_a: &Vec<Self>, _x: &Vec<Vec<Self>>, b: &Vec<Self>)
+        -> Option<Vec<Self>>
     {
-        b.clone()
+        Some(b.clone())
     }
 }
 
@@ -134,11 +130,24 @@ impl Scalar for i64 {
         }
     }
 
-    fn solve_row(
-        row: usize, a: &Vec<Self>, x: &Vec<Vec<Self>>, b: &Vec<Self>
-    ) -> Vec<Self>
+    fn solve_row(a: &Vec<Self>, x: &Vec<Vec<Self>>, b: &Vec<Self>)
+        -> Option<Vec<Self>>
     {
-        todo!()
+        let k = x.len();
+        let mut result = vec![0; b.len()];
+
+        for col in 0..b.len() {
+            let mut t = b[col];
+            for i in 0..k {
+                t -= a[i] * x[i][col];
+            }
+            if t % a[k] == 0 {
+                result[col] = t / a[k];
+            } else {
+                return None;
+            }
+        }
+        Some(result)
     }
 }
 
@@ -292,7 +301,13 @@ impl<T> LinearAlgebra<T> for Matrix<T>
 
         let mut x = vec![];
         for i in 0..rgt.nrows {
-            x.push(Scalar::solve_row(i, &b.get_row(i), &x, &rgt.get_row(i)));
+            if let Some(r) = Scalar::solve_row(
+                &b.get_row(i), &x, &rgt.get_row(i)
+            ) {
+                x.push(r);
+            } else {
+                return None;
+            }
         }
         for _i in rgt.nrows..u.ncols {
             x.push(vec![T::zero(); rgt.ncols]);
@@ -485,6 +500,13 @@ mod test {
     #[test]
     fn test_inverse() {
         let a = _r(&Matrix::new(2, &[1, 2, 3, 4]));
+        let b = a.inverse().unwrap();
+        assert_eq!(a * b, Matrix::identity(2));
+    }
+
+    #[test]
+    fn test_inverse_i64() {
+        let a = &Matrix::new(2, &[1, 2, 3, 5]);
         let b = a.inverse().unwrap();
         assert_eq!(a * b, Matrix::identity(2));
     }
