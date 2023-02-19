@@ -301,12 +301,9 @@ impl<T> LinearAlgebra<T> for Matrix<T>
 
         let mut x = vec![];
         for i in 0..rgt.nrows {
-            if let Some(r) = Scalar::solve_row(
-                &b.get_row(i), &x, &rgt.get_row(i)
-            ) {
-                x.push(r);
-            } else {
-                return None;
+            match Scalar::solve_row(&b.get_row(i), &x, &rgt.get_row(i)) {
+                Some(r) => x.push(r),
+                None => return None,
             }
         }
         for _i in rgt.nrows..u.ncols {
