@@ -31,6 +31,10 @@ pub trait Scalar: Sized + Add + Zero + Neg + Mul + One {
     fn clear_column(col: usize, v: &mut Vec<Self>, b: &mut Vec<Self>);
     fn normalize_column(col: usize, v: &mut Vec<Self>);
     fn reduce_column(col: usize, v: &mut Vec<Self>, b: &Vec<Self>);
+
+    fn solve_row(
+        row: usize, a: &Vec<Self>, x: &Vec<Vec<Self>>, b: &Vec<Self>
+    ) -> Vec<Self>;
 }
 
 impl Scalar for BigRational {
@@ -54,6 +58,13 @@ impl Scalar for BigRational {
             let a = &b[k] * &f;
             v[k] -= a;
         }
+    }
+
+    fn solve_row(
+        _row: usize, _a: &Vec<Self>, _x: &Vec<Vec<Self>>, b: &Vec<Self>
+    ) -> Vec<Self>
+    {
+        b.clone()
     }
 }
 
@@ -83,6 +94,13 @@ impl Scalar for f64 {
         for k in (col + 1)..v.len() {
             v[k] -= b[k] * f;
         }
+    }
+
+    fn solve_row(
+        _row: usize, _a: &Vec<Self>, _x: &Vec<Vec<Self>>, b: &Vec<Self>
+    ) -> Vec<Self>
+    {
+        b.clone()
     }
 }
 
@@ -114,6 +132,13 @@ impl Scalar for i64 {
                 v[k] -= b[k] * f;
             }
         }
+    }
+
+    fn solve_row(
+        row: usize, a: &Vec<Self>, x: &Vec<Vec<Self>>, b: &Vec<Self>
+    ) -> Vec<Self>
+    {
+        todo!()
     }
 }
 
@@ -262,9 +287,21 @@ impl<T> LinearAlgebra<T> for Matrix<T>
 
         let t = Matrix::hstack(&[lft.transpose(), Matrix::identity(lft.ncols)])
             .reduced_basis();
-        let u = t.submatrix(0..lft.nrows, lft.nrows..t.ncols).transpose();
+        let b = t.submatrix(0..t.nrows, 0..lft.nrows).transpose();
+        let u = t.submatrix(0..t.nrows, lft.nrows..t.ncols).transpose();
 
-        Some(u * rgt)
+        let mut x = vec![];
+        for i in 0..rgt.nrows {
+            x.push(Scalar::solve_row(i, &b.get_row(i), &x, &rgt.get_row(i)));
+        }
+        for _i in rgt.nrows..u.ncols {
+            x.push(vec![T::zero(); rgt.ncols]);
+        }
+
+        let x = Matrix::vstack(
+            &x.iter().map(|v| Matrix::row(&v)).collect::<Vec<_>>()
+        );
+        Some(u * x)
     }
 
     fn null_space(&self) -> Option<Matrix<T>> {
