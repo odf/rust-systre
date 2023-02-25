@@ -17,7 +17,7 @@ pub trait LabelVector:
     Add<Self, Output = Self> +
     Sub<Self, Output = Self>
 {
-    fn dim() -> u8;
+    fn dim() -> usize;
     fn zero() -> Self;
     fn is_zero(&self) -> bool;
     fn is_negative(&self) -> bool;
@@ -39,7 +39,7 @@ impl LabelVector2d {
 }
 
 impl LabelVector for LabelVector2d {
-    fn dim() -> u8 {
+    fn dim() -> usize {
         2
     }
 
@@ -111,7 +111,7 @@ impl LabelVector3d {
 }
 
 impl LabelVector for LabelVector3d {
-    fn dim() -> u8 {
+    fn dim() -> usize {
         3
     }
 
@@ -244,7 +244,7 @@ pub struct Graph<T> {
 impl<T> Graph<T>
     where T: LabelVector
 {
-    pub fn dim() -> u8 { T::dim() }
+    pub fn dim() -> usize { T::dim() }
 
     pub fn new(raw_edges: &[VectorLabelledEdge<T>]) -> Self {
         let edges: Vec<VectorLabelledEdge<T>> = raw_edges.iter()
@@ -334,7 +334,7 @@ impl<T> Graph<T>
     pub fn edge_vector(&self, head: &Vertex, tail: &Vertex, shift: &T)
         -> QVec
     {
-        let d = T::dim() as usize;
+        let d = T::dim();
         let p = self.position(head);
         let q = self.position(tail);
         let s: Vec<_> = shift.to_vec();
@@ -533,7 +533,7 @@ pub fn graph_component_measures<T>(g: &Graph<T>, v0: &Vertex)
     let size = vertices.len();
     let rank = basis.len();
 
-    let multiplicity = if rank == (T::dim() as usize) {
+    let multiplicity = if rank == T::dim() {
         let mut d: i32 = 1;
         for i in 0..basis.len() {
             d *= basis[i][i];
@@ -556,7 +556,7 @@ fn barycentric_placement<T>(g: &Graph<T>)
         verts.iter().enumerate().map(|(i, &e)| (e, i)).collect();
 
     let n = verts.len();
-    let d = T::dim() as usize;
+    let d = T::dim();
 
     let mut a = vec![vec![0 as i64; n]; n];
     let mut t = vec![vec![0 as i64; d]; n];

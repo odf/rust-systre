@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 use crate::pgraphs::*;
 use crate::arithmetic::linear_algebra::extend_basis;
 
@@ -23,7 +25,7 @@ fn generate_edge_chain_extensions<T: LabelVector>(
     graph: &Graph<T>,
     result: &mut Vec<Vec<VectorLabelledEdge<T>>>
 ) {
-    if edges.len() == T::dim() as usize {
+    if edges.len() == T::dim() {
         result.push(edges);
     } else {
         for e in graph.incidences(&edges[edges.len() - 1].tail) {
@@ -35,6 +37,18 @@ fn generate_edge_chain_extensions<T: LabelVector>(
             }
         }
     }
+}
+
+
+fn good_combinations<T: LabelVector>(
+    edges: &Vec<VectorLabelledEdge<T>>, graph: &Graph<T>
+) -> Vec<Vec<VectorLabelledEdge<T>>>
+{
+    let mut result = vec![];
+    for es in edges.iter().combinations(T::dim()) {
+
+    }
+    result
 }
 
 
