@@ -4,6 +4,7 @@ use std::fmt::Display;
 use std::hash::Hash;
 use std::mem::replace;
 use std::ops::{Neg, Add, Sub};
+use itertools::Itertools;
 use num_bigint::BigInt;
 use num_rational::BigRational;
 
@@ -246,12 +247,12 @@ impl<T> Graph<T>
     pub fn dim() -> u8 { T::dim() }
 
     pub fn new(raw_edges: &[VectorLabelledEdge<T>]) -> Self {
-        let mut edges: Vec<VectorLabelledEdge<T>> = raw_edges.iter()
+        let edges: Vec<VectorLabelledEdge<T>> = raw_edges.iter()
             .map(|e| e.canonical())
             .collect::<HashSet<_>>()
             .iter().cloned()
+            .sorted()
             .collect();
-        edges.sort();
 
         Graph {
             edges,
@@ -376,11 +377,11 @@ impl<T> Graph<T>
         let mut seen = HashSet::new();
 
         for v in self.vertices() {
-            let mut deltas: Vec<_> = self.incidences(&v).iter()
+            let deltas: Vec<_> = self.incidences(&v).iter()
                 .map(|ngb| self.edge_vector(&v, &ngb.tail, &ngb.shift))
+                .sorted()
+                .chain([self.position_normalized(&v)])
                 .collect();
-            deltas.sort();
-            deltas.push(self.position_normalized(&v));
 
             if seen.contains(&deltas) {
                 return true;
