@@ -11,7 +11,7 @@ use crate::arithmetic::linear_algebra::extend_basis;
 
 
 pub trait LabelVector:
-    Copy + Eq + Hash +
+    Copy + Eq + Hash + Ord +
     Neg<Output = Self> +
     Add<Self, Output = Self> +
     Sub<Self, Output = Self>
@@ -25,7 +25,7 @@ pub trait LabelVector:
 }
 
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub struct LabelVector2d {
     x: i32,
     y: i32,
@@ -96,7 +96,7 @@ impl Display for LabelVector2d {
 }
 
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub struct LabelVector3d {
     x: i32,
     y: i32,
@@ -174,7 +174,7 @@ type Vertex = u32;
 type QVec = Vec<BigRational>;
 
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub struct VectorLabelledEdge<T>
 {
     pub head: Vertex,
@@ -231,7 +231,7 @@ impl<T> Display for VectorLabelledEdge<T>
 
 #[derive(Debug)]
 pub struct Graph<T> {
-    edges: Vec<VectorLabelledEdge<T>>,
+    pub(crate) edges: Vec<VectorLabelledEdge<T>>,
     vertices: UnsafeCell<Option<Vec<Vertex>>>,
     incidences: UnsafeCell<BTreeMap<Vertex, Vec<VectorLabelledEdge<T>>>>,
     positions: UnsafeCell<BTreeMap<Vertex, QVec>>,
@@ -246,10 +246,12 @@ impl<T> Graph<T>
     pub fn dim() -> u8 { T::dim() }
 
     pub fn new(raw_edges: &[VectorLabelledEdge<T>]) -> Self {
-        let edges = raw_edges.iter().map(|e| e.canonical())
+        let mut edges: Vec<VectorLabelledEdge<T>> = raw_edges.iter()
+            .map(|e| e.canonical())
             .collect::<HashSet<_>>()
             .iter().cloned()
             .collect();
+        edges.sort();
 
         Graph {
             edges,
