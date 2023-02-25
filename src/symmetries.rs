@@ -46,7 +46,12 @@ fn good_combinations<T: LabelVector>(
 {
     let mut result = vec![];
     for es in edges.iter().combinations(T::dim()) {
-
+        let es = es.iter().map(|&&e| e).collect::<Vec<_>>();
+        if are_linearly_independent(&es, graph) {
+            for es in es.iter().permutations(T::dim()) {
+                result.push(es.into_iter().cloned().collect());
+            }
+        }
     }
     result
 }
