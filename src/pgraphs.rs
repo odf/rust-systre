@@ -175,29 +175,6 @@ type QVec = Vec<BigRational>;
 
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
-pub struct ShiftedVertex<T>
-{
-    pub vertex: Vertex,
-    pub shift: T,
-}
-
-impl<T> ShiftedVertex<T>
-{
-    pub fn new(vertex: Vertex, shift: T) -> Self {
-        Self { vertex, shift }
-    }
-}
-
-impl<T> Display for ShiftedVertex<T>
-    where T: Display
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{} {}", self.vertex, self.shift))
-    }
-}
-
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub struct VectorLabelledEdge<T>
 {
     pub head: Vertex,
@@ -256,7 +233,7 @@ impl<T> Display for VectorLabelledEdge<T>
 pub struct Graph<T> {
     edges: Vec<VectorLabelledEdge<T>>,
     vertices: UnsafeCell<Option<Vec<Vertex>>>,
-    incidences: UnsafeCell<BTreeMap<Vertex, Vec<ShiftedVertex<T>>>>,
+    incidences: UnsafeCell<BTreeMap<Vertex, Vec<VectorLabelledEdge<T>>>>,
     positions: UnsafeCell<BTreeMap<Vertex, QVec>>,
     edge_lookup: UnsafeCell<
         BTreeMap<Vertex, HashMap<QVec, VectorLabelledEdge<T>>>
@@ -299,7 +276,7 @@ impl<T> Graph<T>
         }
     }
 
-    pub fn incidences(&self, v: &Vertex) -> Vec<ShiftedVertex<T>> {
+    pub fn incidences(&self, v: &Vertex) -> Vec<VectorLabelledEdge<T>> {
         if let Some(output) = unsafe { (*self.incidences.get()).get(v) } {
             output.clone()
         } else {
@@ -310,8 +287,9 @@ impl<T> Graph<T>
                     if !incidences.contains_key(&e.head) {
                         incidences.insert(e.head, vec![]);
                     }
-                    incidences.get_mut(&e.head).unwrap()
-                        .push(ShiftedVertex::new(e.tail, e.shift));
+                    incidences.get_mut(&e.head).unwrap().push(
+                        VectorLabelledEdge::new(e.head, e.tail, e.shift)
+                    );
                 }
             }
 
@@ -380,7 +358,7 @@ impl<T> Graph<T>
             let mut seen = HashSet::new();
 
             for ngb in self.incidences(&v) {
-                let q = self.edge_vector(&v, &ngb.vertex, &ngb.shift);
+                let q = self.edge_vector(&v, &ngb.tail, &ngb.shift);
 
                 if seen.contains(&q) {
                     return false;
@@ -397,7 +375,7 @@ impl<T> Graph<T>
 
         for v in self.vertices() {
             let mut deltas: Vec<_> = self.incidences(&v).iter()
-                .map(|ngb| self.edge_vector(&v, &ngb.vertex, &ngb.shift))
+                .map(|ngb| self.edge_vector(&v, &ngb.tail, &ngb.shift))
                 .collect();
             deltas.sort();
             deltas.push(self.position_normalized(&v));
@@ -462,8 +440,8 @@ impl<T> Display for Graph<T>
 
 pub struct CoordinationSequence<'a, T> {
     graph: &'a Graph<T>,
-    last_shell: HashSet<ShiftedVertex<T>>,
-    this_shell: HashSet<ShiftedVertex<T>>,
+    last_shell: HashSet<(Vertex, T)>,
+    this_shell: HashSet<(Vertex, T)>,
 }
 
 impl <'a, T> CoordinationSequence<'a, T>
@@ -471,7 +449,7 @@ impl <'a, T> CoordinationSequence<'a, T>
 {
     fn new(graph: &'a Graph<T>, v0: &Vertex) -> Self {
         let last_shell = HashSet::new();
-        let this_shell = HashSet::from([ShiftedVertex::new(*v0, T::zero())]);
+        let this_shell = HashSet::from([(*v0, T::zero())]);
 
         CoordinationSequence { graph, last_shell, this_shell }
     }
@@ -485,9 +463,9 @@ impl<'a, T> Iterator for CoordinationSequence<'a, T>
     fn next(&mut self) -> Option<Self::Item> {
         let mut next_shell = HashSet::new();
 
-        for ShiftedVertex { vertex: v0, shift: s0 } in &self.this_shell {
-            for ShiftedVertex { vertex, shift } in self.graph.incidences(&v0) {
-                let w = ShiftedVertex::new(vertex, shift + *s0);
+        for (vertex, shift) in &self.this_shell {
+            for e in self.graph.incidences(&vertex) {
+                let w = (e.tail, e.shift + *shift);
 
                 if !self.last_shell.contains(&w) &&
                     !self.this_shell.contains(&w)
@@ -513,13 +491,13 @@ fn traverse_with_shift_adjustments<T>(g: &Graph<T>, v0: &Vertex)
     let mut result = Vec::new();
 
     while let Some(v) = queue.pop_front() {
-        for ShiftedVertex { vertex: w, shift: s } in g.incidences(&v) {
-            if !shifts.contains_key(&w) {
-                shifts.insert(w, shifts[&v] + s);
-                queue.push_back(w);
+        for e in g.incidences(&v) {
+            if !shifts.contains_key(&e.tail) {
+                shifts.insert(e.tail, shifts[&v] + e.shift);
+                queue.push_back(e.tail);
             }
 
-            let e = VectorLabelledEdge::new(v, w, s).canonical();
+            let e = e.canonical();
             if !seen.contains(&e) {
                 let shift = shifts[&e.head] + e.shift - shifts[&e.tail];
                 result.push(VectorLabelledEdge::new(e.head, e.tail, shift));
@@ -583,7 +561,7 @@ fn barycentric_placement<T>(g: &Graph<T>)
 
     for i in 1..n {
         for ngb in g.incidences(&verts[i]) {
-            let j = vidcs[&ngb.vertex];
+            let j = vidcs[&ngb.tail];
             a[i][j] -= 1;
             a[i][i] += 1;
 
@@ -615,7 +593,7 @@ fn edges_by_unique_deltas<T>(g: &Graph<T>)
         let mut seen = HashSet::new();
         let mut to_edge = HashMap::new();
 
-        for ShiftedVertex { vertex: tail, shift } in g.incidences(&head) {
+        for VectorLabelledEdge { head, tail, shift } in g.incidences(&head) {
             let delta = g.edge_vector(&head, &tail, &shift);
             if seen.contains(&delta) {
                 to_edge.remove(&delta);
