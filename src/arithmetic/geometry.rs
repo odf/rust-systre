@@ -3,6 +3,7 @@ use std::ops::{Neg, Add, AddAssign, Sub, SubAssign};
 use std::ops::{Mul, MulAssign, Div, DivAssign};
 use std::ops::{Index, IndexMut};
 use std::slice::Iter;
+use std::vec::IntoIter;
 
 use num_traits::{Zero, One};
 
@@ -23,6 +24,10 @@ impl<T, CS> Vector<T, CS> {
 
     pub fn iter(&self) -> Iter<T> {
         self.coords.iter()
+    }
+
+    pub fn into_iter(self) -> IntoIter<T> {
+        self.coords.into_iter()
     }
 }
 
@@ -268,6 +273,10 @@ impl<T, CS> Point<T, CS> {
 
     pub fn iter(&self) -> Iter<T> {
         self.coords.iter()
+    }
+
+    pub fn into_iter(self) -> IntoIter<T> {
+        self.coords.into_iter()
     }
 }
 

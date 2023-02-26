@@ -86,8 +86,8 @@ fn are_linearly_independent<T: LabelVector>(
 {
     let mut basis = vec![];
     for VectorLabelledEdge { head, tail, shift } in edges {
-        let v: Vec<_> = graph.edge_vector(&head, &tail, &shift).iter()
-            .cloned().collect();
+        let v: Vec<_> = graph.edge_vector(&head, &tail, &shift)
+            .into_iter().collect();
         extend_basis(&v, &mut basis);
     }
     basis.len() == edges.len()

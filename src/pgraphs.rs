@@ -256,7 +256,7 @@ impl<T> Graph<T>
         let edges: Vec<VectorLabelledEdge<T>> = raw_edges.iter()
             .map(|e| e.canonical())
             .collect::<HashSet<_>>()
-            .iter().cloned()
+            .into_iter()
             .sorted()
             .collect();
 
@@ -276,7 +276,7 @@ impl<T> Graph<T>
             let vertices: Vec<_> = self.edges.iter()
                 .flat_map(|e| [e.head, e.tail])
                 .collect::<BTreeSet<_>>()
-                .iter().cloned()
+                .into_iter()
                 .collect();
 
             unsafe { *self.vertices.get() = Some(vertices.clone()) };
@@ -386,11 +386,11 @@ impl<T> Graph<T>
             let mut deltas: Vec<Vec<_>> = vec![];
             for e in self.incidences(&v) {
                 let v = self.edge_vector(&e.head, &e.tail, &e.shift);
-                deltas.push(v.iter().cloned().collect());
+                deltas.push(v.into_iter().collect());
             }
             deltas.sort();
             let p = self.position_normalized(&v);
-            deltas.push(p.iter().cloned().collect());
+            deltas.push(p.into_iter().collect());
 
             if seen.contains(&deltas) {
                 return true;

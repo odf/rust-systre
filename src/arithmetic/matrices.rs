@@ -2,6 +2,7 @@ use std::ops::{Add, AddAssign, Sub, SubAssign, Neg};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
 use std::ops::{Index, IndexMut, Range};
 use std::slice::Iter;
+use std::vec::IntoIter;
 use num_traits::{One, Zero};
 
 
@@ -19,6 +20,10 @@ impl<T> Matrix<T> {
 
     pub fn iter(&self) -> Iter<T> {
         self.data.iter()
+    }
+
+    pub fn into_iter(self) -> IntoIter<T> {
+        self.data.into_iter()
     }
 }
 
