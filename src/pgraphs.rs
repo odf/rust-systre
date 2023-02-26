@@ -171,7 +171,7 @@ impl Display for LabelVector3d {
 }
 
 
-type Vertex = u32;
+pub type Vertex = u32;
 type QVec = Vec<BigRational>;
 
 
@@ -232,7 +232,7 @@ impl<T> Display for VectorLabelledEdge<T>
 
 #[derive(Debug)]
 pub struct Graph<T> {
-    pub(crate) edges: Vec<VectorLabelledEdge<T>>,
+    edges: Vec<VectorLabelledEdge<T>>,
     vertices: UnsafeCell<Option<Vec<Vertex>>>,
     incidences: UnsafeCell<BTreeMap<Vertex, Vec<VectorLabelledEdge<T>>>>,
     positions: UnsafeCell<BTreeMap<Vertex, QVec>>,

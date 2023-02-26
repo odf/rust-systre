@@ -1,22 +1,39 @@
 use itertools::Itertools;
 
-use crate::pgraphs::*;
+use crate::pgraphs::{Graph, LabelVector, VectorLabelledEdge, Vertex};
 use crate::arithmetic::linear_algebra::extend_basis;
 
 
-impl<T: LabelVector> Graph<T>
+fn characteristic_edge_lists<T: LabelVector>(graph: &Graph<T>)
+    -> Vec<Vec<VectorLabelledEdge<T>>>
 {
-    fn good_edge_chains(&self) -> Vec<Vec<VectorLabelledEdge<T>>>
-        where T: LabelVector
-    {
-        let mut result = vec![];
-        for &e in &self.edges {
-            for e in [e, -e] {
-                generate_edge_chain_extensions(vec![e], &self, &mut result);
-            }
+    let mut result = vec![];
+
+    for v in graph.vertices() {
+        for es in good_combinations(&graph.incidences(&v), graph) {
+            result.push(es);
         }
-        result
     }
+
+    if result.is_empty() {
+        result = good_edge_chains(graph);
+    }
+
+    if result.is_empty() {
+        result = good_combinations(&directed_edge(graph), graph);
+    }
+    result
+}
+
+
+fn good_edge_chains<T>(graph: &Graph<T>) -> Vec<Vec<VectorLabelledEdge<T>>>
+    where T: LabelVector
+{
+    let mut result = vec![];
+    for e in directed_edge(graph) {
+        generate_edge_chain_extensions(vec![e], graph, &mut result);
+    }
+    result
 }
 
 
@@ -54,6 +71,12 @@ fn good_combinations<T: LabelVector>(
         }
     }
     result
+}
+
+
+fn directed_edge<T: LabelVector>(graph: &Graph<T>) -> Vec<VectorLabelledEdge<T>>
+{
+    graph.vertices().iter().flat_map(|v| graph.incidences(v)).collect()
 }
 
 
