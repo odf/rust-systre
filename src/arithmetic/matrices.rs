@@ -5,7 +5,7 @@ use std::slice::Iter;
 use num_traits::{One, Zero};
 
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Matrix<T> {
     pub(crate) nrows: usize,
     pub(crate) ncols: usize,

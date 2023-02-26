@@ -8,6 +8,7 @@ use itertools::Itertools;
 use num_bigint::BigInt;
 use num_rational::BigRational;
 
+use crate::arithmetic::geometry;
 use crate::arithmetic::linear_algebra::extend_basis;
 
 
@@ -172,7 +173,12 @@ impl Display for LabelVector3d {
 
 
 pub type Vertex = u32;
-type QVec = Vec<BigRational>;
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct InputCS {}
+
+pub type Point = geometry::Point<BigRational, InputCS>;
+pub type Vector = geometry::Vector<BigRational, InputCS>;
 
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]
@@ -235,9 +241,9 @@ pub struct Graph<T> {
     edges: Vec<VectorLabelledEdge<T>>,
     vertices: UnsafeCell<Option<Vec<Vertex>>>,
     incidences: UnsafeCell<BTreeMap<Vertex, Vec<VectorLabelledEdge<T>>>>,
-    positions: UnsafeCell<BTreeMap<Vertex, QVec>>,
+    positions: UnsafeCell<BTreeMap<Vertex, Point>>,
     edge_lookup: UnsafeCell<
-        BTreeMap<Vertex, HashMap<QVec, VectorLabelledEdge<T>>>
+        BTreeMap<Vertex, HashMap<Vector, VectorLabelledEdge<T>>>
     >,
 }
 
@@ -304,7 +310,7 @@ impl<T> Graph<T>
         }
     }
 
-    pub fn position(&self, v: &Vertex) -> QVec {
+    pub fn position(&self, v: &Vertex) -> Point {
         if let Some(output) = unsafe { (*self.positions.get()).get(v) } {
             output.clone()
         } else {
@@ -315,7 +321,7 @@ impl<T> Graph<T>
         }
     }
 
-    pub fn edge_by_unique_delta(&self, v: &Vertex, delta: &QVec)
+    pub fn edge_by_unique_delta(&self, v: &Vertex, delta: &Vector)
         -> Option<VectorLabelledEdge<T>>
     {
         if (unsafe { (*self.edge_lookup.get()).get(v) }).is_none() {
@@ -327,12 +333,12 @@ impl<T> Graph<T>
         Some(lookup?.get(v)?.get(delta)?.clone())
     }
 
-    pub fn position_normalized(&self, v: &Vertex) -> QVec {
+    pub fn position_normalized(&self, v: &Vertex) -> Point {
         self.position(&v).iter().map(|q| q - q.floor()).collect()
     }
 
     pub fn edge_vector(&self, head: &Vertex, tail: &Vertex, shift: &T)
-        -> QVec
+        -> Vector
     {
         let d = T::dim();
         let p = self.position(head);
@@ -346,7 +352,7 @@ impl<T> Graph<T>
         let mut seen = HashSet::new();
 
         for v in self.vertices() {
-            let p: Vec<_> = self.position_normalized(&v);
+            let p = self.position_normalized(&v);
             if seen.contains(&p) {
                 return false;
             } else {
@@ -377,11 +383,14 @@ impl<T> Graph<T>
         let mut seen = HashSet::new();
 
         for v in self.vertices() {
-            let deltas: Vec<_> = self.incidences(&v).iter()
-                .map(|ngb| self.edge_vector(&v, &ngb.tail, &ngb.shift))
-                .sorted()
-                .chain([self.position_normalized(&v)])
-                .collect();
+            let mut deltas: Vec<Vec<_>> = vec![];
+            for e in self.incidences(&v) {
+                let v = self.edge_vector(&e.head, &e.tail, &e.shift);
+                deltas.push(v.iter().cloned().collect());
+            }
+            deltas.sort();
+            let p = self.position_normalized(&v);
+            deltas.push(p.iter().cloned().collect());
 
             if seen.contains(&deltas) {
                 return true;
@@ -548,7 +557,7 @@ pub fn graph_component_measures<T>(g: &Graph<T>, v0: &Vertex)
 
 
 fn barycentric_placement<T>(g: &Graph<T>)
-    -> BTreeMap<Vertex, QVec>
+    -> BTreeMap<Vertex, Point>
     where T: LabelVector
 {
     let verts = g.vertices();
@@ -579,7 +588,7 @@ fn barycentric_placement<T>(g: &Graph<T>)
 
     let mut result = BTreeMap::new();
     for i in 0..n {
-        result.insert(verts[i], p[i].clone());
+        result.insert(verts[i], Point::new(&p[i]));
     }
 
     result
@@ -587,7 +596,7 @@ fn barycentric_placement<T>(g: &Graph<T>)
 
 
 fn edges_by_unique_deltas<T>(g: &Graph<T>)
-    -> BTreeMap<Vertex, HashMap<QVec, VectorLabelledEdge<T>>>
+    -> BTreeMap<Vertex, HashMap<Vector, VectorLabelledEdge<T>>>
     where T: LabelVector
 {
     let mut result = BTreeMap::new();

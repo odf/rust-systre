@@ -1,6 +1,6 @@
 use itertools::Itertools;
 
-use crate::pgraphs::{Graph, LabelVector, VectorLabelledEdge, Vertex};
+use crate::pgraphs::{Graph, LabelVector, VectorLabelledEdge};
 use crate::arithmetic::linear_algebra::extend_basis;
 
 
@@ -86,7 +86,9 @@ fn are_linearly_independent<T: LabelVector>(
 {
     let mut basis = vec![];
     for VectorLabelledEdge { head, tail, shift } in edges {
-        extend_basis(&graph.edge_vector(&head, &tail, &shift), &mut basis);
+        let v: Vec<_> = graph.edge_vector(&head, &tail, &shift).iter()
+            .cloned().collect();
+        extend_basis(&v, &mut basis);
     }
     basis.len() == edges.len()
 }

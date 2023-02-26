@@ -143,7 +143,7 @@ fn test_graph<T>(g: Graph<T>)
 
     if g.is_connected() {
         for v in g.vertices() {
-            println!("pos({}) = ({})", v, vec_to_string(&g.position(&v)));
+            println!("pos({}) = ({})", v, point_to_string(&g.position(&v)));
         }
         println!();
         println!("Stable: {}", g.is_stable());
@@ -157,9 +157,9 @@ fn test_graph<T>(g: Graph<T>)
             for ngb in g.incidences(&v) {
                 let delta = g.edge_vector(&v, &ngb.tail, &ngb.shift);
                 if let Some(e) = g.edge_by_unique_delta(&v, &delta) {
-                    println!("{} => ({}) => {}", v, vec_to_string(&delta), e);
+                    println!("{} => ({}) => {}", v, vector_to_string(&delta), e);
                 } else {
-                    println!("{} => ({}) => None", v, vec_to_string(&delta));
+                    println!("{} => ({}) => None", v, vector_to_string(&delta));
                 }
             }
         }
@@ -170,6 +170,10 @@ fn test_graph<T>(g: Graph<T>)
     println!();
 }
 
-fn vec_to_string<T: Display>(p: &Vec<T>) -> String {
+fn point_to_string(p: &Point) -> String {
+    p.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(", ")
+}
+
+fn vector_to_string(p: &Vector) -> String {
     p.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(", ")
 }

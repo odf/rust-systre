@@ -10,7 +10,7 @@ use super::matrices::Matrix;
 use super::linear_algebra::LinearAlgebra;
 
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Vector<T, CS> {
     coords: Matrix<T>,
     phantom: PhantomData<CS>,
@@ -255,7 +255,7 @@ impl<S, T, CS> Div<S> for Vector<T, CS>
 }
 
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Point<T, CS> {
     coords: Matrix<T>,
     phantom: PhantomData<CS>,
