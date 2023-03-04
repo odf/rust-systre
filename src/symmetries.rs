@@ -8,9 +8,6 @@ use crate::pgraphs::*;
 use crate::arithmetic::linear_algebra::extend_basis;
 
 
-type Edge<T> = VectorLabelledEdge<T>;
-
-
 fn automorphism<T: LabelVector>(
     graph: &Graph<T>,
     seed_src: &Vertex,
@@ -52,7 +49,7 @@ fn automorphism<T: LabelVector>(
 
 
 fn characteristic_edge_lists<T: LabelVector>(graph: &Graph<T>)
-    -> Vec<Vec<VectorLabelledEdge<T>>>
+    -> Vec<Vec<Edge<T>>>
 {
     let mut result = vec![];
 
@@ -73,7 +70,7 @@ fn characteristic_edge_lists<T: LabelVector>(graph: &Graph<T>)
 }
 
 
-fn good_edge_chains<T>(graph: &Graph<T>) -> Vec<Vec<VectorLabelledEdge<T>>>
+fn good_edge_chains<T>(graph: &Graph<T>) -> Vec<Vec<Edge<T>>>
     where T: LabelVector
 {
     let mut result = vec![];
@@ -85,9 +82,9 @@ fn good_edge_chains<T>(graph: &Graph<T>) -> Vec<Vec<VectorLabelledEdge<T>>>
 
 
 fn generate_edge_chain_extensions<T: LabelVector>(
-    edges: Vec<VectorLabelledEdge<T>>,
+    edges: Vec<Edge<T>>,
     graph: &Graph<T>,
-    result: &mut Vec<Vec<VectorLabelledEdge<T>>>
+    result: &mut Vec<Vec<Edge<T>>>
 ) {
     if edges.len() == T::dim() {
         result.push(edges);
@@ -105,8 +102,8 @@ fn generate_edge_chain_extensions<T: LabelVector>(
 
 
 fn good_combinations<T: LabelVector>(
-    edges: &Vec<VectorLabelledEdge<T>>, graph: &Graph<T>
-) -> Vec<Vec<VectorLabelledEdge<T>>>
+    edges: &Vec<Edge<T>>, graph: &Graph<T>
+) -> Vec<Vec<Edge<T>>>
 {
     let mut result = vec![];
     for es in edges.iter().combinations(T::dim()) {
@@ -121,18 +118,18 @@ fn good_combinations<T: LabelVector>(
 }
 
 
-fn directed_edge<T: LabelVector>(graph: &Graph<T>) -> Vec<VectorLabelledEdge<T>>
+fn directed_edge<T: LabelVector>(graph: &Graph<T>) -> Vec<Edge<T>>
 {
     graph.vertices().iter().flat_map(|v| graph.incidences(v)).collect()
 }
 
 
 fn are_linearly_independent<T: LabelVector>(
-    edges: &Vec<VectorLabelledEdge<T>>, graph: &Graph<T>
+    edges: &Vec<Edge<T>>, graph: &Graph<T>
 ) -> bool
 {
     let mut basis = vec![];
-    for VectorLabelledEdge { head, tail, shift } in edges {
+    for Edge { head, tail, shift } in edges {
         let v: Vec<_> = graph.edge_vector(&head, &tail, &shift)
             .into_iter().collect();
         extend_basis(&v, &mut basis);

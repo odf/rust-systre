@@ -182,21 +182,21 @@ pub type Vector = geometry::Vector<BigRational, InputCS>;
 
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]
-pub struct VectorLabelledEdge<T>
+pub struct Edge<T>
 {
     pub head: Vertex,
     pub tail: Vertex,
     pub shift: T,
 }
 
-impl<T> VectorLabelledEdge<T>
+impl<T> Edge<T>
 {
     pub fn new(head: Vertex, tail: Vertex, shift: T) -> Self {
         Self { head, tail, shift }
     }
 }
 
-impl<T> Neg for VectorLabelledEdge<T>
+impl<T> Neg for Edge<T>
     where T: LabelVector
 {
     type Output = Self;
@@ -211,7 +211,7 @@ impl<T> Neg for VectorLabelledEdge<T>
 
 }
 
-impl<T> VectorLabelledEdge<T>
+impl<T> Edge<T>
     where T: LabelVector
 {
     pub fn canonical(self) -> Self {
@@ -225,7 +225,7 @@ impl<T> VectorLabelledEdge<T>
     }
 }
 
-impl<T> Display for VectorLabelledEdge<T>
+impl<T> Display for Edge<T>
     where T: Display
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -238,12 +238,12 @@ impl<T> Display for VectorLabelledEdge<T>
 
 #[derive(Debug)]
 pub struct Graph<T> {
-    edges: Vec<VectorLabelledEdge<T>>,
+    edges: Vec<Edge<T>>,
     vertices: UnsafeCell<Option<Vec<Vertex>>>,
-    incidences: UnsafeCell<BTreeMap<Vertex, Vec<VectorLabelledEdge<T>>>>,
+    incidences: UnsafeCell<BTreeMap<Vertex, Vec<Edge<T>>>>,
     positions: UnsafeCell<BTreeMap<Vertex, Point>>,
     edge_lookup: UnsafeCell<
-        BTreeMap<Vertex, HashMap<Vector, VectorLabelledEdge<T>>>
+        BTreeMap<Vertex, HashMap<Vector, Edge<T>>>
     >,
 }
 
@@ -252,8 +252,8 @@ impl<T> Graph<T>
 {
     pub fn dim() -> usize { T::dim() }
 
-    pub fn new(raw_edges: &[VectorLabelledEdge<T>]) -> Self {
-        let edges: Vec<VectorLabelledEdge<T>> = raw_edges.iter()
+    pub fn new(raw_edges: &[Edge<T>]) -> Self {
+        let edges: Vec<Edge<T>> = raw_edges.iter()
             .map(|e| e.canonical())
             .collect::<HashSet<_>>()
             .into_iter()
@@ -285,7 +285,7 @@ impl<T> Graph<T>
         }
     }
 
-    pub fn incidences(&self, v: &Vertex) -> Vec<VectorLabelledEdge<T>> {
+    pub fn incidences(&self, v: &Vertex) -> Vec<Edge<T>> {
         if let Some(output) = unsafe { (*self.incidences.get()).get(v) } {
             output.clone()
         } else {
@@ -297,7 +297,7 @@ impl<T> Graph<T>
                         incidences.insert(e.head, vec![]);
                     }
                     incidences.get_mut(&e.head).unwrap().push(
-                        VectorLabelledEdge::new(e.head, e.tail, e.shift)
+                        Edge::new(e.head, e.tail, e.shift)
                     );
                 }
             }
@@ -322,7 +322,7 @@ impl<T> Graph<T>
     }
 
     pub fn edge_by_unique_delta(&self, v: &Vertex, delta: &Vector)
-        -> Option<VectorLabelledEdge<T>>
+        -> Option<Edge<T>>
     {
         if (unsafe { (*self.edge_lookup.get()).get(v) }).is_none() {
             let data = edges_by_unique_deltas(self);
@@ -494,7 +494,7 @@ impl<'a, T> Iterator for CoordinationSequence<'a, T>
 
 
 fn traverse_with_shift_adjustments<T>(g: &Graph<T>, v0: &Vertex)
-    -> Vec<VectorLabelledEdge<T>>
+    -> Vec<Edge<T>>
     where T: LabelVector
 {
     let mut shifts = BTreeMap::from([(*v0, T::zero())]);
@@ -512,7 +512,7 @@ fn traverse_with_shift_adjustments<T>(g: &Graph<T>, v0: &Vertex)
             let e = e.canonical();
             if !seen.contains(&e) {
                 let shift = shifts[&e.head] + e.shift - shifts[&e.tail];
-                result.push(VectorLabelledEdge::new(e.head, e.tail, shift));
+                result.push(Edge::new(e.head, e.tail, shift));
                 seen.insert(e);
             }
         }
@@ -596,7 +596,7 @@ fn barycentric_placement<T>(g: &Graph<T>)
 
 
 fn edges_by_unique_deltas<T>(g: &Graph<T>)
-    -> BTreeMap<Vertex, HashMap<Vector, VectorLabelledEdge<T>>>
+    -> BTreeMap<Vertex, HashMap<Vector, Edge<T>>>
     where T: LabelVector
 {
     let mut result = BTreeMap::new();
@@ -605,12 +605,12 @@ fn edges_by_unique_deltas<T>(g: &Graph<T>)
         let mut seen = HashSet::new();
         let mut to_edge = HashMap::new();
 
-        for VectorLabelledEdge { head, tail, shift } in g.incidences(&head) {
+        for Edge { head, tail, shift } in g.incidences(&head) {
             let delta = g.edge_vector(&head, &tail, &shift);
             if seen.contains(&delta) {
                 to_edge.remove(&delta);
             } else {
-                let e = VectorLabelledEdge { head, tail, shift };
+                let e = Edge { head, tail, shift };
                 to_edge.insert(delta.clone(), e);
                 seen.insert(delta);
             }

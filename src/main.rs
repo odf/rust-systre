@@ -93,7 +93,7 @@ fn graph2d(spec: &[[i32; 4]]) -> Graph<LabelVector2d> {
     let mut edges = vec![];
 
     for [u, v, x, y] in spec {
-        edges.push(VectorLabelledEdge::new(
+        edges.push(Edge::new(
             *u as u32,
             *v as u32,
             LabelVector2d::new(*x, *y)
@@ -108,7 +108,7 @@ fn graph3d(spec: &[[i32; 5]]) -> Graph<LabelVector3d> {
     let mut edges = vec![];
 
     for [u, v, x, y, z] in spec {
-        edges.push(VectorLabelledEdge::new(
+        edges.push(Edge::new(
             *u as u32,
             *v as u32,
             LabelVector3d::new(*x, *y, *z)
