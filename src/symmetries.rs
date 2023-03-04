@@ -1,9 +1,7 @@
 use std::collections::{HashMap, VecDeque};
 
 use itertools::Itertools;
-use num_rational::BigRational;
 
-use crate::arithmetic::geometry;
 use crate::pgraphs::*;
 use crate::arithmetic::linear_algebra::extend_basis;
 
@@ -12,9 +10,9 @@ fn automorphism<T: LabelVector>(
     graph: &Graph<T>,
     seed_src: &Vertex,
     seed_img: &Vertex,
-    transform: geometry::AffineMap<BigRational, InputCS>
+    transform: AffineMap
 )
-    -> Option<(HashMap<Vertex, Vertex>, HashMap<Edge<T>, Edge<T>>)>
+    -> Option<Automorphism<T>>
 {
     let mut vertex_map = HashMap::from([(*seed_src, *seed_img)]);
     let mut edge_map = HashMap::new();
@@ -42,7 +40,7 @@ fn automorphism<T: LabelVector>(
         };
     }
 
-    Some((vertex_map, edge_map))
+    Some(Automorphism::new(vertex_map, edge_map, transform))
 }
 
 

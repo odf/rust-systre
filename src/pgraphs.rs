@@ -3,7 +3,7 @@ use std::collections::{BTreeSet, BTreeMap, HashSet, HashMap, VecDeque};
 use std::fmt::Display;
 use std::hash::Hash;
 use std::mem::replace;
-use std::ops::{Neg, Add, Sub};
+use std::ops::{Neg, Add, Sub, Mul};
 use itertools::Itertools;
 use num_bigint::BigInt;
 use num_rational::BigRational;
@@ -179,6 +179,7 @@ pub struct InputCS {}
 
 pub type Point = geometry::Point<BigRational, InputCS>;
 pub type Vector = geometry::Vector<BigRational, InputCS>;
+pub type AffineMap = geometry::AffineMap<BigRational, InputCS>;
 
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]
@@ -232,6 +233,50 @@ impl<T> Display for Edge<T>
         f.write_fmt(format_args!(
             "{} --{}-> {}", self.head, self.shift, self.tail
         ))
+    }
+}
+
+
+pub struct Automorphism<T> {
+    vertex_map: HashMap<Vertex, Vertex>,
+    edge_map: HashMap<Edge<T>, Edge<T>>,
+    transform: AffineMap,
+}
+
+
+impl<T> Automorphism<T> {
+    pub fn new(
+        vertex_map: HashMap<Vertex, Vertex>,
+        edge_map: HashMap<Edge<T>, Edge<T>>,
+        transform: AffineMap,
+    ) -> Automorphism<T>
+    {
+        Automorphism { vertex_map, edge_map, transform }
+    }
+}
+
+
+impl<T> Mul<&Automorphism<T>> for &Automorphism<T>
+    where
+        T: Clone + Eq + Hash,
+        for <'a> &'a AffineMap: Mul<&'a AffineMap, Output=AffineMap>
+{
+    type Output = Automorphism<T>;
+
+    fn mul(self, rhs: &Automorphism<T>) -> Self::Output {
+        let transform = &self.transform * &rhs.transform;
+
+        let vertex_map = self.vertex_map.keys().map(|v| (
+            *v,
+            *self.vertex_map.get(rhs.vertex_map.get(v).unwrap()).unwrap()
+        )).collect();
+
+        let edge_map = self.edge_map.keys().map(|e| (
+            e.clone(),
+            self.edge_map.get(rhs.edge_map.get(e).unwrap()).unwrap().clone()
+        )).collect();
+
+        Automorphism { vertex_map, edge_map, transform }
     }
 }
 
