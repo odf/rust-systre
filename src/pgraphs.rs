@@ -237,50 +237,6 @@ impl<T> Display for Edge<T>
 }
 
 
-pub struct Automorphism<T> {
-    vertex_map: HashMap<Vertex, Vertex>,
-    edge_map: HashMap<Edge<T>, Edge<T>>,
-    transform: AffineMap,
-}
-
-
-impl<T> Automorphism<T> {
-    pub fn new(
-        vertex_map: HashMap<Vertex, Vertex>,
-        edge_map: HashMap<Edge<T>, Edge<T>>,
-        transform: AffineMap,
-    ) -> Automorphism<T>
-    {
-        Automorphism { vertex_map, edge_map, transform }
-    }
-}
-
-
-impl<T> Mul<&Automorphism<T>> for &Automorphism<T>
-    where
-        T: Clone + Eq + Hash,
-        for <'a> &'a AffineMap: Mul<&'a AffineMap, Output=AffineMap>
-{
-    type Output = Automorphism<T>;
-
-    fn mul(self, rhs: &Automorphism<T>) -> Self::Output {
-        let transform = &self.transform * &rhs.transform;
-
-        let vertex_map = self.vertex_map.keys().map(|v| (
-            *v,
-            *self.vertex_map.get(rhs.vertex_map.get(v).unwrap()).unwrap()
-        )).collect();
-
-        let edge_map = self.edge_map.keys().map(|e| (
-            e.clone(),
-            self.edge_map.get(rhs.edge_map.get(e).unwrap()).unwrap().clone()
-        )).collect();
-
-        Automorphism { vertex_map, edge_map, transform }
-    }
-}
-
-
 #[derive(Debug)]
 pub struct Graph<T> {
     edges: Vec<Edge<T>>,
@@ -534,6 +490,65 @@ impl<'a, T> Iterator for CoordinationSequence<'a, T>
 
         self.last_shell = replace(&mut self.this_shell, next_shell);
         Some(self.this_shell.len())
+    }
+}
+
+
+pub struct Automorphism<T> {
+    vertex_map: HashMap<Vertex, Vertex>,
+    edge_map: HashMap<Edge<T>, Edge<T>>,
+    transform: AffineMap,
+}
+
+
+impl<T: LabelVector> Automorphism<T> {
+    pub fn new(
+        vertex_map: HashMap<Vertex, Vertex>,
+        edge_map: HashMap<Edge<T>, Edge<T>>,
+        transform: AffineMap,
+    ) -> Automorphism<T>
+    {
+        Automorphism { vertex_map, edge_map, transform }
+    }
+
+    pub fn identity(graph: &Graph<T>) -> Automorphism<T> {
+        let transform = AffineMap::identity(T::dim());
+
+        let vertex_map = graph.vertices().iter()
+            .map(|v| (*v, *v))
+            .collect();
+
+        let edge_map = graph.vertices().iter()
+            .flat_map(|v| graph.incidences(v))
+            .map(|e| (e, e))
+            .collect();
+
+        Automorphism { vertex_map, edge_map, transform }
+    }
+}
+
+
+impl<T> Mul<&Automorphism<T>> for &Automorphism<T>
+    where
+        T: Clone + Eq + Hash,
+        for <'a> &'a AffineMap: Mul<&'a AffineMap, Output=AffineMap>
+{
+    type Output = Automorphism<T>;
+
+    fn mul(self, rhs: &Automorphism<T>) -> Self::Output {
+        let transform = &self.transform * &rhs.transform;
+
+        let vertex_map = self.vertex_map.keys().map(|v| (
+            *v,
+            *self.vertex_map.get(rhs.vertex_map.get(v).unwrap()).unwrap()
+        )).collect();
+
+        let edge_map = self.edge_map.keys().map(|e| (
+            e.clone(),
+            self.edge_map.get(rhs.edge_map.get(e).unwrap()).unwrap().clone()
+        )).collect();
+
+        Automorphism { vertex_map, edge_map, transform }
     }
 }
 
