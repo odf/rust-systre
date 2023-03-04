@@ -1,7 +1,54 @@
-use itertools::Itertools;
+use std::collections::{HashMap, VecDeque};
 
-use crate::pgraphs::{Graph, LabelVector, VectorLabelledEdge};
+use itertools::Itertools;
+use num_rational::BigRational;
+
+use crate::arithmetic::geometry;
+use crate::pgraphs::*;
 use crate::arithmetic::linear_algebra::extend_basis;
+
+
+type Edge<T> = VectorLabelledEdge<T>;
+
+
+fn automorphism<T: LabelVector>(
+    graph: &Graph<T>,
+    seed_src: &Vertex,
+    seed_img: &Vertex,
+    transform: geometry::AffineMap<BigRational, InputCS>
+)
+    -> Option<(HashMap<Vertex, Vertex>, HashMap<Edge<T>, Edge<T>>)>
+{
+    let mut vertex_map = HashMap::from([(*seed_src, *seed_img)]);
+    let mut edge_map = HashMap::new();
+    let mut queue = VecDeque::from([(*seed_src, *seed_img)]);
+
+    while let Some((vsrc, vimg)) = queue.pop_front() {
+        match vertex_map.get(&vsrc) {
+            Some(&w) if w != vimg => return None,
+            None => {
+                vertex_map.insert(vsrc, vimg);
+                for esrc in graph.incidences(&vsrc) {
+                    let dsrc = graph.edge_vector(
+                        &esrc.head, &esrc.tail, &esrc.shift
+                    );
+                    let dimg = &transform * &dsrc;
+
+                    match graph.edge_by_unique_delta(&vsrc, &dimg) {
+                        None => return None,
+                        Some(eimg) => {
+                            edge_map.insert(esrc, eimg);
+                            queue.push_back((esrc.tail, eimg.tail));
+                        }
+                    };
+                }
+            },
+            _ => {},
+        };
+    }
+
+    Some((vertex_map, edge_map))
+}
 
 
 fn characteristic_edge_lists<T: LabelVector>(graph: &Graph<T>)
