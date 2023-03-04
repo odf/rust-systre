@@ -60,7 +60,7 @@ fn characteristic_edge_lists<T: LabelVector>(graph: &Graph<T>)
     }
 
     if result.is_empty() {
-        result = good_combinations(&directed_edge(graph), graph);
+        result = good_combinations(&graph.directed_edges(), graph);
     }
     result
 }
@@ -70,7 +70,7 @@ fn good_edge_chains<T>(graph: &Graph<T>) -> Vec<Vec<Edge<T>>>
     where T: LabelVector
 {
     let mut result = vec![];
-    for e in directed_edge(graph) {
+    for e in graph.directed_edges() {
         generate_edge_chain_extensions(vec![e], graph, &mut result);
     }
     result
@@ -111,12 +111,6 @@ fn good_combinations<T: LabelVector>(
         }
     }
     result
-}
-
-
-fn directed_edge<T: LabelVector>(graph: &Graph<T>) -> Vec<Edge<T>>
-{
-    graph.vertices().iter().flat_map(|v| graph.incidences(v)).collect()
 }
 
 

@@ -286,6 +286,11 @@ impl<T> Graph<T>
         }
     }
 
+    pub fn directed_edges(&self) -> Vec<Edge<T>>
+    {
+        self.vertices().iter().flat_map(|v| self.incidences(v)).collect()
+    }
+
     pub fn incidences(&self, v: &Vertex) -> Vec<Edge<T>> {
         if let Some(output) = unsafe { (*self.incidences.get()).get(v) } {
             output.clone()
