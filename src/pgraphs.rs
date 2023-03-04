@@ -337,13 +337,13 @@ impl<T> Graph<T>
         self.position(&v).iter().map(|q| q - q.floor()).collect()
     }
 
-    pub fn edge_vector(&self, head: &Vertex, tail: &Vertex, shift: &T)
+    pub fn edge_vector(&self, e: &Edge<T>)
         -> Vector
     {
         let d = T::dim();
-        let p = self.position(head);
-        let q = self.position(tail);
-        let s: Vec<_> = shift.to_vec();
+        let p = self.position(&e.head);
+        let q = self.position(&e.tail);
+        let s: Vec<_> = e.shift.to_vec();
 
         (0..d).map(|i| &q[i] + BigInt::from(s[i]) - &p[i]).collect()
     }
@@ -367,7 +367,7 @@ impl<T> Graph<T>
             let mut seen = HashSet::new();
 
             for ngb in self.incidences(&v) {
-                let q = self.edge_vector(&v, &ngb.tail, &ngb.shift);
+                let q = self.edge_vector(&ngb);
 
                 if seen.contains(&q) {
                     return false;
@@ -385,7 +385,7 @@ impl<T> Graph<T>
         for v in self.vertices() {
             let mut deltas: Vec<Vec<_>> = vec![];
             for e in self.incidences(&v) {
-                let v = self.edge_vector(&e.head, &e.tail, &e.shift);
+                let v = self.edge_vector(&e);
                 deltas.push(v.into_iter().collect());
             }
             deltas.sort();
@@ -605,12 +605,11 @@ fn edges_by_unique_deltas<T>(g: &Graph<T>)
         let mut seen = HashSet::new();
         let mut to_edge = HashMap::new();
 
-        for Edge { head, tail, shift } in g.incidences(&head) {
-            let delta = g.edge_vector(&head, &tail, &shift);
+        for e in g.incidences(&head) {
+            let delta = g.edge_vector(&e);
             if seen.contains(&delta) {
                 to_edge.remove(&delta);
             } else {
-                let e = Edge { head, tail, shift };
                 to_edge.insert(delta.clone(), e);
                 seen.insert(delta);
             }

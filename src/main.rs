@@ -155,7 +155,7 @@ fn test_graph<T>(g: Graph<T>)
 
         for v in g.vertices() {
             for ngb in g.incidences(&v) {
-                let delta = g.edge_vector(&v, &ngb.tail, &ngb.shift);
+                let delta = g.edge_vector(&ngb);
                 if let Some(e) = g.edge_by_unique_delta(&v, &delta) {
                     println!("{} => ({}) => {}", v, vector_to_string(&delta), e);
                 } else {

@@ -26,9 +26,7 @@ fn automorphism<T: LabelVector>(
             None => {
                 vertex_map.insert(vsrc, vimg);
                 for esrc in graph.incidences(&vsrc) {
-                    let dsrc = graph.edge_vector(
-                        &esrc.head, &esrc.tail, &esrc.shift
-                    );
+                    let dsrc = graph.edge_vector(&esrc);
                     let dimg = &transform * &dsrc;
 
                     match graph.edge_by_unique_delta(&vsrc, &dimg) {
@@ -129,8 +127,8 @@ fn are_linearly_independent<T: LabelVector>(
 ) -> bool
 {
     let mut basis = vec![];
-    for Edge { head, tail, shift } in edges {
-        let v: Vec<_> = graph.edge_vector(&head, &tail, &shift)
+    for e in edges {
+        let v: Vec<_> = graph.edge_vector(&e)
             .into_iter().collect();
         extend_basis(&v, &mut basis);
     }
