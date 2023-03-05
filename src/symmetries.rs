@@ -6,15 +6,15 @@ use crate::pgraphs::*;
 use crate::arithmetic::linear_algebra::extend_basis;
 
 
-fn automorphism<T: LabelVector>(
+fn automorphism<T: LabelVector + std::fmt::Debug>(
     graph: &Graph<T>,
     seed_src: &Vertex,
     seed_img: &Vertex,
-    transform: AffineMap
+    transform: &AffineMap
 )
     -> Option<Automorphism<T>>
 {
-    let mut vertex_map = HashMap::from([(*seed_src, *seed_img)]);
+    let mut vertex_map = HashMap::new();
     let mut edge_map = HashMap::new();
     let mut queue = VecDeque::from([(*seed_src, *seed_img)]);
 
@@ -25,7 +25,7 @@ fn automorphism<T: LabelVector>(
                 vertex_map.insert(vsrc, vimg);
                 for esrc in graph.incidences(&vsrc) {
                     let dsrc = graph.edge_vector(&esrc);
-                    let dimg = &transform * &dsrc;
+                    let dimg = transform * &dsrc;
 
                     match graph.edge_by_unique_delta(&vsrc, &dimg) {
                         None => return None,
@@ -40,7 +40,7 @@ fn automorphism<T: LabelVector>(
         };
     }
 
-    Some(Automorphism::new(vertex_map, edge_map, transform))
+    Some(Automorphism::new(vertex_map, edge_map, transform.clone()))
 }
 
 
@@ -125,4 +125,65 @@ fn are_linearly_independent<T: LabelVector>(
         extend_basis(&v, &mut basis);
     }
     basis.len() == edges.len()
+}
+
+
+#[cfg(test)]
+mod tests {
+    use num_bigint::BigInt;
+    use num_rational::BigRational;
+
+    use crate::arithmetic::matrices::Matrix;
+
+    use super::*;
+
+    #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
+    struct World {}
+
+    fn r(x: i32) -> BigRational {
+        BigRational::from(BigInt::from(x))
+    }
+
+    fn graph2d(spec: &[[i32; 4]]) -> Graph<LabelVector2d<World>> {
+        let mut edges = vec![];
+
+        for [u, v, x, y] in spec {
+            edges.push(Edge::new(
+                *u as u32,
+                *v as u32,
+                LabelVector2d::new(*x, *y)
+            ));
+        }
+
+        Graph::new(&edges)
+    }
+
+    fn sql() -> Graph<LabelVector2d<World>> {
+        graph2d(&[
+            [1, 1, 1, 0],
+            [1, 1, 0, 1],
+        ])
+    }
+
+    #[test]
+    fn test_identity_automorphism() {
+        let a = automorphism(&sql(), &1, &1, &AffineMap::identity(2)).unwrap();
+
+        assert_eq!(a.transform, AffineMap::identity(2));
+        assert_eq!(a.vertex_map, HashMap::from([(1, 1)]));
+        assert_eq!(a.edge_map.len(), 4);
+    }
+
+    #[test]
+    fn test_nontrivial_automorphism() {
+        let aff = AffineMap::new(
+            &Matrix::new(2, &[r(0), r(-1), r(1), r(0)]),
+            &Vector::new(&[r(1), r(0)])
+        );
+        let a = automorphism(&sql(), &1, &1, &aff).unwrap();
+
+        assert_eq!(a.transform, aff);
+        assert_eq!(a.vertex_map, HashMap::from([(1, 1)]));
+        assert_eq!(a.edge_map.len(), 4);
+    }
 }

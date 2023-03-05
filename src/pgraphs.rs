@@ -522,9 +522,9 @@ impl<'a, T> Iterator for CoordinationSequence<'a, T>
 
 
 pub struct Automorphism<T> {
-    vertex_map: HashMap<Vertex, Vertex>,
-    edge_map: HashMap<Edge<T>, Edge<T>>,
-    transform: AffineMap,
+    pub(crate) vertex_map: HashMap<Vertex, Vertex>,
+    pub(crate) edge_map: HashMap<Edge<T>, Edge<T>>,
+    pub(crate) transform: AffineMap,
 }
 
 
