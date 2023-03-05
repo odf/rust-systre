@@ -2,6 +2,7 @@ use std::cell::UnsafeCell;
 use std::collections::{BTreeSet, BTreeMap, HashSet, HashMap, VecDeque};
 use std::fmt::Display;
 use std::hash::Hash;
+use std::marker::PhantomData;
 use std::mem::replace;
 use std::ops::{Neg, Add, Sub, Mul};
 use itertools::Itertools;
@@ -28,24 +29,27 @@ pub trait LabelVector:
 
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
-pub struct LabelVector2d {
+pub struct LabelVector2d<CS> {
     x: i32,
     y: i32,
+    phantom: PhantomData<CS>,
 }
 
-impl LabelVector2d {
+impl<CS> LabelVector2d<CS> {
     pub fn new(x: i32, y: i32) -> Self {
-        Self { x, y }
+        Self { x, y, phantom: PhantomData::default() }
     }
 }
 
-impl LabelVector for LabelVector2d {
+impl<CS> LabelVector for LabelVector2d<CS>
+    where CS: Copy + Ord + Hash
+{
     fn dim() -> usize {
         2
     }
 
     fn zero() -> Self {
-        Self { x: 0, y: 0 }
+        Self { x: 0, y: 0, phantom: PhantomData::default() }
     }
 
     fn is_zero(&self) -> bool {
@@ -67,31 +71,31 @@ impl LabelVector for LabelVector2d {
     }
 }
 
-impl Neg for LabelVector2d {
+impl<CS> Neg for LabelVector2d<CS> {
     type Output = Self;
 
     fn neg(self) -> Self {
-        Self { x: -self.x, y: -self.y }
+        Self { x: -self.x, y: -self.y, phantom: self.phantom }
     }
 }
 
-impl Add<Self> for LabelVector2d {
+impl<CS> Add<Self> for LabelVector2d<CS> {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        Self { x: self.x + rhs.x, y: self.y + rhs.y }
+        Self { x: self.x + rhs.x, y: self.y + rhs.y, phantom: self.phantom }
     }
 }
 
-impl Sub<Self> for LabelVector2d {
+impl<CS> Sub<Self> for LabelVector2d<CS> {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        Self { x: self.x - rhs.x, y: self.y - rhs.y }
+        Self { x: self.x - rhs.x, y: self.y - rhs.y, phantom: self.phantom }
     }
 }
 
-impl Display for LabelVector2d {
+impl<CS> Display for LabelVector2d<CS> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!("({}, {})", self.x, self.y))
     }
@@ -99,25 +103,28 @@ impl Display for LabelVector2d {
 
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
-pub struct LabelVector3d {
+pub struct LabelVector3d<CS> {
     x: i32,
     y: i32,
     z: i32,
+    phantom: PhantomData<CS>,
 }
 
-impl LabelVector3d {
+impl<CS> LabelVector3d<CS> {
     pub fn new(x: i32, y: i32, z: i32) -> Self {
-        Self { x, y, z }
+        Self { x, y, z, phantom: PhantomData::default() }
     }
 }
 
-impl LabelVector for LabelVector3d {
+impl<CS> LabelVector for LabelVector3d<CS>
+    where CS: Copy + Ord + Hash
+{
     fn dim() -> usize {
         3
     }
 
     fn zero() -> Self {
-        Self { x: 0, y: 0,z: 0 }
+        Self { x: 0, y: 0,z: 0, phantom: PhantomData::default() }
     }
 
     fn is_zero(&self) -> bool {
@@ -141,31 +148,46 @@ impl LabelVector for LabelVector3d {
     }
 }
 
-impl Neg for LabelVector3d {
+impl<CS> Neg for LabelVector3d<CS> {
     type Output = Self;
 
     fn neg(self) -> Self {
-        Self { x: -self.x, y: -self.y, z: -self.z }
+        Self {
+            x: -self.x,
+            y: -self.y,
+            z: -self.z,
+            phantom: self.phantom,
+        }
     }
 }
 
-impl Add<Self> for LabelVector3d {
+impl<CS> Add<Self> for LabelVector3d<CS> {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        Self { x: self.x + rhs.x, y: self.y + rhs.y, z: self.z + rhs.z }
+        Self {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+            z: self.z + rhs.z,
+            phantom: self.phantom,
+        }
     }
 }
 
-impl Sub<Self> for LabelVector3d {
+impl<CS> Sub<Self> for LabelVector3d<CS> {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        Self { x: self.x - rhs.x, y: self.y - rhs.y, z: self.z - rhs.z }
+        Self {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+            z: self.z - rhs.z,
+            phantom: self.phantom,
+        }
     }
 }
 
-impl Display for LabelVector3d {
+impl<CS> Display for LabelVector3d<CS> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!("({}, {}, {})", self.x, self.y, self.z))
     }

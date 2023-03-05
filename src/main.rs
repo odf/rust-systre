@@ -89,7 +89,11 @@ fn test_graph_examples() {
 }
 
 
-fn graph2d(spec: &[[i32; 4]]) -> Graph<LabelVector2d> {
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
+struct World {}
+
+
+fn graph2d(spec: &[[i32; 4]]) -> Graph<LabelVector2d<World>> {
     let mut edges = vec![];
 
     for [u, v, x, y] in spec {
@@ -104,7 +108,7 @@ fn graph2d(spec: &[[i32; 4]]) -> Graph<LabelVector2d> {
 }
 
 
-fn graph3d(spec: &[[i32; 5]]) -> Graph<LabelVector3d> {
+fn graph3d(spec: &[[i32; 5]]) -> Graph<LabelVector3d<World>> {
     let mut edges = vec![];
 
     for [u, v, x, y, z] in spec {
