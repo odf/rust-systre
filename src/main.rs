@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use rust_systre::pgraphs::*;
 
 
@@ -89,14 +87,18 @@ fn test_graph_examples() {
 }
 
 
-fn graph2d(spec: &[[i32; 4]]) -> Graph<LabelVector2d> {
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
+struct InputCS {}
+
+
+fn graph2d(spec: &[[i32; 4]]) -> Graph<InputCS> {
     let mut edges = vec![];
 
     for [u, v, x, y] in spec {
         edges.push(Edge::new(
             *u as u32,
             *v as u32,
-            LabelVector2d::new(*x, *y)
+            Shift::new(&[*x, *y])
         ));
     }
 
@@ -104,14 +106,14 @@ fn graph2d(spec: &[[i32; 4]]) -> Graph<LabelVector2d> {
 }
 
 
-fn graph3d(spec: &[[i32; 5]]) -> Graph<LabelVector3d> {
+fn graph3d(spec: &[[i32; 5]]) -> Graph<InputCS> {
     let mut edges = vec![];
 
     for [u, v, x, y, z] in spec {
         edges.push(Edge::new(
             *u as u32,
             *v as u32,
-            LabelVector3d::new(*x, *y, *z)
+            Shift::new(&[*x, *y, *z])
         ));
     }
 
@@ -119,9 +121,7 @@ fn graph3d(spec: &[[i32; 5]]) -> Graph<LabelVector3d> {
 }
 
 
-fn test_graph<T>(g: Graph<T>)
-    where T: LabelVector + Display
-{
+fn test_graph(g: Graph<InputCS>) {
     println!("Graph:");
     println!("{}", g);
 
@@ -170,10 +170,10 @@ fn test_graph<T>(g: Graph<T>)
     println!();
 }
 
-fn point_to_string(p: &Point) -> String {
+fn point_to_string(p: &Point<InputCS>) -> String {
     p.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(", ")
 }
 
-fn vector_to_string(p: &Vector) -> String {
+fn vector_to_string(p: &Vector<InputCS>) -> String {
     p.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(", ")
 }

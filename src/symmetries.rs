@@ -1,4 +1,5 @@
 use std::collections::{HashMap, VecDeque};
+use std::hash::Hash;
 
 use itertools::Itertools;
 
@@ -6,13 +7,14 @@ use crate::pgraphs::*;
 use crate::arithmetic::linear_algebra::extend_basis;
 
 
-fn automorphism<T: LabelVector>(
-    graph: &Graph<T>,
+fn automorphism<CS>(
+    graph: &Graph<CS>,
     seed_src: &Vertex,
     seed_img: &Vertex,
-    transform: AffineMap
+    transform: AffineMap<CS>
 )
-    -> Option<Automorphism<T>>
+    -> Option<Automorphism<CS>>
+    where CS: Clone + Eq + Hash + Ord
 {
     let mut vertex_map = HashMap::from([(*seed_src, *seed_img)]);
     let mut edge_map = HashMap::new();
@@ -30,7 +32,7 @@ fn automorphism<T: LabelVector>(
                     match graph.edge_by_unique_delta(&vsrc, &dimg) {
                         None => return None,
                         Some(eimg) => {
-                            edge_map.insert(esrc, eimg);
+                            edge_map.insert(esrc.clone(), eimg.clone());
                             queue.push_back((esrc.tail, eimg.tail));
                         }
                     };
@@ -44,8 +46,9 @@ fn automorphism<T: LabelVector>(
 }
 
 
-fn characteristic_edge_lists<T: LabelVector>(graph: &Graph<T>)
-    -> Vec<Vec<Edge<T>>>
+fn characteristic_edge_lists<CS>(graph: &Graph<CS>)
+    -> Vec<Vec<Edge<CS>>>
+    where CS: Clone + Eq + Hash + Ord
 {
     let mut result = vec![];
 
@@ -66,8 +69,9 @@ fn characteristic_edge_lists<T: LabelVector>(graph: &Graph<T>)
 }
 
 
-fn good_edge_chains<T>(graph: &Graph<T>) -> Vec<Vec<Edge<T>>>
-    where T: LabelVector
+fn good_edge_chains<CS>(graph: &Graph<CS>)
+    -> Vec<Vec<Edge<CS>>>
+    where CS: Clone + Eq + Hash + Ord
 {
     let mut result = vec![];
     for e in graph.directed_edges() {
@@ -77,12 +81,14 @@ fn good_edge_chains<T>(graph: &Graph<T>) -> Vec<Vec<Edge<T>>>
 }
 
 
-fn generate_edge_chain_extensions<T: LabelVector>(
-    edges: Vec<Edge<T>>,
-    graph: &Graph<T>,
-    result: &mut Vec<Vec<Edge<T>>>
-) {
-    if edges.len() == T::dim() {
+fn generate_edge_chain_extensions<CS>(
+    edges: Vec<Edge<CS>>,
+    graph: &Graph<CS>,
+    result: &mut Vec<Vec<Edge<CS>>>
+)
+    where CS: Clone + Eq + Hash + Ord
+{
+    if edges.len() == graph.dim() {
         result.push(edges);
     } else {
         for e in graph.incidences(&edges[edges.len() - 1].tail) {
@@ -97,15 +103,15 @@ fn generate_edge_chain_extensions<T: LabelVector>(
 }
 
 
-fn good_combinations<T: LabelVector>(
-    edges: &Vec<Edge<T>>, graph: &Graph<T>
-) -> Vec<Vec<Edge<T>>>
+fn good_combinations<CS>(edges: &Vec<Edge<CS>>, graph: &Graph<CS>)
+    -> Vec<Vec<Edge<CS>>>
+    where CS: Clone + Eq + Hash + Ord
 {
     let mut result = vec![];
-    for es in edges.iter().combinations(T::dim()) {
-        let es = es.iter().map(|&&e| e).collect::<Vec<_>>();
+    for es in edges.iter().combinations(graph.dim()) {
+        let es = es.into_iter().cloned().collect::<Vec<_>>();
         if are_linearly_independent(&es, graph) {
-            for es in es.iter().permutations(T::dim()) {
+            for es in es.iter().permutations(graph.dim()) {
                 result.push(es.into_iter().cloned().collect());
             }
         }
@@ -114,9 +120,9 @@ fn good_combinations<T: LabelVector>(
 }
 
 
-fn are_linearly_independent<T: LabelVector>(
-    edges: &Vec<Edge<T>>, graph: &Graph<T>
-) -> bool
+fn are_linearly_independent<CS>(edges: &Vec<Edge<CS>>, graph: &Graph<CS>)
+    -> bool
+    where CS: Clone + Eq + Hash + Ord
 {
     let mut basis = vec![];
     for e in edges {

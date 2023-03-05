@@ -11,7 +11,7 @@ use super::matrices::Matrix;
 use super::linear_algebra::LinearAlgebra;
 
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub struct Vector<T, CS> {
     coords: Matrix<T>,
     phantom: PhantomData<CS>,

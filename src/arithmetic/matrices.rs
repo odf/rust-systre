@@ -6,7 +6,7 @@ use std::vec::IntoIter;
 use num_traits::{One, Zero};
 
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub struct Matrix<T> {
     pub(crate) nrows: usize,
     pub(crate) ncols: usize,

@@ -3,7 +3,7 @@ use std::collections::{BTreeSet, BTreeMap, HashSet, HashMap, VecDeque};
 use std::fmt::Display;
 use std::hash::Hash;
 use std::mem::replace;
-use std::ops::{Neg, Add, Sub, Mul};
+use std::ops::{Neg, Mul};
 use itertools::Itertools;
 use num_bigint::BigInt;
 use num_rational::BigRational;
@@ -12,194 +12,30 @@ use crate::arithmetic::geometry;
 use crate::arithmetic::linear_algebra::extend_basis;
 
 
-pub trait LabelVector:
-    Copy + Eq + Hash + Ord +
-    Neg<Output = Self> +
-    Add<Self, Output = Self> +
-    Sub<Self, Output = Self>
-{
-    fn dim() -> usize;
-    fn zero() -> Self;
-    fn is_zero(&self) -> bool;
-    fn is_negative(&self) -> bool;
-    fn is_positive(&self) -> bool;
-    fn to_vec(&self) -> Vec<i32>;
-}
-
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
-pub struct LabelVector2d {
-    x: i32,
-    y: i32,
-}
-
-impl LabelVector2d {
-    pub fn new(x: i32, y: i32) -> Self {
-        Self { x, y }
-    }
-}
-
-impl LabelVector for LabelVector2d {
-    fn dim() -> usize {
-        2
-    }
-
-    fn zero() -> Self {
-        Self { x: 0, y: 0 }
-    }
-
-    fn is_zero(&self) -> bool {
-        self.x == 0 && self.y == 0
-    }
-
-    fn is_negative(&self) -> bool {
-        self.x < 0 ||
-        self.x == 0 && self.y < 0
-    }
-
-    fn is_positive(&self) -> bool {
-        self.x > 0 ||
-        self.x == 0 && self.y > 0
-    }
-
-    fn to_vec(&self) -> Vec<i32> {
-        vec![self.x, self.y]
-    }
-}
-
-impl Neg for LabelVector2d {
-    type Output = Self;
-
-    fn neg(self) -> Self {
-        Self { x: -self.x, y: -self.y }
-    }
-}
-
-impl Add<Self> for LabelVector2d {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        Self { x: self.x + rhs.x, y: self.y + rhs.y }
-    }
-}
-
-impl Sub<Self> for LabelVector2d {
-    type Output = Self;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        Self { x: self.x - rhs.x, y: self.y - rhs.y }
-    }
-}
-
-impl Display for LabelVector2d {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("({}, {})", self.x, self.y))
-    }
-}
-
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
-pub struct LabelVector3d {
-    x: i32,
-    y: i32,
-    z: i32,
-}
-
-impl LabelVector3d {
-    pub fn new(x: i32, y: i32, z: i32) -> Self {
-        Self { x, y, z }
-    }
-}
-
-impl LabelVector for LabelVector3d {
-    fn dim() -> usize {
-        3
-    }
-
-    fn zero() -> Self {
-        Self { x: 0, y: 0,z: 0 }
-    }
-
-    fn is_zero(&self) -> bool {
-        self.x == 0 && self.y == 0 && self.z == 0
-    }
-
-    fn is_negative(&self) -> bool {
-        self.x < 0 ||
-        self.x == 0 && self.y < 0 ||
-        self.x == 0 && self.y == 0 && self.z < 0
-    }
-
-    fn is_positive(&self) -> bool {
-        self.x > 0 ||
-        self.x == 0 && self.y > 0 ||
-        self.x == 0 && self.y == 0 && self.z > 0
-    }
-
-    fn to_vec(&self) -> Vec<i32> {
-        vec![self.x, self.y, self.z]
-    }
-}
-
-impl Neg for LabelVector3d {
-    type Output = Self;
-
-    fn neg(self) -> Self {
-        Self { x: -self.x, y: -self.y, z: -self.z }
-    }
-}
-
-impl Add<Self> for LabelVector3d {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        Self { x: self.x + rhs.x, y: self.y + rhs.y, z: self.z + rhs.z }
-    }
-}
-
-impl Sub<Self> for LabelVector3d {
-    type Output = Self;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        Self { x: self.x - rhs.x, y: self.y - rhs.y, z: self.z - rhs.z }
-    }
-}
-
-impl Display for LabelVector3d {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("({}, {}, {})", self.x, self.y, self.z))
-    }
-}
-
-
 pub type Vertex = u32;
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct InputCS {}
-
-pub type Point = geometry::Point<BigRational, InputCS>;
-pub type Vector = geometry::Vector<BigRational, InputCS>;
-pub type AffineMap = geometry::AffineMap<BigRational, InputCS>;
+pub type Point<CS> = geometry::Point<BigRational, CS>;
+pub type Vector<CS> = geometry::Vector<BigRational, CS>;
+pub type Shift<CS> = geometry::Vector<i32, CS>;
+pub type AffineMap<CS> = geometry::AffineMap<BigRational, CS>;
 
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]
-pub struct Edge<T>
+#[derive(Clone, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]
+pub struct Edge<CS>
 {
     pub head: Vertex,
     pub tail: Vertex,
-    pub shift: T,
+    pub shift: Shift<CS>,
 }
 
-impl<T> Edge<T>
+impl<CS> Edge<CS>
 {
-    pub fn new(head: Vertex, tail: Vertex, shift: T) -> Self {
+    pub fn new(head: Vertex, tail: Vertex, shift: Shift<CS>) -> Self {
         Self { head, tail, shift }
     }
 }
 
-impl<T> Neg for Edge<T>
-    where T: LabelVector
-{
+impl<CS> Neg for Edge<CS> {
     type Output = Self;
 
     fn neg(self) -> Self {
@@ -209,16 +45,17 @@ impl<T> Neg for Edge<T>
             shift: -self.shift,
         }
     }
-
 }
 
-impl<T> Edge<T>
-    where T: LabelVector
-{
-    pub fn canonical(self) -> Self {
-        if self.tail < self.head ||
-            (self.tail == self.head && self.shift.is_negative())
-        {
+impl<CS> Edge<CS> {
+    pub fn canonical(self) -> Self
+        where CS: Clone
+    {
+        let negative_shift = match self.shift.iter().find(|&&x| x != 0) {
+            Some(&x) if x < 0 => true,
+            _ => false,
+        };
+        if self.tail < self.head || (self.tail == self.head && negative_shift) {
             -self
         } else {
             self
@@ -226,42 +63,47 @@ impl<T> Edge<T>
     }
 }
 
-impl<T> Display for Edge<T>
-    where T: Display
-{
+impl<CS> Display for Edge<CS> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = self.shift.iter().join(", ");
         f.write_fmt(format_args!(
-            "{} --{}-> {}", self.head, self.shift, self.tail
+            "{} --({})-> {}", self.head, s, self.tail
         ))
     }
 }
 
 
 #[derive(Debug)]
-pub struct Graph<T> {
-    edges: Vec<Edge<T>>,
+pub struct Graph<CS> {
+    dim: usize,
+    edges: Vec<Edge<CS>>,
     vertices: UnsafeCell<Option<Vec<Vertex>>>,
-    incidences: UnsafeCell<BTreeMap<Vertex, Vec<Edge<T>>>>,
-    positions: UnsafeCell<BTreeMap<Vertex, Point>>,
-    edge_lookup: UnsafeCell<
-        BTreeMap<Vertex, HashMap<Vector, Edge<T>>>
-    >,
+    incidences: UnsafeCell<BTreeMap<Vertex, Vec<Edge<CS>>>>,
+    positions: UnsafeCell<BTreeMap<Vertex, Point<CS>>>,
+    edge_lookup: UnsafeCell<BTreeMap<Vertex, HashMap<Vector<CS>, Edge<CS>>>>,
 }
 
-impl<T> Graph<T>
-    where T: LabelVector
+impl<CS> Graph<CS>
+    where CS: Eq + Hash + Ord + Clone
 {
-    pub fn dim() -> usize { T::dim() }
+    pub fn dim(&self) -> usize {
+        self.dim
+    }
 
-    pub fn new(raw_edges: &[Edge<T>]) -> Self {
-        let edges: Vec<Edge<T>> = raw_edges.iter()
-            .map(|e| e.canonical())
+    pub fn new(raw_edges: &[Edge<CS>]) -> Self {
+        assert!(raw_edges.len() > 0);
+
+        let dim = raw_edges[0].shift.dim();
+
+        let edges: Vec<Edge<CS>> = raw_edges.iter()
+            .map(|e| e.clone().canonical())
             .collect::<HashSet<_>>()
             .into_iter()
             .sorted()
             .collect();
 
         Graph {
+            dim,
             edges,
             vertices: UnsafeCell::new(None),
             incidences: UnsafeCell::new(BTreeMap::new()),
@@ -286,19 +128,19 @@ impl<T> Graph<T>
         }
     }
 
-    pub fn directed_edges(&self) -> Vec<Edge<T>>
+    pub fn directed_edges(&self) -> Vec<Edge<CS>>
     {
         self.vertices().iter().flat_map(|v| self.incidences(v)).collect()
     }
 
-    pub fn incidences(&self, v: &Vertex) -> Vec<Edge<T>> {
+    pub fn incidences(&self, v: &Vertex) -> Vec<Edge<CS>> {
         if let Some(output) = unsafe { (*self.incidences.get()).get(v) } {
             output.clone()
         } else {
             let mut incidences = BTreeMap::new();
 
-            for &e in &self.edges {
-                for e in [e, -e] {
+            for e in &self.edges {
+                for e in [e.clone(), -e.clone()] {
                     if !incidences.contains_key(&e.head) {
                         incidences.insert(e.head, vec![]);
                     }
@@ -316,7 +158,7 @@ impl<T> Graph<T>
         }
     }
 
-    pub fn position(&self, v: &Vertex) -> Point {
+    pub fn position(&self, v: &Vertex) -> Point<CS> {
         if let Some(output) = unsafe { (*self.positions.get()).get(v) } {
             output.clone()
         } else {
@@ -327,8 +169,8 @@ impl<T> Graph<T>
         }
     }
 
-    pub fn edge_by_unique_delta(&self, v: &Vertex, delta: &Vector)
-        -> Option<Edge<T>>
+    pub fn edge_by_unique_delta(&self, v: &Vertex, delta: &Vector<CS>)
+        -> Option<Edge<CS>>
     {
         if (unsafe { (*self.edge_lookup.get()).get(v) }).is_none() {
             let data = edges_by_unique_deltas(self);
@@ -339,19 +181,17 @@ impl<T> Graph<T>
         Some(lookup?.get(v)?.get(delta)?.clone())
     }
 
-    pub fn position_normalized(&self, v: &Vertex) -> Point {
+    pub fn position_normalized(&self, v: &Vertex) -> Point<CS> {
         self.position(&v).iter().map(|q| q - q.floor()).collect()
     }
 
-    pub fn edge_vector(&self, e: &Edge<T>)
-        -> Vector
-    {
-        let d = T::dim();
+    pub fn edge_vector(&self, e: &Edge<CS>) -> Vector<CS> {
+        let d = self.dim();
         let p = self.position(&e.head);
         let q = self.position(&e.tail);
-        let s: Vec<_> = e.shift.to_vec();
+        let s: Vec<_> = e.shift.iter().collect();
 
-        (0..d).map(|i| &q[i] + BigInt::from(s[i]) - &p[i]).collect()
+        (0..d).map(|i| &q[i] + BigInt::from(*s[i]) - &p[i]).collect()
     }
 
     pub fn is_stable(&self) -> bool {
@@ -408,7 +248,7 @@ impl<T> Graph<T>
     }
 
     pub fn coordination_sequence(&self, v: &Vertex)
-        -> CoordinationSequence<T>
+        -> CoordinationSequence<CS>
     {
         CoordinationSequence::new(self, v)
     }
@@ -440,9 +280,7 @@ impl<T> Graph<T>
     }
 }
 
-impl<T> Display for Graph<T> 
-    where T: Display
-{
+impl<CS> Display for Graph<CS> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut text = String::new();
 
@@ -456,25 +294,25 @@ impl<T> Display for Graph<T>
 }
 
 
-pub struct CoordinationSequence<'a, T> {
-    graph: &'a Graph<T>,
-    last_shell: HashSet<(Vertex, T)>,
-    this_shell: HashSet<(Vertex, T)>,
+pub struct CoordinationSequence<'a, CS> {
+    graph: &'a Graph<CS>,
+    last_shell: HashSet<(Vertex, Shift<CS>)>,
+    this_shell: HashSet<(Vertex, Shift<CS>)>,
 }
 
-impl <'a, T> CoordinationSequence<'a, T>
-    where T: LabelVector
+impl <'a, CS> CoordinationSequence<'a, CS>
+    where CS: Eq + Hash + Ord + Clone
 {
-    fn new(graph: &'a Graph<T>, v0: &Vertex) -> Self {
+    fn new(graph: &'a Graph<CS>, v0: &Vertex) -> Self {
         let last_shell = HashSet::new();
-        let this_shell = HashSet::from([(*v0, T::zero())]);
+        let this_shell = HashSet::from([(*v0, Shift::zero(graph.dim()))]);
 
         CoordinationSequence { graph, last_shell, this_shell }
     }
 }
 
-impl<'a, T> Iterator for CoordinationSequence<'a, T>
-    where T: LabelVector
+impl<'a, CS> Iterator for CoordinationSequence<'a, CS>
+    where CS: Eq + Hash + Ord + Clone
 {
     type Item = usize;
 
@@ -483,7 +321,7 @@ impl<'a, T> Iterator for CoordinationSequence<'a, T>
 
         for (vertex, shift) in &self.this_shell {
             for e in self.graph.incidences(&vertex) {
-                let w = (e.tail, e.shift + *shift);
+                let w = (e.tail, e.shift + shift);
 
                 if !self.last_shell.contains(&w) &&
                     !self.this_shell.contains(&w)
@@ -499,25 +337,27 @@ impl<'a, T> Iterator for CoordinationSequence<'a, T>
 }
 
 
-pub struct Automorphism<T> {
+pub struct Automorphism<CS> {
     vertex_map: HashMap<Vertex, Vertex>,
-    edge_map: HashMap<Edge<T>, Edge<T>>,
-    transform: AffineMap,
+    edge_map: HashMap<Edge<CS>, Edge<CS>>,
+    transform: AffineMap<CS>,
 }
 
 
-impl<T: LabelVector> Automorphism<T> {
+impl<CS> Automorphism<CS>
+    where CS: Clone + Eq + Hash + Ord
+{
     pub fn new(
         vertex_map: HashMap<Vertex, Vertex>,
-        edge_map: HashMap<Edge<T>, Edge<T>>,
-        transform: AffineMap,
-    ) -> Automorphism<T>
+        edge_map: HashMap<Edge<CS>, Edge<CS>>,
+        transform: AffineMap<CS>,
+    ) -> Automorphism<CS>
     {
         Automorphism { vertex_map, edge_map, transform }
     }
 
-    pub fn identity(graph: &Graph<T>) -> Automorphism<T> {
-        let transform = AffineMap::identity(T::dim());
+    pub fn identity(graph: &Graph<CS>) -> Automorphism<CS> {
+        let transform = AffineMap::identity(graph.dim());
 
         let vertex_map = graph.vertices().iter()
             .map(|v| (*v, *v))
@@ -525,7 +365,7 @@ impl<T: LabelVector> Automorphism<T> {
 
         let edge_map = graph.vertices().iter()
             .flat_map(|v| graph.incidences(v))
-            .map(|e| (e, e))
+            .map(|e| (e.clone(), e))
             .collect();
 
         Automorphism { vertex_map, edge_map, transform }
@@ -533,14 +373,14 @@ impl<T: LabelVector> Automorphism<T> {
 }
 
 
-impl<T> Mul<&Automorphism<T>> for &Automorphism<T>
+impl<CS> Mul<&Automorphism<CS>> for &Automorphism<CS>
     where
-        T: Clone + Eq + Hash,
-        for <'a> &'a AffineMap: Mul<&'a AffineMap, Output=AffineMap>
+        CS: Clone + Eq + Hash,
+        for <'a> &'a AffineMap<CS>: Mul<&'a AffineMap<CS>, Output=AffineMap<CS>>
 {
-    type Output = Automorphism<T>;
+    type Output = Automorphism<CS>;
 
-    fn mul(self, rhs: &Automorphism<T>) -> Self::Output {
+    fn mul(self, rhs: &Automorphism<CS>) -> Self::Output {
         let transform = &self.transform * &rhs.transform;
 
         let vertex_map = self.vertex_map.keys().map(|v| (
@@ -558,11 +398,11 @@ impl<T> Mul<&Automorphism<T>> for &Automorphism<T>
 }
 
 
-fn traverse_with_shift_adjustments<T>(g: &Graph<T>, v0: &Vertex)
-    -> Vec<Edge<T>>
-    where T: LabelVector
+fn traverse_with_shift_adjustments<CS>(g: &Graph<CS>, v0: &Vertex)
+    -> Vec<Edge<CS>>
+    where CS: Clone + Eq + Hash + Ord
 {
-    let mut shifts = BTreeMap::from([(*v0, T::zero())]);
+    let mut shifts = BTreeMap::from([(*v0, Shift::zero(g.dim()))]);
     let mut seen = HashSet::new();
     let mut queue = VecDeque::from([*v0]);
     let mut result = Vec::new();
@@ -570,13 +410,13 @@ fn traverse_with_shift_adjustments<T>(g: &Graph<T>, v0: &Vertex)
     while let Some(v) = queue.pop_front() {
         for e in g.incidences(&v) {
             if !shifts.contains_key(&e.tail) {
-                shifts.insert(e.tail, shifts[&v] + e.shift);
+                shifts.insert(*(&e.tail), &shifts[&v] + &e.shift);
                 queue.push_back(e.tail);
             }
 
             let e = e.canonical();
             if !seen.contains(&e) {
-                let shift = shifts[&e.head] + e.shift - shifts[&e.tail];
+                let shift = &shifts[&e.head] + &e.shift - &shifts[&e.tail];
                 result.push(Edge::new(e.head, e.tail, shift));
                 seen.insert(e);
             }
@@ -587,9 +427,9 @@ fn traverse_with_shift_adjustments<T>(g: &Graph<T>, v0: &Vertex)
 }
 
 
-pub fn graph_component_measures<T>(g: &Graph<T>, v0: &Vertex)
+pub fn graph_component_measures<CS>(g: &Graph<CS>, v0: &Vertex)
     -> (usize, usize, Option<i32>) // TODO return a struct?
-    where T: LabelVector
+    where CS: Clone + Eq + Hash + Ord
 {
     let edges = traverse_with_shift_adjustments(g, v0);
 
@@ -601,13 +441,13 @@ pub fn graph_component_measures<T>(g: &Graph<T>, v0: &Vertex)
 
     let mut basis = vec![];
     for e in &edges {
-        extend_basis(&e.shift.to_vec(), &mut basis);
+        extend_basis(&e.shift.iter().cloned().collect::<Vec<_>>(), &mut basis);
     }
 
     let size = vertices.len();
     let rank = basis.len();
 
-    let multiplicity = if rank == T::dim() {
+    let multiplicity = if rank == g.dim() {
         let mut d: i32 = 1;
         for i in 0..basis.len() {
             d *= basis[i][i];
@@ -621,16 +461,15 @@ pub fn graph_component_measures<T>(g: &Graph<T>, v0: &Vertex)
 }
 
 
-fn barycentric_placement<T>(g: &Graph<T>)
-    -> BTreeMap<Vertex, Point>
-    where T: LabelVector
+fn barycentric_placement<CS>(g: &Graph<CS>) -> BTreeMap<Vertex, Point<CS>>
+    where CS: Clone + Eq + Hash + Ord
 {
     let verts = g.vertices();
     let vidcs: BTreeMap<_, _> =
         verts.iter().enumerate().map(|(i, &e)| (e, i)).collect();
 
     let n = verts.len();
-    let d = T::dim();
+    let d = g.dim();
 
     let mut a = vec![vec![0 as i64; n]; n];
     let mut t = vec![vec![0 as i64; d]; n];
@@ -642,7 +481,7 @@ fn barycentric_placement<T>(g: &Graph<T>)
             a[i][j] -= 1;
             a[i][i] += 1;
 
-            let s = ngb.shift.to_vec();
+            let s = ngb.shift;
             for k in 0..d {
                 t[i][k] += s[k] as i64;
             }
@@ -660,9 +499,9 @@ fn barycentric_placement<T>(g: &Graph<T>)
 }
 
 
-fn edges_by_unique_deltas<T>(g: &Graph<T>)
-    -> BTreeMap<Vertex, HashMap<Vector, Edge<T>>>
-    where T: LabelVector
+fn edges_by_unique_deltas<CS>(g: &Graph<CS>)
+    -> BTreeMap<Vertex, HashMap<Vector<CS>, Edge<CS>>>
+    where CS: Clone + Eq + Hash + Ord
 {
     let mut result = BTreeMap::new();
 
