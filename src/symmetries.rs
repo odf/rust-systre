@@ -196,6 +196,19 @@ mod tests {
         ])
     }
 
+    fn sql4() -> Graph<LabelVector2d<World>> {
+        graph2d(&[
+            [1, 2, 0, 0],
+            [2, 1, 1, 0],
+            [3, 4, 0, 0],
+            [4, 3, 1, 0],
+            [1, 3, 0, 0],
+            [3, 1, 0, 1],
+            [2, 4, 0, 0],
+            [4, 2, 0, 1],
+        ])
+    }
+
     #[test]
     fn test_syms_identity_automorphism() {
         let g = sql();
@@ -209,6 +222,24 @@ mod tests {
         assert_eq!(a.transform, AffineMap::identity(2));
         assert_eq!(a.vertex_map, HashMap::from([(1, 2), (2, 1)]));
         assert_eq!(a.edge_map.len(), 8);
+
+        let g = sql4();
+
+        let a = automorphism(&g, &1, &2, &AffineMap::identity(2)).unwrap();
+        assert_eq!(a.transform, AffineMap::identity(2));
+        assert_eq!(
+            a.vertex_map,
+            HashMap::from([(1, 2), (2, 1), (3, 4), (4, 3)])
+        );
+        assert_eq!(a.edge_map.len(), 16);
+
+        let a = automorphism(&g, &1, &4, &AffineMap::identity(2)).unwrap();
+        assert_eq!(a.transform, AffineMap::identity(2));
+        assert_eq!(
+            a.vertex_map,
+            HashMap::from([(1, 4), (4, 1), (2, 3), (3, 2)])
+        );
+        assert_eq!(a.edge_map.len(), 16);
     }
 
     #[test]
@@ -266,5 +297,10 @@ mod tests {
         let p = raw_translational_equivalences(&g);
         let cl = p.classes(&g.vertices());
         assert_eq!(cl, [[1, 2]]);
+
+        let g = sql4();
+        let p = raw_translational_equivalences(&g);
+        let cl = p.classes(&g.vertices());
+        assert_eq!(cl, [[1, 2, 3, 4]]);
     }
 }
