@@ -1,10 +1,44 @@
 use std::collections::{HashMap, VecDeque};
 
 use itertools::Itertools;
+use num_bigint::BigInt;
+use num_rational::BigRational;
+use num_traits::One;
 
+use crate::arithmetic::matrices::Matrix;
 use crate::partitions::Partition;
 use crate::pgraphs::*;
 use crate::arithmetic::linear_algebra::extend_basis;
+
+
+fn translational_equivalences<T>(graph: &Graph<T>) -> Partition<u32>
+    where T: LabelVector
+{
+    let mut equivs = raw_translational_equivalences(&graph);
+    let orbit = &equivs.classes(&graph.vertices())[0];
+    let p0 = mod1(&graph.position(&orbit[0]));
+    let id = AffineMap::identity(T::dim());
+
+    if orbit.iter().skip(1).all(|v| mod1(&graph.position(v)) != p0) {
+        equivs
+    } else {
+        let mut p = Partition::new();
+
+        for b in extended_translation_basis(&equivs, graph) {
+            let b: Vector = b.iter()
+                .map(|n| BigRational::from(n.clone()))
+                .collect();
+            let v = orbit.iter()
+                .find(|v| mod1(&(graph.position(v) + &b)) == p0)
+                .unwrap();
+            let iso = automorphism(&graph, &orbit[0], &v, &id).unwrap();
+            for w in &graph.vertices() {
+                p.unite(w, &iso.vertex_map[w]);
+            }
+        }
+        p
+    }
+}
 
 
 fn raw_translational_equivalences<T>(graph: &Graph<T>) -> Partition<u32>
@@ -18,13 +52,43 @@ fn raw_translational_equivalences<T>(graph: &Graph<T>) -> Partition<u32>
         if p.find(&verts[0]) != p.find(&v) {
             if let Some(iso) = automorphism(&graph, &verts[0], &v, id) {
                 for w in &verts {
-                    p.unite(&w, &iso.vertex_map[v]);
+                    p.unite(&w, &iso.vertex_map[w]);
                 }
             }
         }
     }
 
     p
+}
+
+
+fn mod1(p: &Point) -> Point {
+    p.iter().map(|x| x % BigInt::one()).collect()
+}
+
+
+fn extended_translation_basis<T>(equivs: &Partition<u32>, graph: &Graph<T>)
+    -> Vec<Vec<BigRational>>
+    where T: LabelVector
+{
+    let id: Matrix<BigRational> = Matrix::identity(T::dim());
+    let verts = graph.vertices();
+
+    let mut basis: Vec<Vec<BigRational>> = vec![];
+
+    for i in 0..T::dim() {
+        extend_basis(&id.get_row(i), &mut basis);
+    }
+
+    for v in &verts {
+        if equivs.find(&v) == equivs.find(&verts[0]) {
+            let delta = graph.position(&v) - graph.position(&verts[0]);
+            let t: Vec<_> = delta.iter().map(|x| x % BigInt::one()).collect();
+            extend_basis(&t, &mut basis);
+        }
+    }
+
+    basis
 }
 
 
