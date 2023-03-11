@@ -68,6 +68,24 @@ impl<T> Partition<T> where T: Copy + Eq + Hash {
     pub fn unite(&mut self, x: &T, y: &T) {
         unsafe { (*self._impl.get()).unite(x, y) };
     }
+
+    pub fn classes(&self, elms: &[T]) -> Vec<Vec<T>> {
+        let mut class_for_rep = HashMap::new();
+        let mut classes = vec![];
+
+        for e in elms {
+            let rep = self.find(e);
+            if let Some(cl) = class_for_rep.get(&rep) {
+                let class: &mut Vec<_> = &mut classes[*cl];
+                class.push(*e);
+            } else {
+                class_for_rep.insert(rep, classes.len());
+                classes.push(vec![*e]);
+            }
+        }
+
+        classes
+    }
 }
 
 
@@ -97,4 +115,13 @@ pub fn test_partition() {
             }
         }
     }
+
+    let elms: Vec<_> = (0..=9).collect();
+    let mut cl = p.classes(&elms);
+    for i in 0..cl.len() {
+        cl[i].sort();
+    }
+    cl.sort();
+
+    assert_eq!(cl, vec![vec![0], vec![1, 2, 3, 4, 5, 6], vec![7, 8], vec![9]]);
 }
