@@ -117,11 +117,6 @@ pub fn test_partition() {
     }
 
     let elms: Vec<_> = (0..=9).collect();
-    let mut cl = p.classes(&elms);
-    for i in 0..cl.len() {
-        cl[i].sort();
-    }
-    cl.sort();
-
+    let cl = p.classes(&elms);
     assert_eq!(cl, vec![vec![0], vec![1, 2, 3, 4, 5, 6], vec![7, 8], vec![9]]);
 }
