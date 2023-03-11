@@ -2,11 +2,33 @@ use std::collections::{HashMap, VecDeque};
 
 use itertools::Itertools;
 
+use crate::partitions::Partition;
 use crate::pgraphs::*;
 use crate::arithmetic::linear_algebra::extend_basis;
 
 
-fn automorphism<T: LabelVector + std::fmt::Debug>(
+fn raw_translational_equivalences<T>(graph: &Graph<T>) -> Partition<u32>
+    where T: LabelVector
+{
+    let id = &AffineMap::identity(T::dim());
+    let verts = graph.vertices();
+    let mut p = Partition::new();
+
+    for v in &verts {
+        if p.find(&verts[0]) != p.find(&v) {
+            if let Some(iso) = automorphism(&graph, &verts[0], &v, id) {
+                for w in &verts {
+                    p.unite(&w, &iso.vertex_map[v]);
+                }
+            }
+        }
+    }
+
+    p
+}
+
+
+fn automorphism<T: LabelVector>(
     graph: &Graph<T>,
     seed_src: &Vertex,
     seed_img: &Vertex,
@@ -27,7 +49,7 @@ fn automorphism<T: LabelVector + std::fmt::Debug>(
                     let dsrc = graph.edge_vector(&esrc);
                     let dimg = transform * &dsrc;
 
-                    match graph.edge_by_unique_delta(&vsrc, &dimg) {
+                    match graph.edge_by_unique_delta(&vimg, &dimg) {
                         None => return None,
                         Some(eimg) => {
                             edge_map.insert(esrc, eimg);
@@ -165,17 +187,32 @@ mod tests {
         ])
     }
 
-    #[test]
-    fn test_identity_automorphism() {
-        let a = automorphism(&sql(), &1, &1, &AffineMap::identity(2)).unwrap();
-
-        assert_eq!(a.transform, AffineMap::identity(2));
-        assert_eq!(a.vertex_map, HashMap::from([(1, 1)]));
-        assert_eq!(a.edge_map.len(), 4);
+    fn sql2() -> Graph<LabelVector2d<World>> {
+        graph2d(&[
+            [1, 2, 0, 0],
+            [2, 1, 1, 0],
+            [1, 1, 0, 1],
+            [2, 2, 0, 1],
+        ])
     }
 
     #[test]
-    fn test_nontrivial_automorphism() {
+    fn test_syms_identity_automorphism() {
+        let g = sql();
+        let a = automorphism(&g, &1, &1, &AffineMap::identity(2)).unwrap();
+        assert_eq!(a.transform, AffineMap::identity(2));
+        assert_eq!(a.vertex_map, HashMap::from([(1, 1)]));
+        assert_eq!(a.edge_map.len(), 4);
+
+        let g = sql2();
+        let a = automorphism(&g, &1, &2, &AffineMap::identity(2)).unwrap();
+        assert_eq!(a.transform, AffineMap::identity(2));
+        assert_eq!(a.vertex_map, HashMap::from([(1, 2), (2, 1)]));
+        assert_eq!(a.edge_map.len(), 8);
+    }
+
+    #[test]
+    fn test_syms_nontrivial_automorphism() {
         let aff = AffineMap::new(
             &Matrix::new(2, &[r(0), r(-1), r(1), r(0)]),
             &Vector::new(&[r(1), r(0)])
@@ -188,7 +225,7 @@ mod tests {
     }
 
     #[test]
-    fn test_characteristic_edge_lists() {
+    fn test_syms_characteristic_edge_lists() {
         let left = Edge::new(1, 1, LabelVector2d::<World>::new(-1, 0));
         let right = Edge::new(1, 1, LabelVector2d::<World>::new(1, 0));
         let up = Edge::new(1, 1, LabelVector2d::<World>::new(0, -1));
@@ -216,5 +253,18 @@ mod tests {
         assert_eq!(els1, expected);
         assert_eq!(els2, expected);
         assert_eq!(els3, expected);
+    }
+
+    #[test]
+    fn test_syms_raw_equivalence_classes() {
+        let g = sql();
+        let p = raw_translational_equivalences(&g);
+        let cl = p.classes(&g.vertices());
+        assert_eq!(cl, [[1]]);
+
+        let g = sql2();
+        let p = raw_translational_equivalences(&g);
+        let cl = p.classes(&g.vertices());
+        assert_eq!(cl, [[1, 2]]);
     }
 }
