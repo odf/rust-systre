@@ -186,4 +186,35 @@ mod tests {
         assert_eq!(a.vertex_map, HashMap::from([(1, 1)]));
         assert_eq!(a.edge_map.len(), 4);
     }
+
+    #[test]
+    fn test_characteristic_edge_lists() {
+        let left = Edge::new(1, 1, LabelVector2d::<World>::new(-1, 0));
+        let right = Edge::new(1, 1, LabelVector2d::<World>::new(1, 0));
+        let up = Edge::new(1, 1, LabelVector2d::<World>::new(0, -1));
+        let down = Edge::new(1, 1, LabelVector2d::<World>::new(0, 1));
+
+        let mut expected: Vec<Vec<_>> = vec![
+            vec![left, up], vec![left, down],
+            vec![up, left], vec![up, right],
+            vec![down, left], vec![down, right],
+            vec![right, up], vec![right, down],
+        ];
+        expected.sort();
+
+        let g = sql();
+
+        let mut els1 = characteristic_edge_lists(&g);
+        els1.sort();
+
+        let mut els2 = good_edge_chains(&g);
+        els2.sort();
+
+        let mut els3 = good_combinations(&g.directed_edges(), &g);
+        els3.sort();
+
+        assert_eq!(els1, expected);
+        assert_eq!(els2, expected);
+        assert_eq!(els3, expected);
+    }
 }
