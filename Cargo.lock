@@ -71,6 +71,7 @@ version = "0.1.0"
 dependencies = [
  "itertools",
  "num-bigint",
+ "num-integer",
  "num-rational",
  "num-traits",
 ]

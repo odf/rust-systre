@@ -3,7 +3,8 @@ use std::collections::{HashMap, VecDeque};
 use itertools::Itertools;
 use num_bigint::BigInt;
 use num_rational::BigRational;
-use num_traits::One;
+use num_traits::{One, ToPrimitive};
+use num_integer::Integer;
 
 use crate::arithmetic::matrices::Matrix;
 use crate::partitions::Partition;
@@ -14,8 +15,6 @@ use crate::arithmetic::linear_algebra::extend_basis;
 fn translational_equivalences<T>(graph: &Graph<T>) -> Partition<u32>
     where T: LabelVector
 {
-    //TODO this is incorrect due to a bug in extended_translation_basis()
-
     let equivs = raw_translational_equivalences(&graph);
     let orbit = &equivs.classes(&graph.vertices())[0];
     let p0 = mod1(&graph.position(&orbit[0]));
@@ -26,10 +25,8 @@ fn translational_equivalences<T>(graph: &Graph<T>) -> Partition<u32>
     } else {
         let mut p = Partition::new();
 
-        for b in extended_translation_basis(&equivs, graph) {
-            let b: Vector = b.iter()
-                .map(|n| BigRational::from(n.clone()))
-                .collect();
+        for b in extended_translation_basis(graph, &orbit) {
+            let b: Vector = b.iter().cloned().collect();
             let v = orbit.iter()
                 .find(|v| mod1(&(graph.position(v) + &b)) == p0)
                 .unwrap();
@@ -40,15 +37,6 @@ fn translational_equivalences<T>(graph: &Graph<T>) -> Partition<u32>
         }
         p
     }
-}
-
-
-fn iter_to_str<T>(s: T) -> String
-    where
-        T: Iterator,
-        <T as Iterator>::Item: std::fmt::Display,
-{
-    s.map(|x| x.to_string()).join(", ")
 }
 
 
@@ -78,29 +66,52 @@ fn mod1(p: &Point) -> Point {
 }
 
 
-fn extended_translation_basis<T>(equivs: &Partition<u32>, graph: &Graph<T>)
+fn extended_translation_basis<T>(graph: &Graph<T>, orbit: &[Vertex]) 
     -> Vec<Vec<BigRational>>
     where T: LabelVector
 {
-    //TODO extend_basis() needs to be fed a custom scalar type here
-    let id: Matrix<BigRational> = Matrix::identity(T::dim());
-    let verts = graph.vertices();
+    let one = BigInt::one();
+    let p0 = &graph.position(&orbit[0]);
 
-    let mut basis: Vec<Vec<BigRational>> = vec![];
+    let deltas: Vec<_> = orbit.iter().skip(1)
+        .map(|v| (graph.position(&v) - p0).iter()
+            .map(|x| x % &one)
+            .collect::<Vec<_>>()
+        )
+        .collect();
 
-    for i in 0..T::dim() {
-        extend_basis(&id.get_row(i), &mut basis);
-    }
-
-    for v in &verts {
-        if equivs.find(&v) == equivs.find(&verts[0]) {
-            let delta = graph.position(&v) - graph.position(&verts[0]);
-            let t: Vec<_> = delta.iter().map(|x| x % BigInt::one()).collect();
-            extend_basis(&t, &mut basis);
+    let mut common_denom = one;
+    for d in &deltas {
+        for x in d {
+            common_denom *= x.denom() / common_denom.gcd(x.denom());
         }
     }
+    let common_denom = common_denom.to_i32().unwrap();
+    let f = BigRational::from(BigInt::from(common_denom));
 
-    basis
+    let id: Matrix<i32> = Matrix::identity(T::dim()) * common_denom;
+    let mut basis: Vec<_> = (0..T::dim()).map(|i| id.get_row(i)).collect();
+
+    for d in deltas {
+        let d: Vec<_> = d.iter().map(|x| r_to_i32(x * &f).unwrap()).collect();
+        extend_basis(&d, &mut basis);
+    }
+
+    basis.iter()
+        .map(|b| b.iter()
+            .map(|x| BigRational::from(BigInt::from(*x)) / &f)
+            .collect::<Vec<_>>()
+        )
+        .collect()
+}
+
+
+fn r_to_i32(x: BigRational) -> Option<i32> {
+    if x.is_integer() {
+        x.to_integer().to_i32()
+    } else {
+        None
+    }
 }
 
 
