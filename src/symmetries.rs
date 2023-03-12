@@ -14,7 +14,9 @@ use crate::arithmetic::linear_algebra::extend_basis;
 fn translational_equivalences<T>(graph: &Graph<T>) -> Partition<u32>
     where T: LabelVector
 {
-    let mut equivs = raw_translational_equivalences(&graph);
+    //TODO this is incorrect due to a bug in extended_translation_basis()
+
+    let equivs = raw_translational_equivalences(&graph);
     let orbit = &equivs.classes(&graph.vertices())[0];
     let p0 = mod1(&graph.position(&orbit[0]));
     let id = AffineMap::identity(T::dim());
@@ -38,6 +40,15 @@ fn translational_equivalences<T>(graph: &Graph<T>) -> Partition<u32>
         }
         p
     }
+}
+
+
+fn iter_to_str<T>(s: T) -> String
+    where
+        T: Iterator,
+        <T as Iterator>::Item: std::fmt::Display,
+{
+    s.map(|x| x.to_string()).join(", ")
 }
 
 
@@ -71,6 +82,7 @@ fn extended_translation_basis<T>(equivs: &Partition<u32>, graph: &Graph<T>)
     -> Vec<Vec<BigRational>>
     where T: LabelVector
 {
+    //TODO extend_basis() needs to be fed a custom scalar type here
     let id: Matrix<BigRational> = Matrix::identity(T::dim());
     let verts = graph.vertices();
 
@@ -260,6 +272,21 @@ mod tests {
         ])
     }
 
+    fn sql2_dbl() -> Graph<LabelVector2d<World>> {
+        graph2d(&[
+            [1, 2, 0, 0],
+            [2, 1, 1, 0],
+            [1, 1, 0, 1],
+            [2, 2, 0, 1],
+            [3, 4, 0, 0],
+            [4, 3, 1, 0],
+            [3, 3, 0, 1],
+            [4, 4, 0, 1],
+            [1, 3, 0, 0],
+            [2, 4, 0, 0],
+        ])
+    }
+
     fn sql4() -> Graph<LabelVector2d<World>> {
         graph2d(&[
             [1, 2, 0, 0],
@@ -274,7 +301,7 @@ mod tests {
     }
 
     #[test]
-    fn test_syms_identity_automorphism() {
+    fn test_syms_translational_automorphism() {
         let g = sql();
         let a = automorphism(&g, &1, &1, &AffineMap::identity(2)).unwrap();
         assert_eq!(a.transform, AffineMap::identity(2));
@@ -307,7 +334,7 @@ mod tests {
     }
 
     #[test]
-    fn test_syms_nontrivial_automorphism() {
+    fn test_syms_nontranslational_automorphism() {
         let aff = AffineMap::new(
             &Matrix::new(2, &[r(0), r(-1), r(1), r(0)]),
             &Vector::new(&[r(1), r(0)])
@@ -366,5 +393,44 @@ mod tests {
         let p = raw_translational_equivalences(&g);
         let cl = p.classes(&g.vertices());
         assert_eq!(cl, [[1, 2, 3, 4]]);
+
+        let g = sql2_dbl();
+        let p = raw_translational_equivalences(&g);
+        let cl = p.classes(&g.vertices());
+        assert_eq!(cl, [[1, 2, 3, 4]]);
+    }
+
+    #[test]
+    fn test_syms_equivalence_classes() {
+        let g = sql();
+        let vs = g.vertices();
+        assert_eq!(
+            raw_translational_equivalences(&g).classes(&vs),
+            translational_equivalences(&g).classes(&vs),
+        );
+
+        let g = sql2();
+        let vs = g.vertices();
+        assert_eq!(
+            raw_translational_equivalences(&g).classes(&vs),
+            translational_equivalences(&g).classes(&vs),
+        );
+
+        let g = sql4();
+        let vs = g.vertices();
+        assert_eq!(
+            raw_translational_equivalences(&g).classes(&vs),
+            translational_equivalences(&g).classes(&vs),
+        );
+    }
+
+    #[test]
+    fn test_syms_equivalence_classes_ladder() {
+        let g = sql2_dbl();
+        let vs = g.vertices();
+        assert_eq!(
+            translational_equivalences(&g).classes(&vs),
+            [[1, 2], [3, 4]],
+        );
     }
 }
