@@ -6,10 +6,11 @@ use num_rational::BigRational;
 use num_traits::{One, ToPrimitive};
 use num_integer::Integer;
 
+use crate::arithmetic::geometry::CoordinateMap;
 use crate::arithmetic::matrices::Matrix;
 use crate::partitions::Partition;
 use crate::pgraphs::*;
-use crate::arithmetic::linear_algebra::extend_basis;
+use crate::arithmetic::linear_algebra::{extend_basis, LinearAlgebra};
 
 
 pub fn ladder_symmetries<T>(graph: &Graph<T>) -> Vec<Automorphism<T>>
@@ -52,9 +53,62 @@ pub fn is_minimal<T>(graph: &Graph<T>) -> bool
 }
 
 
+pub fn minimal_image<T, CS>(graph: &Graph<T>) -> Option<Graph<T>>
+    where T: LabelVector + LinearAlgebra<CS>
+{
+    //TODO output must have a different coordinate system tag. How?
+
+    assert!(graph.is_locally_stable(), "graph must be locally stable");
+
+    let orbits = translational_orbits(graph);
+
+    if orbits[0].len() == 1 {
+        None
+    } else {
+        let b = extended_translation_basis(graph, &orbits[0]);
+        let rows = b.iter().map(|v| Matrix::row(v)).collect::<Vec<_>>();
+        let m = Matrix::hstack(&rows).inverse().unwrap();
+        let aff = &AffineMap::new(&m, &Vector::zero(T::dim()));
+
+        let mut imgs = HashMap::new();
+        let mut shifts = HashMap::new();
+
+        for i in 0..orbits.len() {
+            let p0 = graph.position(&orbits[i][0]);
+            for v in &orbits[i] {
+                imgs.insert(v, i + 1);
+                shifts.insert(v, &graph.position(&v) - &p0);
+            }
+        }
+
+        let mut edges: Vec<Edge<T>> = vec![];
+        for e in graph.directed_edges() {
+            if e == e.canonical() {
+                let head = imgs.get(&e.head).unwrap();
+                let tail = imgs.get(&e.tail).unwrap();
+                let s: Vector = e.shift.to_vec().iter()
+                    .map(|x| BigRational::from(BigInt::from(*x)))
+                    .collect();
+                let shift = aff * (
+                    s +
+                    shifts.get(&e.tail).unwrap() -
+                    shifts.get(&e.head).unwrap()
+                );
+                let shift: Vec<_> = shift.iter()
+                    .map(|x| r_to_i32(x).unwrap())
+                    .collect();
+                //TODO convert shift into a LabelVector and construct an edge
+            }
+        }
+        todo!()
+    }
+}
+
+
 pub fn translational_orbits<T>(graph: &Graph<T>) -> Vec<Vec<Vertex>>
     where T: LabelVector
 {
+    assert!(graph.is_locally_stable(), "graph must be locally stable");
     translational_equivalences(&graph).classes(&graph.vertices())
 }
 
@@ -147,7 +201,7 @@ fn extended_translation_basis<T>(graph: &Graph<T>, orbit: &[Vertex])
     let mut basis: Vec<_> = (0..T::dim()).map(|i| id.get_row(i)).collect();
 
     for d in deltas {
-        let d: Vec<_> = d.iter().map(|x| r_to_i32(x * &f).unwrap()).collect();
+        let d: Vec<_> = d.iter().map(|x| r_to_i32(&(x * &f)).unwrap()).collect();
         extend_basis(&d, &mut basis);
     }
 
@@ -160,7 +214,7 @@ fn extended_translation_basis<T>(graph: &Graph<T>, orbit: &[Vertex])
 }
 
 
-fn r_to_i32(x: BigRational) -> Option<i32> {
+fn r_to_i32(x: &BigRational) -> Option<i32> {
     if x.is_integer() {
         x.to_integer().to_i32()
     } else {
