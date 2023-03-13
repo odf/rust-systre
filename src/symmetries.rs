@@ -17,8 +17,7 @@ pub fn ladder_symmetries<T>(graph: &Graph<T>) -> Vec<Automorphism<T>>
 {
     assert!(graph.is_locally_stable(), "graph must be locally stable");
 
-    let equivs = raw_translational_equivalences(&graph);
-    let orbit = &equivs.classes(&graph.vertices())[0];
+    let orbit = &raw_translational_orbits(&graph)[0];
     let p0 = mod1(&graph.position(&orbit[0]));
     let id = AffineMap::identity(T::dim());
 
@@ -37,8 +36,7 @@ pub fn is_ladder<T>(graph: &Graph<T>) -> bool
     if graph.is_stable() {
         false
     } else {
-        let equivs = raw_translational_equivalences(&graph);
-        let orbit = &equivs.classes(&graph.vertices())[0];
+        let orbit = &raw_translational_orbits(&graph)[0];
         let p0 = mod1(&graph.position(&orbit[0]));
 
         orbit.iter().skip(1).any(|v| mod1(&graph.position(v)) == p0)
@@ -50,9 +48,14 @@ pub fn is_minimal<T>(graph: &Graph<T>) -> bool
     where T: LabelVector
 {
     assert!(graph.is_locally_stable(), "graph must be locally stable");
+    translational_orbits(&graph)[0].len() == 1
+}
 
-    let equivs = translational_equivalences(&graph);
-    equivs.classes(&graph.vertices())[0].len() == 1
+
+pub fn translational_orbits<T>(graph: &Graph<T>) -> Vec<Vec<Vertex>>
+    where T: LabelVector
+{
+    translational_equivalences(&graph).classes(&graph.vertices())
 }
 
 
@@ -81,6 +84,13 @@ fn translational_equivalences<T>(graph: &Graph<T>) -> Partition<u32>
         }
         p
     }
+}
+
+
+fn raw_translational_orbits<T>(graph: &Graph<T>) -> Vec<Vec<Vertex>>
+    where T: LabelVector
+{
+    raw_translational_equivalences(&graph).classes(&graph.vertices())
 }
 
 
