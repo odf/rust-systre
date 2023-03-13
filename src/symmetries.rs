@@ -291,6 +291,14 @@ mod tests {
         ])
     }
 
+    fn hcb() -> Graph<LabelVector2d<World>> {
+        graph2d(&[
+            [1, 2, 0, 0],
+            [1, 2, 1, 0],
+            [1, 2, 0, 1],
+        ])
+    }
+
     fn sql2() -> Graph<LabelVector2d<World>> {
         graph2d(&[
             [1, 2, 0, 0],
@@ -428,6 +436,11 @@ mod tests {
         let p = raw_translational_equivalences(&g);
         let cl = p.classes(&g.vertices());
         assert_eq!(cl, [[1]]);
+
+        let g = hcb();
+        let p = raw_translational_equivalences(&g);
+        let cl = p.classes(&g.vertices());
+        assert_eq!(cl, [[1], [2]]);
 
         let g = sql2();
         let p = raw_translational_equivalences(&g);
