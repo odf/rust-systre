@@ -12,6 +12,23 @@ use crate::pgraphs::*;
 use crate::arithmetic::linear_algebra::extend_basis;
 
 
+pub fn ladder_symmetries<T>(graph: &Graph<T>) -> Vec<Automorphism<T>>
+    where T: LabelVector
+{
+    assert!(graph.is_locally_stable(), "graph must be locally stable");
+
+    let equivs = raw_translational_equivalences(&graph);
+    let orbit = &equivs.classes(&graph.vertices())[0];
+    let p0 = mod1(&graph.position(&orbit[0]));
+    let id = AffineMap::identity(T::dim());
+
+    orbit.iter().skip(1)
+        .filter(|v| mod1(&graph.position(v)) == p0)
+        .map(|v| automorphism(&graph, &orbit[0], &v, &id).unwrap())
+        .collect::<Vec<_>>()
+}
+
+
 fn translational_equivalences<T>(graph: &Graph<T>) -> Partition<u32>
     where T: LabelVector
 {
@@ -283,7 +300,20 @@ mod tests {
         ])
     }
 
-    fn sql2_dbl() -> Graph<LabelVector2d<World>> {
+    fn sql4() -> Graph<LabelVector2d<World>> {
+        graph2d(&[
+            [1, 2, 0, 0],
+            [2, 1, 1, 0],
+            [3, 4, 0, 0],
+            [4, 3, 1, 0],
+            [1, 3, 0, 0],
+            [3, 1, 0, 1],
+            [2, 4, 0, 0],
+            [4, 2, 0, 1],
+        ])
+    }
+
+    fn sql2_c2() -> Graph<LabelVector2d<World>> {
         graph2d(&[
             [1, 2, 0, 0],
             [2, 1, 1, 0],
@@ -298,16 +328,20 @@ mod tests {
         ])
     }
 
-    fn sql4() -> Graph<LabelVector2d<World>> {
+    fn sql_c4() -> Graph<LabelVector2d<World>> {
         graph2d(&[
-            [1, 2, 0, 0],
-            [2, 1, 1, 0],
-            [3, 4, 0, 0],
-            [4, 3, 1, 0],
-            [1, 3, 0, 0],
-            [3, 1, 0, 1],
-            [2, 4, 0, 0],
-            [4, 2, 0, 1],
+            [ 1, 1, 1, 0 ],
+            [ 1, 1, 0, 1 ],
+            [ 2, 2, 1, 0 ],
+            [ 2, 2, 0, 1 ],
+            [ 3, 3, 1, 0 ],
+            [ 3, 3, 0, 1 ],
+            [ 4, 4, 1, 0 ],
+            [ 4, 4, 0, 1 ],
+            [ 1, 2, 0, 0 ],
+            [ 2, 3, 0, 0 ],
+            [ 3, 4, 0, 0 ],
+            [ 4, 1, 0, 0 ],
         ])
     }
 
@@ -405,7 +439,7 @@ mod tests {
         let cl = p.classes(&g.vertices());
         assert_eq!(cl, [[1, 2, 3, 4]]);
 
-        let g = sql2_dbl();
+        let g = sql2_c2();
         let p = raw_translational_equivalences(&g);
         let cl = p.classes(&g.vertices());
         assert_eq!(cl, [[1, 2, 3, 4]]);
@@ -437,11 +471,25 @@ mod tests {
 
     #[test]
     fn test_syms_equivalence_classes_ladder() {
-        let g = sql2_dbl();
+        let g = sql2_c2();
         let vs = g.vertices();
         assert_eq!(
             translational_equivalences(&g).classes(&vs),
             [[1, 2], [3, 4]],
         );
+    }
+
+    #[test]
+    fn test_syms_ladder_symmetries() {
+        assert_eq!(ladder_symmetries(&sql()).len(), 0);
+        assert_eq!(ladder_symmetries(&sql2()).len(), 0);
+        assert_eq!(ladder_symmetries(&sql4()).len(), 0);
+        assert_eq!(ladder_symmetries(&sql2_c2()).len(), 1);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_syms_ladder_symmetries_not_locally_stable() {
+        assert_eq!(ladder_symmetries(&sql_c4()).len(), 4);
     }
 }
