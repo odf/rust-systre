@@ -29,6 +29,33 @@ pub fn ladder_symmetries<T>(graph: &Graph<T>) -> Vec<Automorphism<T>>
 }
 
 
+pub fn is_ladder<T>(graph: &Graph<T>) -> bool
+    where T: LabelVector
+{
+    assert!(graph.is_locally_stable(), "graph must be locally stable");
+
+    if graph.is_stable() {
+        false
+    } else {
+        let equivs = raw_translational_equivalences(&graph);
+        let orbit = &equivs.classes(&graph.vertices())[0];
+        let p0 = mod1(&graph.position(&orbit[0]));
+
+        orbit.iter().skip(1).any(|v| mod1(&graph.position(v)) == p0)
+    }
+}
+
+
+pub fn is_minimal<T>(graph: &Graph<T>) -> bool
+    where T: LabelVector
+{
+    assert!(graph.is_locally_stable(), "graph must be locally stable");
+
+    let equivs = translational_equivalences(&graph);
+    equivs.classes(&graph.vertices())[0].len() == 1
+}
+
+
 fn translational_equivalences<T>(graph: &Graph<T>) -> Partition<u32>
     where T: LabelVector
 {
@@ -321,6 +348,16 @@ mod tests {
         ])
     }
 
+    fn sql_c2() -> Graph<LabelVector2d<World>> {
+        graph2d(&[
+            [1, 1, 1, 0],
+            [1, 1, 0, 1],
+            [2, 2, 1, 0],
+            [2, 2, 0, 1],
+            [1, 2, 0, 0],
+        ])
+    }
+
     fn sql2_c2() -> Graph<LabelVector2d<World>> {
         graph2d(&[
             [1, 2, 0, 0],
@@ -504,5 +541,25 @@ mod tests {
     #[should_panic]
     fn test_syms_ladder_symmetries_not_locally_stable() {
         assert_eq!(ladder_symmetries(&sql_c4()).len(), 4);
+    }
+
+    #[test]
+    fn test_syms_is_ladder() {
+        assert_eq!(is_ladder(&sql()), false);
+        assert_eq!(is_ladder(&hcb()), false);
+        assert_eq!(is_ladder(&sql2()), false);
+        assert_eq!(is_ladder(&sql4()), false);
+        assert_eq!(is_ladder(&sql_c2()), true);
+        assert_eq!(is_ladder(&sql2_c2()), true);
+    }
+
+    #[test]
+    fn test_syms_is_minimal() {
+        assert_eq!(is_minimal(&sql()), true);
+        assert_eq!(is_minimal(&hcb()), true);
+        assert_eq!(is_minimal(&sql2()), false);
+        assert_eq!(is_minimal(&sql4()), false);
+        assert_eq!(is_minimal(&sql_c2()), true);
+        assert_eq!(is_minimal(&sql2_c2()), false);
     }
 }
