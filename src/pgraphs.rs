@@ -25,6 +25,7 @@ pub trait LabelVector:
     fn is_negative(&self) -> bool;
     fn is_positive(&self) -> bool;
     fn to_vec(&self) -> Vec<i32>;
+    fn from_vec(v: &[i32]) -> Self;
 }
 
 
@@ -68,6 +69,11 @@ impl<CS> LabelVector for LabelVector2d<CS>
 
     fn to_vec(&self) -> Vec<i32> {
         vec![self.x, self.y]
+    }
+
+    fn from_vec(v: &[i32]) -> Self {
+        assert_eq!(v.len(), 2);
+        Self::new(v[0], v[1])
     }
 }
 
@@ -146,6 +152,11 @@ impl<CS> LabelVector for LabelVector3d<CS>
     fn to_vec(&self) -> Vec<i32> {
         vec![self.x, self.y, self.z]
     }
+
+    fn from_vec(v: &[i32]) -> Self {
+        assert_eq!(v.len(), 3);
+        Self::new(v[0], v[1], v[2])
+    }
 }
 
 impl<CS> Neg for LabelVector3d<CS> {
@@ -196,7 +207,7 @@ impl<CS> Display for LabelVector3d<CS> {
 
 pub type Vertex = u32;
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Ord, PartialOrd, Hash)]
 pub struct InputCS {}
 
 pub type Point = geometry::Point<BigRational, InputCS>;

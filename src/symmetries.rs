@@ -6,7 +6,6 @@ use num_rational::BigRational;
 use num_traits::{One, ToPrimitive};
 use num_integer::Integer;
 
-use crate::arithmetic::geometry::CoordinateMap;
 use crate::arithmetic::matrices::Matrix;
 use crate::partitions::Partition;
 use crate::pgraphs::*;
@@ -53,11 +52,9 @@ pub fn is_minimal<T>(graph: &Graph<T>) -> bool
 }
 
 
-pub fn minimal_image<T, CS>(graph: &Graph<T>) -> Option<Graph<T>>
-    where T: LabelVector + LinearAlgebra<CS>
+pub fn minimal_image<TIn, TOut>(graph: &Graph<TIn>) -> Option<Graph<TOut>>
+    where TIn: LabelVector, TOut: LabelVector
 {
-    //TODO output must have a different coordinate system tag. How?
-
     assert!(graph.is_locally_stable(), "graph must be locally stable");
 
     let orbits = translational_orbits(graph);
@@ -67,8 +64,8 @@ pub fn minimal_image<T, CS>(graph: &Graph<T>) -> Option<Graph<T>>
     } else {
         let b = extended_translation_basis(graph, &orbits[0]);
         let rows = b.iter().map(|v| Matrix::row(v)).collect::<Vec<_>>();
-        let m = Matrix::hstack(&rows).inverse().unwrap();
-        let aff = &AffineMap::new(&m, &Vector::zero(T::dim()));
+        let m = Matrix::vstack(&rows).inverse().unwrap();
+        let aff = &AffineMap::new(&m, &Vector::zero(TIn::dim()));
 
         let mut imgs = HashMap::new();
         let mut shifts = HashMap::new();
@@ -81,11 +78,11 @@ pub fn minimal_image<T, CS>(graph: &Graph<T>) -> Option<Graph<T>>
             }
         }
 
-        let mut edges: Vec<Edge<T>> = vec![];
+        let mut edges: Vec<Edge<TOut>> = vec![];
         for e in graph.directed_edges() {
             if e == e.canonical() {
-                let head = imgs.get(&e.head).unwrap();
-                let tail = imgs.get(&e.tail).unwrap();
+                let head = *imgs.get(&e.head).unwrap() as u32;
+                let tail = *imgs.get(&e.tail).unwrap() as u32;
                 let s: Vector = e.shift.to_vec().iter()
                     .map(|x| BigRational::from(BigInt::from(*x)))
                     .collect();
@@ -94,13 +91,14 @@ pub fn minimal_image<T, CS>(graph: &Graph<T>) -> Option<Graph<T>>
                     shifts.get(&e.tail).unwrap() -
                     shifts.get(&e.head).unwrap()
                 );
-                let shift: Vec<_> = shift.iter()
+                let shift = shift.iter()
                     .map(|x| r_to_i32(x).unwrap())
-                    .collect();
-                //TODO convert shift into a LabelVector and construct an edge
+                    .collect::<Vec<_>>();
+
+                edges.push(Edge::new(head, tail, TOut::from_vec(&shift)));
             }
         }
-        todo!()
+        Some(Graph::new(&edges))
     }
 }
 
@@ -356,6 +354,8 @@ mod tests {
 
     #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
     struct World {}
+
+    type Label2d = LabelVector2d<World>;
 
     fn r(x: i32) -> BigRational {
         BigRational::from(BigInt::from(x))
@@ -625,5 +625,20 @@ mod tests {
         assert_eq!(is_minimal(&sql4()), false);
         assert_eq!(is_minimal(&sql_c2()), true);
         assert_eq!(is_minimal(&sql2_c2()), false);
+    }
+
+    #[test]
+    fn test_syms_minimal_image() {
+        assert!(minimal_image::<_, Label2d>(&sql()).is_none());
+        assert!(minimal_image::<_, Label2d>(&hcb()).is_none());
+
+        assert_eq!(
+            minimal_image::<_, Label2d>(&sql2()).unwrap().to_string(),
+            sql().to_string()
+        );
+
+        let g = minimal_image::<_, Label2d>(&sql2()).unwrap();
+        assert_eq!(g.vertices().len(), 1);
+        assert_eq!(g.directed_edges().len(), 4);
     }
 }
