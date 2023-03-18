@@ -631,13 +631,19 @@ mod tests {
     fn test_syms_minimal_image() {
         assert!(minimal_image::<_, Label2d>(&sql()).is_none());
         assert!(minimal_image::<_, Label2d>(&hcb()).is_none());
+        assert!(minimal_image::<_, Label2d>(&sql_c2()).is_none());
 
         assert_eq!(
             minimal_image::<_, Label2d>(&sql2()).unwrap().to_string(),
             sql().to_string()
         );
 
-        let g = minimal_image::<_, Label2d>(&sql2()).unwrap();
+        assert_eq!(
+            minimal_image::<_, Label2d>(&sql2_c2()).unwrap().to_string(),
+            sql_c2().to_string()
+        );
+
+        let g = minimal_image::<_, Label2d>(&sql4()).unwrap();
         assert_eq!(g.vertices().len(), 1);
         assert_eq!(g.directed_edges().len(), 4);
     }
