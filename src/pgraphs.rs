@@ -13,7 +13,7 @@ use crate::arithmetic::geometry;
 use crate::arithmetic::linear_algebra::extend_basis;
 
 
-pub trait LabelVector:
+pub trait LabelVector<CS>:
     Copy + Eq + Hash + Ord +
     Neg<Output = Self> +
     Add<Self, Output = Self> +
@@ -42,7 +42,7 @@ impl<CS> LabelVector2d<CS> {
     }
 }
 
-impl<CS> LabelVector for LabelVector2d<CS>
+impl<CS> LabelVector<CS> for LabelVector2d<CS>
     where CS: Copy + Ord + Hash
 {
     fn dim() -> usize {
@@ -122,7 +122,7 @@ impl<CS> LabelVector3d<CS> {
     }
 }
 
-impl<CS> LabelVector for LabelVector3d<CS>
+impl<CS> LabelVector<CS> for LabelVector3d<CS>
     where CS: Copy + Ord + Hash
 {
     fn dim() -> usize {
@@ -216,50 +216,53 @@ pub type AffineMap = geometry::AffineMap<BigRational, InputCS>;
 
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]
-pub struct Edge<T>
+pub struct Edge<T, CS>
 {
     pub head: Vertex,
     pub tail: Vertex,
     pub shift: T,
+    phantom: PhantomData<CS>,
 }
 
-impl<T> Edge<T>
+impl<T, CS> Edge<T, CS>
 {
     pub fn new(head: Vertex, tail: Vertex, shift: T) -> Self {
-        Self { head, tail, shift }
+        Self { head, tail, shift, phantom: PhantomData::default() }
     }
 }
 
-impl<T> Neg for Edge<T>
-    where T: LabelVector
+impl<T, CS> Neg for &Edge<T, CS>
+    where T: LabelVector<CS>
 {
-    type Output = Self;
+    type Output = Edge<T, CS>;
 
-    fn neg(self) -> Self {
-        Self {
+    fn neg(self) -> Self::Output {
+        Self::Output {
             head: self.tail,
             tail: self.head,
             shift: -self.shift,
+            phantom: PhantomData::default()
         }
     }
-
 }
 
-impl<T> Edge<T>
-    where T: LabelVector
+impl<T, CS> Edge<T, CS>
+    where
+        T: LabelVector<CS>,
+        CS: Clone
 {
-    pub fn canonical(self) -> Self {
+    pub fn canonical(&self) -> Self {
         if self.tail < self.head ||
             (self.tail == self.head && self.shift.is_negative())
         {
             -self
         } else {
-            self
+            self.clone()
         }
     }
 }
 
-impl<T> Display for Edge<T>
+impl<T, CS> Display for Edge<T, CS>
     where T: Display
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -271,23 +274,25 @@ impl<T> Display for Edge<T>
 
 
 #[derive(Debug)]
-pub struct Graph<T> {
-    edges: Vec<Edge<T>>,
+pub struct Graph<T, CS> {
+    edges: Vec<Edge<T, CS>>,
     vertices: UnsafeCell<Option<Vec<Vertex>>>,
-    incidences: UnsafeCell<BTreeMap<Vertex, Vec<Edge<T>>>>,
+    incidences: UnsafeCell<BTreeMap<Vertex, Vec<Edge<T, CS>>>>,
     positions: UnsafeCell<BTreeMap<Vertex, Point>>,
     edge_lookup: UnsafeCell<
-        BTreeMap<Vertex, HashMap<Vector, Edge<T>>>
+        BTreeMap<Vertex, HashMap<Vector, Edge<T, CS>>>
     >,
 }
 
-impl<T> Graph<T>
-    where T: LabelVector
+impl<T, CS> Graph<T, CS>
+    where
+        T: LabelVector<CS>,
+        CS: Clone + Eq + Hash + Ord
 {
     pub fn dim() -> usize { T::dim() }
 
-    pub fn new(raw_edges: &[Edge<T>]) -> Self {
-        let edges: Vec<Edge<T>> = raw_edges.iter()
+    pub fn new(raw_edges: &[Edge<T, CS>]) -> Self {
+        let edges: Vec<Edge<T, CS>> = raw_edges.iter()
             .map(|e| e.canonical())
             .collect::<HashSet<_>>()
             .into_iter()
@@ -319,19 +324,19 @@ impl<T> Graph<T>
         }
     }
 
-    pub fn directed_edges(&self) -> Vec<Edge<T>>
+    pub fn directed_edges(&self) -> Vec<Edge<T, CS>>
     {
         self.vertices().iter().flat_map(|v| self.incidences(v)).collect()
     }
 
-    pub fn incidences(&self, v: &Vertex) -> Vec<Edge<T>> {
+    pub fn incidences(&self, v: &Vertex) -> Vec<Edge<T, CS>> {
         if let Some(output) = unsafe { (*self.incidences.get()).get(v) } {
             output.clone()
         } else {
             let mut incidences = BTreeMap::new();
 
-            for &e in &self.edges {
-                for e in [e, -e] {
+            for e in &self.edges {
+                for e in [e.clone(), -e] {
                     if !incidences.contains_key(&e.head) {
                         incidences.insert(e.head, vec![]);
                     }
@@ -361,7 +366,7 @@ impl<T> Graph<T>
     }
 
     pub fn edge_by_unique_delta(&self, v: &Vertex, delta: &Vector)
-        -> Option<Edge<T>>
+        -> Option<Edge<T, CS>>
     {
         if (unsafe { (*self.edge_lookup.get()).get(v) }).is_none() {
             let data = edges_by_unique_deltas(self);
@@ -376,7 +381,7 @@ impl<T> Graph<T>
         self.position(&v).iter().map(|q| q - q.floor()).collect()
     }
 
-    pub fn edge_vector(&self, e: &Edge<T>)
+    pub fn edge_vector(&self, e: &Edge<T, CS>)
         -> Vector
     {
         let d = T::dim();
@@ -441,7 +446,7 @@ impl<T> Graph<T>
     }
 
     pub fn coordination_sequence(&self, v: &Vertex)
-        -> CoordinationSequence<T>
+        -> CoordinationSequence<T, CS>
     {
         CoordinationSequence::new(self, v)
     }
@@ -473,7 +478,7 @@ impl<T> Graph<T>
     }
 }
 
-impl<T> Display for Graph<T> 
+impl<T, CS> Display for Graph<T, CS> 
     where T: Display
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -489,16 +494,16 @@ impl<T> Display for Graph<T>
 }
 
 
-pub struct CoordinationSequence<'a, T> {
-    graph: &'a Graph<T>,
+pub struct CoordinationSequence<'a, T, CS> {
+    graph: &'a Graph<T, CS>,
     last_shell: HashSet<(Vertex, T)>,
     this_shell: HashSet<(Vertex, T)>,
 }
 
-impl <'a, T> CoordinationSequence<'a, T>
-    where T: LabelVector
+impl <'a, T, CS> CoordinationSequence<'a, T, CS>
+    where T: LabelVector<CS>
 {
-    fn new(graph: &'a Graph<T>, v0: &Vertex) -> Self {
+    fn new(graph: &'a Graph<T, CS>, v0: &Vertex) -> Self {
         let last_shell = HashSet::new();
         let this_shell = HashSet::from([(*v0, T::zero())]);
 
@@ -506,8 +511,10 @@ impl <'a, T> CoordinationSequence<'a, T>
     }
 }
 
-impl<'a, T> Iterator for CoordinationSequence<'a, T>
-    where T: LabelVector
+impl<'a, T, CS> Iterator for CoordinationSequence<'a, T, CS>
+    where
+        T: LabelVector<CS>,
+        CS: Clone + Eq + Hash + Ord
 {
     type Item = usize;
 
@@ -532,24 +539,28 @@ impl<'a, T> Iterator for CoordinationSequence<'a, T>
 }
 
 
-pub struct Automorphism<T> {
+pub struct Automorphism<T, CS> {
     pub(crate) vertex_map: HashMap<Vertex, Vertex>,
-    pub(crate) edge_map: HashMap<Edge<T>, Edge<T>>,
+    pub(crate) edge_map: HashMap<Edge<T, CS>, Edge<T, CS>>,
     pub(crate) transform: AffineMap,
 }
 
 
-impl<T: LabelVector> Automorphism<T> {
+impl<T, CS> Automorphism<T, CS>
+    where
+        T: LabelVector<CS>,
+        CS: Clone + Eq + Hash + Ord
+{
     pub fn new(
         vertex_map: HashMap<Vertex, Vertex>,
-        edge_map: HashMap<Edge<T>, Edge<T>>,
+        edge_map: HashMap<Edge<T, CS>, Edge<T, CS>>,
         transform: AffineMap,
-    ) -> Automorphism<T>
+    ) -> Automorphism<T, CS>
     {
         Automorphism { vertex_map, edge_map, transform }
     }
 
-    pub fn identity(graph: &Graph<T>) -> Automorphism<T> {
+    pub fn identity(graph: &Graph<T, CS>) -> Automorphism<T, CS> {
         let transform = AffineMap::identity(T::dim());
 
         let vertex_map = graph.vertices().iter()
@@ -558,7 +569,7 @@ impl<T: LabelVector> Automorphism<T> {
 
         let edge_map = graph.vertices().iter()
             .flat_map(|v| graph.incidences(v))
-            .map(|e| (e, e))
+            .map(|e| (e.clone(), e))
             .collect();
 
         Automorphism { vertex_map, edge_map, transform }
@@ -566,14 +577,15 @@ impl<T: LabelVector> Automorphism<T> {
 }
 
 
-impl<T> Mul<&Automorphism<T>> for &Automorphism<T>
+impl<T, CS> Mul<&Automorphism<T, CS>> for &Automorphism<T, CS>
     where
         T: Clone + Eq + Hash,
+        CS: Clone + Eq + Hash,
         for <'a> &'a AffineMap: Mul<&'a AffineMap, Output=AffineMap>
 {
-    type Output = Automorphism<T>;
+    type Output = Automorphism<T, CS>;
 
-    fn mul(self, rhs: &Automorphism<T>) -> Self::Output {
+    fn mul(self, rhs: &Automorphism<T, CS>) -> Self::Output {
         let transform = &self.transform * &rhs.transform;
 
         let vertex_map = self.vertex_map.keys().map(|v| (
@@ -591,9 +603,11 @@ impl<T> Mul<&Automorphism<T>> for &Automorphism<T>
 }
 
 
-fn traverse_with_shift_adjustments<T>(g: &Graph<T>, v0: &Vertex)
-    -> Vec<Edge<T>>
-    where T: LabelVector
+fn traverse_with_shift_adjustments<T, CS>(g: &Graph<T, CS>, v0: &Vertex)
+    -> Vec<Edge<T, CS>>
+    where
+        T: LabelVector<CS>,
+        CS: Clone + Eq + Hash + Ord
 {
     let mut shifts = BTreeMap::from([(*v0, T::zero())]);
     let mut seen = HashSet::new();
@@ -620,9 +634,11 @@ fn traverse_with_shift_adjustments<T>(g: &Graph<T>, v0: &Vertex)
 }
 
 
-pub fn graph_component_measures<T>(g: &Graph<T>, v0: &Vertex)
+pub fn graph_component_measures<T, CS>(g: &Graph<T, CS>, v0: &Vertex)
     -> (usize, usize, Option<i32>) // TODO return a struct?
-    where T: LabelVector
+    where
+        T: LabelVector<CS>,
+        CS: Clone + Hash + Ord
 {
     let edges = traverse_with_shift_adjustments(g, v0);
 
@@ -654,9 +670,11 @@ pub fn graph_component_measures<T>(g: &Graph<T>, v0: &Vertex)
 }
 
 
-fn barycentric_placement<T>(g: &Graph<T>)
+fn barycentric_placement<T, CS>(g: &Graph<T, CS>)
     -> BTreeMap<Vertex, Point>
-    where T: LabelVector
+    where
+        T: LabelVector<CS>,
+        CS: Clone + Eq + Hash + Ord
 {
     let verts = g.vertices();
     let vidcs: BTreeMap<_, _> =
@@ -693,9 +711,11 @@ fn barycentric_placement<T>(g: &Graph<T>)
 }
 
 
-fn edges_by_unique_deltas<T>(g: &Graph<T>)
-    -> BTreeMap<Vertex, HashMap<Vector, Edge<T>>>
-    where T: LabelVector
+fn edges_by_unique_deltas<T, CS>(g: &Graph<T, CS>)
+    -> BTreeMap<Vertex, HashMap<Vector, Edge<T, CS>>>
+    where
+        T: LabelVector<CS>,
+        CS: Clone + Eq + Hash + Ord
 {
     let mut result = BTreeMap::new();
 

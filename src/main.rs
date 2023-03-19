@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use std::hash::Hash;
 
 use rust_systre::pgraphs::*;
 
@@ -93,7 +94,7 @@ fn test_graph_examples() {
 struct World {}
 
 
-fn graph2d(spec: &[[i32; 4]]) -> Graph<LabelVector2d<World>> {
+fn graph2d(spec: &[[i32; 4]]) -> Graph<LabelVector2d<World>, World> {
     let mut edges = vec![];
 
     for [u, v, x, y] in spec {
@@ -108,7 +109,7 @@ fn graph2d(spec: &[[i32; 4]]) -> Graph<LabelVector2d<World>> {
 }
 
 
-fn graph3d(spec: &[[i32; 5]]) -> Graph<LabelVector3d<World>> {
+fn graph3d(spec: &[[i32; 5]]) -> Graph<LabelVector3d<World>, World> {
     let mut edges = vec![];
 
     for [u, v, x, y, z] in spec {
@@ -123,8 +124,10 @@ fn graph3d(spec: &[[i32; 5]]) -> Graph<LabelVector3d<World>> {
 }
 
 
-fn test_graph<T>(g: Graph<T>)
-    where T: LabelVector + Display
+fn test_graph<T, CS>(g: Graph<T, CS>)
+    where
+        T: LabelVector<CS> + Display,
+        CS: Clone + Eq + Hash + Ord
 {
     println!("Graph:");
     println!("{}", g);

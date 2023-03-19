@@ -1,4 +1,5 @@
 use std::collections::{HashMap, VecDeque};
+use std::hash::Hash;
 
 use itertools::Itertools;
 use num_bigint::BigInt;
@@ -12,8 +13,10 @@ use crate::pgraphs::*;
 use crate::arithmetic::linear_algebra::{extend_basis, LinearAlgebra};
 
 
-pub fn ladder_symmetries<T>(graph: &Graph<T>) -> Vec<Automorphism<T>>
-    where T: LabelVector
+pub fn ladder_symmetries<T, CS>(graph: &Graph<T, CS>) -> Vec<Automorphism<T, CS>>
+    where
+        T: LabelVector<CS>,
+        CS: Clone + Eq + Hash + Ord
 {
     assert!(graph.is_locally_stable(), "graph must be locally stable");
 
@@ -28,8 +31,10 @@ pub fn ladder_symmetries<T>(graph: &Graph<T>) -> Vec<Automorphism<T>>
 }
 
 
-pub fn is_ladder<T>(graph: &Graph<T>) -> bool
-    where T: LabelVector
+pub fn is_ladder<T, CS>(graph: &Graph<T, CS>) -> bool
+    where
+        T: LabelVector<CS>,
+        CS: Clone + Eq + Hash + Ord
 {
     assert!(graph.is_locally_stable(), "graph must be locally stable");
 
@@ -44,16 +49,23 @@ pub fn is_ladder<T>(graph: &Graph<T>) -> bool
 }
 
 
-pub fn is_minimal<T>(graph: &Graph<T>) -> bool
-    where T: LabelVector
+pub fn is_minimal<T, CS>(graph: &Graph<T, CS>) -> bool
+    where
+        T: LabelVector<CS>,
+        CS: Clone + Eq + Hash + Ord
 {
     assert!(graph.is_locally_stable(), "graph must be locally stable");
     translational_orbits(&graph)[0].len() == 1
 }
 
 
-pub fn minimal_image<TIn, TOut>(graph: &Graph<TIn>) -> Option<Graph<TOut>>
-    where TIn: LabelVector, TOut: LabelVector
+pub fn minimal_image<TIn, TOut, CSIn, CSOut>(graph: &Graph<TIn, CSIn>)
+    -> Option<Graph<TOut, CSOut>>
+    where
+        TIn: LabelVector<CSIn>,
+        TOut: LabelVector<CSOut>,
+        CSIn: Clone + Eq + Hash + Ord,
+        CSOut: Clone + Eq + Hash + Ord,
 {
     assert!(graph.is_locally_stable(), "graph must be locally stable");
 
@@ -78,7 +90,7 @@ pub fn minimal_image<TIn, TOut>(graph: &Graph<TIn>) -> Option<Graph<TOut>>
             }
         }
 
-        let mut edges: Vec<Edge<TOut>> = vec![];
+        let mut edges: Vec<Edge<TOut, CSOut>> = vec![];
         for e in graph.directed_edges() {
             if e == e.canonical() {
                 let head = *imgs.get(&e.head).unwrap() as u32;
@@ -103,16 +115,20 @@ pub fn minimal_image<TIn, TOut>(graph: &Graph<TIn>) -> Option<Graph<TOut>>
 }
 
 
-pub fn translational_orbits<T>(graph: &Graph<T>) -> Vec<Vec<Vertex>>
-    where T: LabelVector
+pub fn translational_orbits<T, CS>(graph: &Graph<T, CS>) -> Vec<Vec<Vertex>>
+    where
+        T: LabelVector<CS>,
+        CS: Clone + Eq + Hash + Ord
 {
     assert!(graph.is_locally_stable(), "graph must be locally stable");
     translational_equivalences(&graph).classes(&graph.vertices())
 }
 
 
-fn translational_equivalences<T>(graph: &Graph<T>) -> Partition<u32>
-    where T: LabelVector
+fn translational_equivalences<T, CS>(graph: &Graph<T, CS>) -> Partition<u32>
+    where
+        T: LabelVector<CS>,
+        CS: Clone + Eq + Hash + Ord
 {
     let equivs = raw_translational_equivalences(&graph);
     let orbit = &equivs.classes(&graph.vertices())[0];
@@ -139,15 +155,19 @@ fn translational_equivalences<T>(graph: &Graph<T>) -> Partition<u32>
 }
 
 
-fn raw_translational_orbits<T>(graph: &Graph<T>) -> Vec<Vec<Vertex>>
-    where T: LabelVector
+fn raw_translational_orbits<T, CS>(graph: &Graph<T, CS>) -> Vec<Vec<Vertex>>
+    where
+        T: LabelVector<CS>,
+        CS: Clone + Eq + Hash + Ord
 {
     raw_translational_equivalences(&graph).classes(&graph.vertices())
 }
 
 
-fn raw_translational_equivalences<T>(graph: &Graph<T>) -> Partition<u32>
-    where T: LabelVector
+fn raw_translational_equivalences<T, CS>(graph: &Graph<T, CS>) -> Partition<u32>
+    where
+        T: LabelVector<CS>,
+        CS: Clone + Eq + Hash + Ord
 {
     let id = &AffineMap::identity(T::dim());
     let verts = graph.vertices();
@@ -172,9 +192,11 @@ fn mod1(p: &Point) -> Point {
 }
 
 
-fn extended_translation_basis<T>(graph: &Graph<T>, orbit: &[Vertex]) 
+fn extended_translation_basis<T, CS>(graph: &Graph<T, CS>, orbit: &[Vertex]) 
     -> Vec<Vec<BigRational>>
-    where T: LabelVector
+    where
+        T: LabelVector<CS>,
+        CS: Clone + Eq + Hash + Ord
 {
     let one = BigInt::one();
     let p0 = &graph.position(&orbit[0]);
@@ -221,13 +243,16 @@ fn r_to_i32(x: &BigRational) -> Option<i32> {
 }
 
 
-fn automorphism<T: LabelVector>(
-    graph: &Graph<T>,
+fn automorphism<T, CS>(
+    graph: &Graph<T, CS>,
     seed_src: &Vertex,
     seed_img: &Vertex,
     transform: &AffineMap
 )
-    -> Option<Automorphism<T>>
+    -> Option<Automorphism<T, CS>>
+    where
+        T: LabelVector<CS>,
+        CS: Clone + Eq + Hash + Ord
 {
     let mut vertex_map = HashMap::new();
     let mut edge_map = HashMap::new();
@@ -245,8 +270,8 @@ fn automorphism<T: LabelVector>(
                     match graph.edge_by_unique_delta(&vimg, &dimg) {
                         None => return None,
                         Some(eimg) => {
-                            edge_map.insert(esrc, eimg);
                             queue.push_back((esrc.tail, eimg.tail));
+                            edge_map.insert(esrc, eimg);
                         }
                     };
                 }
@@ -259,8 +284,11 @@ fn automorphism<T: LabelVector>(
 }
 
 
-fn characteristic_edge_lists<T: LabelVector>(graph: &Graph<T>)
-    -> Vec<Vec<Edge<T>>>
+fn characteristic_edge_lists<T, CS>(graph: &Graph<T, CS>)
+    -> Vec<Vec<Edge<T, CS>>>
+    where
+        T: LabelVector<CS>,
+        CS: Clone + Eq + Hash + Ord
 {
     let mut result = vec![];
 
@@ -281,8 +309,11 @@ fn characteristic_edge_lists<T: LabelVector>(graph: &Graph<T>)
 }
 
 
-fn good_edge_chains<T>(graph: &Graph<T>) -> Vec<Vec<Edge<T>>>
-    where T: LabelVector
+fn good_edge_chains<T, CS>(graph: &Graph<T, CS>)
+    -> Vec<Vec<Edge<T, CS>>>
+    where
+        T: LabelVector<CS>,
+        CS: Clone + Eq + Hash + Ord
 {
     let mut result = vec![];
     for e in graph.directed_edges() {
@@ -292,11 +323,15 @@ fn good_edge_chains<T>(graph: &Graph<T>) -> Vec<Vec<Edge<T>>>
 }
 
 
-fn generate_edge_chain_extensions<T: LabelVector>(
-    edges: Vec<Edge<T>>,
-    graph: &Graph<T>,
-    result: &mut Vec<Vec<Edge<T>>>
-) {
+fn generate_edge_chain_extensions<T, CS>(
+    edges: Vec<Edge<T, CS>>,
+    graph: &Graph<T, CS>,
+    result: &mut Vec<Vec<Edge<T, CS>>>
+)
+    where
+        T: LabelVector<CS>,
+        CS: Clone + Eq + Hash + Ord
+{
     if edges.len() == T::dim() {
         result.push(edges);
     } else {
@@ -312,16 +347,18 @@ fn generate_edge_chain_extensions<T: LabelVector>(
 }
 
 
-fn good_combinations<T: LabelVector>(
-    edges: &Vec<Edge<T>>, graph: &Graph<T>
-) -> Vec<Vec<Edge<T>>>
+fn good_combinations<T, CS>(edges: &Vec<Edge<T, CS>>, graph: &Graph<T, CS>)
+    -> Vec<Vec<Edge<T, CS>>>
+    where
+        T: LabelVector<CS>,
+        CS: Clone + Eq + Hash + Ord
 {
     let mut result = vec![];
     for es in edges.iter().combinations(T::dim()) {
-        let es = es.iter().map(|&&e| e).collect::<Vec<_>>();
+        let es = es.iter().map(|&e| e.clone()).collect::<Vec<_>>();
         if are_linearly_independent(&es, graph) {
             for es in es.iter().permutations(T::dim()) {
-                result.push(es.into_iter().cloned().collect());
+                result.push(es.iter().map(|&e| e.clone()).collect());
             }
         }
     }
@@ -329,9 +366,13 @@ fn good_combinations<T: LabelVector>(
 }
 
 
-fn are_linearly_independent<T: LabelVector>(
-    edges: &Vec<Edge<T>>, graph: &Graph<T>
-) -> bool
+fn are_linearly_independent<T, CS>(
+    edges: &Vec<Edge<T, CS>>, graph: &Graph<T, CS>
+)
+    -> bool
+    where
+        T: LabelVector<CS>,
+        CS: Clone + Eq + Hash + Ord
 {
     let mut basis = vec![];
     for e in edges {
@@ -361,7 +402,7 @@ mod tests {
         BigRational::from(BigInt::from(x))
     }
 
-    fn graph2d(spec: &[[i32; 4]]) -> Graph<LabelVector2d<World>> {
+    fn graph2d(spec: &[[i32; 4]]) -> Graph<LabelVector2d<World>, World> {
         let mut edges = vec![];
 
         for [u, v, x, y] in spec {
@@ -375,14 +416,14 @@ mod tests {
         Graph::new(&edges)
     }
 
-    fn sql() -> Graph<LabelVector2d<World>> {
+    fn sql() -> Graph<LabelVector2d<World>, World> {
         graph2d(&[
             [1, 1, 1, 0],
             [1, 1, 0, 1],
         ])
     }
 
-    fn hcb() -> Graph<LabelVector2d<World>> {
+    fn hcb() -> Graph<LabelVector2d<World>, World> {
         graph2d(&[
             [1, 2, 0, 0],
             [1, 2, 1, 0],
@@ -390,7 +431,7 @@ mod tests {
         ])
     }
 
-    fn sql2() -> Graph<LabelVector2d<World>> {
+    fn sql2() -> Graph<LabelVector2d<World>, World> {
         graph2d(&[
             [1, 2, 0, 0],
             [2, 1, 1, 0],
@@ -399,7 +440,7 @@ mod tests {
         ])
     }
 
-    fn sql4() -> Graph<LabelVector2d<World>> {
+    fn sql4() -> Graph<LabelVector2d<World>, World> {
         graph2d(&[
             [1, 2, 0, 0],
             [2, 1, 1, 0],
@@ -412,7 +453,7 @@ mod tests {
         ])
     }
 
-    fn sql_c2() -> Graph<LabelVector2d<World>> {
+    fn sql_c2() -> Graph<LabelVector2d<World>, World> {
         graph2d(&[
             [1, 1, 1, 0],
             [1, 1, 0, 1],
@@ -422,7 +463,7 @@ mod tests {
         ])
     }
 
-    fn sql2_c2() -> Graph<LabelVector2d<World>> {
+    fn sql2_c2() -> Graph<LabelVector2d<World>, World> {
         graph2d(&[
             [1, 2, 0, 0],
             [2, 1, 1, 0],
@@ -437,7 +478,7 @@ mod tests {
         ])
     }
 
-    fn sql_c4() -> Graph<LabelVector2d<World>> {
+    fn sql_c4() -> Graph<LabelVector2d<World>, World> {
         graph2d(&[
             [ 1, 1, 1, 0 ],
             [ 1, 1, 0, 1 ],
@@ -629,21 +670,21 @@ mod tests {
 
     #[test]
     fn test_syms_minimal_image() {
-        assert!(minimal_image::<_, Label2d>(&sql()).is_none());
-        assert!(minimal_image::<_, Label2d>(&hcb()).is_none());
-        assert!(minimal_image::<_, Label2d>(&sql_c2()).is_none());
+        assert!(minimal_image::<_, Label2d, World, World>(&sql()).is_none());
+        assert!(minimal_image::<_, Label2d, World, World>(&hcb()).is_none());
+        assert!(minimal_image::<_, Label2d, World, World>(&sql_c2()).is_none());
 
         assert_eq!(
-            minimal_image::<_, Label2d>(&sql2()).unwrap().to_string(),
+            minimal_image::<_, Label2d, World, World>(&sql2()).unwrap().to_string(),
             sql().to_string()
         );
 
         assert_eq!(
-            minimal_image::<_, Label2d>(&sql2_c2()).unwrap().to_string(),
+            minimal_image::<_, Label2d, World, World>(&sql2_c2()).unwrap().to_string(),
             sql_c2().to_string()
         );
 
-        let g = minimal_image::<_, Label2d>(&sql4()).unwrap();
+        let g = minimal_image::<_, Label2d, World, World>(&sql4()).unwrap();
         assert_eq!(g.vertices().len(), 1);
         assert_eq!(g.directed_edges().len(), 4);
     }
