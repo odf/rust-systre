@@ -1,5 +1,5 @@
 use std::collections::hash_map::DefaultHasher;
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, VecDeque, HashSet};
 use std::hash::{Hash, Hasher};
 
 use itertools::Itertools;
@@ -164,7 +164,14 @@ pub fn symmetries<T, CS>(graph: &Graph<T, CS>) -> Vec<Automorphism<T, CS>>
 
                 if let Some(iso) = iso {
                     for k in 0..edge_lists.len() {
-                        p.unite(&keys[k], &hash_value(&edge_lists[k]));
+                        p.unite(
+                            &keys[k],
+                            &hash_value(
+                                &edge_lists[k].iter()
+                                    .map(|e| iso.edge_map.get(&e).unwrap())
+                                    .collect::<Vec<_>>()
+                            )
+                        );
                     }
                     gens.push(iso);
                 }
@@ -172,7 +179,20 @@ pub fn symmetries<T, CS>(graph: &Graph<T, CS>) -> Vec<Automorphism<T, CS>>
         }
     }
 
-    gens
+    let mut result = HashSet::from([Automorphism::identity(&graph)]);
+    let mut queue = VecDeque::from([Automorphism::identity(&graph)]);
+
+    while let Some(phi) = queue.pop_front() {
+        for psi in &gens {
+            let product = &phi * psi;
+            if !result.contains(&product) {
+                queue.push_back(product.clone());
+                result.insert(product);
+            }
+        }
+    }
+
+    result.into_iter().collect()
 }
 
 
@@ -752,5 +772,10 @@ mod tests {
         let g = minimal_image::<_, Label2d, World, World>(&sql4()).unwrap();
         assert_eq!(g.vertices().len(), 1);
         assert_eq!(g.directed_edges().len(), 4);
+    }
+
+    #[test]
+    fn test_syms_symmetries() {
+
     }
 }

@@ -511,7 +511,7 @@ impl<T, CS> ScalarProduct<T, CS>
 }
 
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct AffineMap<T, CS> {
     linear_coeffs: Matrix<T>,
     shift: Vector<T, CS>,

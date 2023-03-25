@@ -1,7 +1,7 @@
 use std::cell::UnsafeCell;
 use std::collections::{BTreeSet, BTreeMap, HashSet, HashMap, VecDeque};
 use std::fmt::Display;
-use std::hash::Hash;
+use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 use std::mem::replace;
 use std::ops::{Neg, Add, Sub, Mul};
@@ -539,7 +539,12 @@ impl<'a, T, CS> Iterator for CoordinationSequence<'a, T, CS>
 }
 
 
-pub struct Automorphism<T, CS> {
+#[derive(Clone, Eq, PartialEq)]
+pub struct Automorphism<T, CS>
+    where
+        T: Eq + Hash,
+        CS: Eq + Hash
+{
     pub(crate) vertex_map: HashMap<Vertex, Vertex>,
     pub(crate) edge_map: HashMap<Edge<T, CS>, Edge<T, CS>>,
     pub(crate) transform: AffineMap,
@@ -599,6 +604,18 @@ impl<T, CS> Mul<&Automorphism<T, CS>> for &Automorphism<T, CS>
         )).collect();
 
         Automorphism { vertex_map, edge_map, transform }
+    }
+}
+
+
+impl<T, CS> Hash for Automorphism<T, CS>
+    where
+        T: Eq + Hash,
+        CS: Eq + Hash
+{
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.transform.hash(state);
+        self.vertex_map.iter().sorted().collect::<Vec<_>>().hash(state)
     }
 }
 
