@@ -1,10 +1,11 @@
+use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, VecDeque};
-use std::hash::Hash;
+use std::hash::{Hash, Hasher};
 
 use itertools::Itertools;
 use num_bigint::BigInt;
 use num_rational::BigRational;
-use num_traits::{One, ToPrimitive};
+use num_traits::{One, Zero, ToPrimitive, Signed};
 use num_integer::Integer;
 
 use crate::arithmetic::matrices::Matrix;
@@ -122,6 +123,70 @@ pub fn translational_orbits<T, CS>(graph: &Graph<T, CS>) -> Vec<Vec<Vertex>>
 {
     assert!(graph.is_locally_stable(), "graph must be locally stable");
     translational_equivalences(&graph).classes(&graph.vertices())
+}
+
+
+pub fn symmetries<T, CS>(graph: &Graph<T, CS>) -> Vec<Automorphism<T, CS>>
+    where
+        T: LabelVector<CS>,
+        CS: Clone + Eq + Hash + Ord
+{
+    // TODO tag edge list equivalence classes that make no automorphism
+    assert!(graph.is_locally_stable(), "graph must be locally stable");
+
+    let edge_lists = characteristic_edge_lists(&graph);
+    let keys: Vec<_> = edge_lists.iter().map(hash_value).collect();
+    let seeds: Vec<_> = edge_lists.iter()
+        .map(|es| es[0].head)
+        .collect();
+    let bases: Vec<_> = edge_lists.iter()
+        .map(|es| {
+            Matrix::vstack(&es.iter()
+                .map(|e|
+                    graph.edge_vector(e).into_iter().collect::<Matrix<_>>()
+                )
+                .collect::<Vec<_>>())
+        })
+        .collect();
+
+    let inv_b = bases[0].inverse().unwrap();
+
+    let mut gens = vec![];
+    let mut p = Partition::<u64>::new();
+
+    for i in 0..edge_lists.len() {
+        if p.find(&keys[i]) != p.find(&keys[0]) {
+            let m = &bases[i] * &inv_b;
+
+            if is_unimodular(&m) {
+                let aff = &AffineMap::new(&m, &Vector::zero(T::dim()));
+                let iso = automorphism(&graph, &seeds[0], &seeds[i], &aff);
+
+                if let Some(iso) = iso {
+                    for k in 0..edge_lists.len() {
+                        p.unite(&keys[k], &hash_value(&edge_lists[k]));
+                    }
+                    gens.push(iso);
+                }
+            }
+        }
+    }
+
+    gens
+}
+
+
+fn hash_value<T: Hash>(x: T) -> u64 {
+    let mut s = DefaultHasher::new();
+    x.hash(&mut s);
+    s.finish()
+}
+
+
+fn is_unimodular(m: &Matrix<BigRational>) -> bool {
+    m.iter().all(|x| x % BigRational::one() == BigRational::zero())
+    &&
+    m.determinant().abs() == BigRational::one()
 }
 
 
