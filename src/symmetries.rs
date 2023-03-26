@@ -592,6 +592,21 @@ mod tests {
         ])
     }
 
+    fn dia_c2() -> Graph<LabelVector3d<World>, World> {
+        graph3d(&[
+            [1, 2, 0, 0, 0],
+            [1, 2, 1, 0, 0],
+            [1, 2, 0, 1, 0],
+            [1, 2, 0, 0, 1],
+            [3, 4, 0, 0, 0],
+            [3, 4, 1, 0, 0],
+            [3, 4, 0, 1, 0],
+            [3, 4, 0, 0, 1],
+            [1, 3, 0, 0, 0],
+            [2, 4, 0, 0, 0],
+        ])
+    }
+
     fn sql2_c2() -> Graph<LabelVector2d<World>, World> {
         graph2d(&[
             [1, 2, 0, 0],
@@ -825,5 +840,6 @@ mod tests {
         assert_eq!(symmetries(&hcb()).len(), 12);
         assert_eq!(symmetries(&dia()).len(), 48);
         assert_eq!(symmetries(&sql_c2()).len(), 16);
+        assert_eq!(symmetries(&dia_c2()).len(), 96);
     }
 }
