@@ -140,13 +140,7 @@ pub fn symmetries<T, CS>(graph: &Graph<T, CS>) -> Vec<Automorphism<T, CS>>
         .map(|es| es[0].head)
         .collect();
     let bases: Vec<_> = edge_lists.iter()
-        .map(|es| {
-            Matrix::vstack(&es.iter()
-                .map(|e|
-                    graph.edge_vector(e).into_iter().collect::<Matrix<_>>()
-                )
-                .collect::<Vec<_>>())
-        })
+        .map(|es| matrix_from_edge_list(&es, &graph))
         .collect();
 
     let inv_b = bases[0].inverse().unwrap();
@@ -164,14 +158,10 @@ pub fn symmetries<T, CS>(graph: &Graph<T, CS>) -> Vec<Automorphism<T, CS>>
 
                 if let Some(iso) = iso {
                     for k in 0..edge_lists.len() {
-                        p.unite(
-                            &keys[k],
-                            &hash_value(
-                                &edge_lists[k].iter()
-                                    .map(|e| iso.edge_map.get(&e).unwrap())
-                                    .collect::<Vec<_>>()
-                            )
-                        );
+                        let mapped: Vec<_> = edge_lists[k].iter()
+                            .map(|e| iso.edge_map.get(&e).unwrap())
+                            .collect(); 
+                        p.unite(&keys[k], &hash_value(&mapped));
                     }
                     gens.push(iso);
                 }
@@ -193,6 +183,27 @@ pub fn symmetries<T, CS>(graph: &Graph<T, CS>) -> Vec<Automorphism<T, CS>>
     }
 
     result.into_iter().collect()
+}
+
+
+fn matrix_from_edge_list<T, CS>(
+    es: &Vec<Edge<T, CS>>,
+    graph: &Graph<T, CS>
+)
+    -> Matrix<num_rational::Ratio<BigInt>>
+    where
+        T: LabelVector<CS>,
+        CS: Clone + Eq + Hash + Ord
+{
+    let rows: Vec<_> = es.iter()
+        .map(|e|
+            Matrix::row(
+                &graph.edge_vector(e).into_iter().collect::<Vec<_>>()
+            )
+        )
+        .collect();
+
+    Matrix::vstack(&rows)
 }
 
 
@@ -776,6 +787,6 @@ mod tests {
 
     #[test]
     fn test_syms_symmetries() {
-
+        assert_eq!(symmetries(&sql()).len(), 8);
     }
 }
