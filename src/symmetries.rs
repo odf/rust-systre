@@ -136,12 +136,11 @@ pub fn symmetries<T, CS>(graph: &Graph<T, CS>) -> Vec<Automorphism<T, CS>>
 
     let edge_lists = characteristic_edge_lists(&graph);
     let keys: Vec<_> = edge_lists.iter().map(hash_value).collect();
-    let seeds: Vec<_> = edge_lists.iter()
-        .map(|es| es[0].head)
-        .collect();
-    let bases: Vec<_> = edge_lists.iter()
-        .map(|es| matrix_from_edge_list(&es, &graph))
-        .collect();
+    let seeds: Vec<_> = map_vec(|es| es[0].head, &edge_lists);
+    let bases: Vec<_> = map_vec(
+        |es| matrix_from_edge_list(&es, &graph),
+        &edge_lists
+    );
 
     let inv_b = bases[0].inverse().unwrap();
 
@@ -158,9 +157,10 @@ pub fn symmetries<T, CS>(graph: &Graph<T, CS>) -> Vec<Automorphism<T, CS>>
 
                 if let Some(iso) = iso {
                     for k in 0..edge_lists.len() {
-                        let mapped: Vec<_> = edge_lists[k].iter()
-                            .map(|e| iso.edge_map.get(&e).unwrap())
-                            .collect(); 
+                        let mapped = map_vec(
+                            |e| iso.edge_map.get(&e).unwrap(),
+                            &edge_lists[k]
+                        );
                         p.unite(&keys[k], &hash_value(&mapped));
                     }
                     gens.push(iso);
@@ -195,15 +195,10 @@ fn matrix_from_edge_list<T, CS>(
         T: LabelVector<CS>,
         CS: Clone + Eq + Hash + Ord
 {
-    let rows: Vec<_> = es.iter()
-        .map(|e|
-            Matrix::row(
-                &graph.edge_vector(e).into_iter().collect::<Vec<_>>()
-            )
-        )
-        .collect();
-
-    Matrix::vstack(&rows)
+    Matrix::vstack(&map_vec(
+        |e| Matrix::row(&graph.edge_vector(e).into_iter().collect::<Vec<_>>()),
+        &es
+    ))
 }
 
 
@@ -477,6 +472,13 @@ fn are_linearly_independent<T, CS>(
         extend_basis(&v, &mut basis);
     }
     basis.len() == edges.len()
+}
+
+
+fn map_vec<'a, A, B, F>(fun: F, input: &'a Vec<A>) -> Vec<B>
+    where F: FnMut(&'a A) -> B
+{
+    input.iter().map(fun).collect()
 }
 
 
