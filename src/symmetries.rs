@@ -514,10 +514,32 @@ mod tests {
         Graph::new(&edges)
     }
 
+    fn graph3d(spec: &[[i32; 5]]) -> Graph<LabelVector3d<World>, World> {
+        let mut edges = vec![];
+
+        for [u, v, x, y, z] in spec {
+            edges.push(Edge::new(
+                *u as u32,
+                *v as u32,
+                LabelVector3d::new(*x, *y, *z)
+            ));
+        }
+
+        Graph::new(&edges)
+    }
+
     fn sql() -> Graph<LabelVector2d<World>, World> {
         graph2d(&[
             [1, 1, 1, 0],
             [1, 1, 0, 1],
+        ])
+    }
+
+    fn pcu() -> Graph<LabelVector3d<World>, World> {
+        graph3d(&[
+            [1, 1, 1, 0, 0],
+            [1, 1, 0, 1, 0],
+            [1, 1, 0, 0, 1],
         ])
     }
 
@@ -526,6 +548,15 @@ mod tests {
             [1, 2, 0, 0],
             [1, 2, 1, 0],
             [1, 2, 0, 1],
+        ])
+    }
+
+    fn dia() -> Graph<LabelVector3d<World>, World> {
+        graph3d(&[
+            [1, 2, 0, 0, 0],
+            [1, 2, 1, 0, 0],
+            [1, 2, 0, 1, 0],
+            [1, 2, 0, 0, 1],
         ])
     }
 
@@ -790,5 +821,9 @@ mod tests {
     #[test]
     fn test_syms_symmetries() {
         assert_eq!(symmetries(&sql()).len(), 8);
+        assert_eq!(symmetries(&pcu()).len(), 48);
+        assert_eq!(symmetries(&hcb()).len(), 12);
+        assert_eq!(symmetries(&dia()).len(), 48);
+        assert_eq!(symmetries(&sql_c2()).len(), 16);
     }
 }
