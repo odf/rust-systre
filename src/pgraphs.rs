@@ -507,6 +507,19 @@ impl<T, CS> Graph<T, CS>
 
         p.classes(&self.vertices())
     }
+
+    pub fn edge_orbits(&self) -> Vec<Vec<Edge<T, CS>>> {
+        let mut p = Partition::new();
+
+        for phi in self.symmetries() {
+            for e in &self.edges {
+                p.unite(e, &phi.edge_map.get(e).unwrap().canonical())
+            }
+        }
+
+        let es: Vec<_> = self.edges.iter().cloned().collect();
+        p.classes(&es[..])
+    }
 }
 
 impl<T, CS> Display for Graph<T, CS> 

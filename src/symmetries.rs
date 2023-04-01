@@ -843,4 +843,24 @@ mod tests {
         assert_eq!(sql_c2().symmetries().len(), 16);
         assert_eq!(dia_c2().symmetries().len(), 96);
     }
+
+    #[test]
+    fn test_syms_vertex_orbits() {
+        assert_eq!(sql().vertex_orbits().len(), 1);
+        assert_eq!(pcu().vertex_orbits().len(), 1);
+        assert_eq!(hcb().vertex_orbits().len(), 1);
+        assert_eq!(dia().vertex_orbits().len(), 1);
+        assert_eq!(sql_c2().vertex_orbits().len(), 1);
+        assert_eq!(dia_c2().vertex_orbits().len(), 1);
+    }
+
+    #[test]
+    fn test_syms_edge_orbits() {
+        assert_eq!(sql().edge_orbits().len(), 1);
+        assert_eq!(pcu().edge_orbits().len(), 1);
+        assert_eq!(hcb().edge_orbits().len(), 1);
+        assert_eq!(dia().edge_orbits().len(), 1);
+        assert_eq!(sql_c2().edge_orbits().len(), 2);
+        assert_eq!(dia_c2().edge_orbits().len(), 2);
+    }
 }
