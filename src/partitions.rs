@@ -4,35 +4,56 @@ use std::collections::HashMap;
 
 
 struct PartitionImpl<T> {
-    rank: HashMap<T, usize>,
-    parent: HashMap<T, T>,
+    elements: Vec<T>,
+    index: HashMap<T, usize>,
+    rank: HashMap<usize, usize>,
+    parent: HashMap<usize, usize>,
 }
 
-impl<T> PartitionImpl<T> where T: Copy + Eq + Hash {
+impl<T> PartitionImpl<T> where T: Clone + Eq + Hash {
     fn new() -> Self {
-        PartitionImpl { rank: HashMap::new(), parent: HashMap::new() }
+        PartitionImpl {
+            elements: vec![],
+            index: HashMap::new(),
+            rank: HashMap::new(),
+            parent: HashMap::new(),
+        }
     }
 
-    fn find(&mut self, x: &T) -> T {
-        let mut root = x;
-        while self.parent.contains_key(root) {
-            root = self.parent.get(root).unwrap();
+    fn get_index(&mut self, a: &T) -> usize {
+        if self.index.contains_key(&a) {
+            *self.index.get(&a).unwrap()
+        } else {
+            let i = self.elements.len();
+            self.elements.push(a.clone());
+            self.index.insert(a.clone(), i);
+            i
         }
-        let root = *root;
+    }
 
-        let mut x = *x;
+    fn find(&mut self, a: &T) -> T {
+        let mut x = self.get_index(a);
+        let mut root = x;
+
+        while self.parent.contains_key(&root) {
+            root = *self.parent.get(&root).unwrap();
+        }
+
         while x != root {
             let t = x;
             x = *self.parent.get(&x).unwrap();
             self.parent.insert(t, root);
         }
 
-        root
+        self.elements[root].clone()
     }
 
-    fn unite(&mut self, x: &T, y: &T) {
-        let x0 = self.find(x);
-        let y0 = self.find(y);
+    fn unite(&mut self, a: &T, b: &T) {
+        let a0 = self.find(a);
+        let b0 = self.find(b);
+
+        let x0 = *self.index.get(&a0).unwrap();
+        let y0 = *self.index.get(&b0).unwrap();
 
         if x0 != y0 {
             let rx = *self.rank.get(&x0).unwrap_or(&0);
@@ -56,7 +77,7 @@ pub struct Partition<T> {
 }
 
 
-impl<T> Partition<T> where T: Copy + Eq + Hash {
+impl<T> Partition<T> where T: Clone + Eq + Hash {
     pub fn new() -> Self {
         Partition { _impl: UnsafeCell::new(PartitionImpl::new())}
     }
@@ -77,10 +98,10 @@ impl<T> Partition<T> where T: Copy + Eq + Hash {
             let rep = self.find(e);
             if let Some(cl) = class_for_rep.get(&rep) {
                 let class: &mut Vec<_> = &mut classes[*cl];
-                class.push(*e);
+                class.push(e.clone());
             } else {
                 class_for_rep.insert(rep, classes.len());
-                classes.push(vec![*e]);
+                classes.push(vec![e.clone()]);
             }
         }
 
