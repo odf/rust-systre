@@ -1,6 +1,5 @@
-use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, VecDeque, HashSet};
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 use std::ops::Mul;
 
 use itertools::Itertools;
@@ -136,7 +135,6 @@ pub fn symmetries<T, CS>(graph: &Graph<T, CS>) -> Vec<Automorphism<T, CS>>
     assert!(graph.is_locally_stable(), "graph must be locally stable");
 
     let edge_lists = characteristic_edge_lists(&graph);
-    let keys: Vec<_> = edge_lists.iter().map(hash_value).collect();
     let seeds: Vec<_> = map_vec(|es| es[0].head, &edge_lists);
     let bases: Vec<_> = map_vec(
         |es| matrix_from_edge_list(&es, &graph), &edge_lists
@@ -145,10 +143,10 @@ pub fn symmetries<T, CS>(graph: &Graph<T, CS>) -> Vec<Automorphism<T, CS>>
     let inv_b = bases[0].inverse().unwrap();
 
     let mut gens = vec![];
-    let mut p = Partition::<u64>::new();
+    let mut p = Partition::<Vec<Edge<T, CS>>>::new();
 
     for i in 0..edge_lists.len() {
-        if p.find(&keys[i]) != p.find(&keys[0]) {
+        if p.find(&edge_lists[i]) != p.find(&edge_lists[0]) {
             let m = &bases[i] * &inv_b;
 
             if is_unimodular(&m) {
@@ -158,9 +156,10 @@ pub fn symmetries<T, CS>(graph: &Graph<T, CS>) -> Vec<Automorphism<T, CS>>
                 if let Some(iso) = iso {
                     for k in 0..edge_lists.len() {
                         let mapped = map_vec(
-                            |e| iso.edge_map.get(&e).unwrap(), &edge_lists[k]
+                            |e| iso.edge_map.get(&e).unwrap().clone(),
+                            &edge_lists[k]
                         );
-                        p.unite(&keys[k], &hash_value(&mapped));
+                        p.unite(&edge_lists[k], &mapped);
                     }
                     gens.push(iso);
                 }
@@ -208,13 +207,6 @@ fn matrix_from_edge_list<T, CS>(
         |e| Matrix::row(&graph.edge_vector(e).into_iter().collect::<Vec<_>>()),
         &es
     ))
-}
-
-
-fn hash_value<T: Hash>(x: T) -> u64 {
-    let mut s = DefaultHasher::new();
-    x.hash(&mut s);
-    s.finish()
 }
 
 
