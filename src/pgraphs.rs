@@ -11,6 +11,7 @@ use num_rational::BigRational;
 
 use crate::arithmetic::geometry;
 use crate::arithmetic::linear_algebra::extend_basis;
+use crate::partitions::Partition;
 use crate::symmetries::symmetries;
 
 
@@ -493,6 +494,18 @@ impl<T, CS> Graph<T, CS>
         } else {
             true
         }
+    }
+
+    pub fn vertex_orbits(&self) -> Vec<Vec<Vertex>> {
+        let mut p = Partition::new();
+
+        for phi in self.symmetries() {
+            for v in self.vertices() {
+                p.unite(&v, &phi.vertex_map.get(&v).unwrap())
+            }
+        }
+
+        p.classes(&self.vertices())
     }
 }
 
