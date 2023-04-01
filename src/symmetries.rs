@@ -844,11 +844,11 @@ mod tests {
 
     #[test]
     fn test_syms_symmetries() {
-        assert_eq!(symmetries(&sql()).len(), 8);
-        assert_eq!(symmetries(&pcu()).len(), 48);
-        assert_eq!(symmetries(&hcb()).len(), 12);
-        assert_eq!(symmetries(&dia()).len(), 48);
-        assert_eq!(symmetries(&sql_c2()).len(), 16);
-        assert_eq!(symmetries(&dia_c2()).len(), 96);
+        assert_eq!(sql().symmetries().len(), 8);
+        assert_eq!(pcu().symmetries().len(), 48);
+        assert_eq!(hcb().symmetries().len(), 12);
+        assert_eq!(dia().symmetries().len(), 48);
+        assert_eq!(sql_c2().symmetries().len(), 16);
+        assert_eq!(dia_c2().symmetries().len(), 96);
     }
 }

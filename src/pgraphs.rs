@@ -11,6 +11,7 @@ use num_rational::BigRational;
 
 use crate::arithmetic::geometry;
 use crate::arithmetic::linear_algebra::extend_basis;
+use crate::symmetries::symmetries;
 
 
 pub trait LabelVector<CS>:
@@ -274,7 +275,11 @@ impl<T, CS> Display for Edge<T, CS>
 
 
 #[derive(Debug)]
-pub struct Graph<T, CS> {
+pub struct Graph<T, CS>
+    where
+        T: Eq + Hash,
+        CS: Eq + Hash
+{
     edges: Vec<Edge<T, CS>>,
     vertices: UnsafeCell<Option<Vec<Vertex>>>,
     incidences: UnsafeCell<BTreeMap<Vertex, Vec<Edge<T, CS>>>>,
@@ -282,6 +287,7 @@ pub struct Graph<T, CS> {
     edge_lookup: UnsafeCell<
         BTreeMap<Vertex, HashMap<Vector, Edge<T, CS>>>
     >,
+    symmetries: UnsafeCell<Vec<Automorphism<T, CS>>>,
 }
 
 impl<T, CS> Graph<T, CS>
@@ -305,6 +311,7 @@ impl<T, CS> Graph<T, CS>
             incidences: UnsafeCell::new(BTreeMap::new()),
             positions: UnsafeCell::new(BTreeMap::new()),
             edge_lookup: UnsafeCell::new(BTreeMap::new()),
+            symmetries: UnsafeCell::new(vec![]),
         }
     }
 
@@ -375,6 +382,17 @@ impl<T, CS> Graph<T, CS>
 
         let lookup = unsafe { self.edge_lookup.get().as_ref() };
         Some(lookup?.get(v)?.get(delta)?.clone())
+    }
+
+    pub fn symmetries(&self) -> Vec<Automorphism<T, CS>> {
+        let syms = unsafe { self.symmetries.get().as_ref().unwrap() };
+        if syms.is_empty() {
+            let syms = symmetries(&self);
+            unsafe { *self.symmetries.get() = syms.clone() }
+            syms
+        } else {
+            syms.clone()
+        }
     }
 
     pub fn position_normalized(&self, v: &Vertex) -> Point {
@@ -479,7 +497,9 @@ impl<T, CS> Graph<T, CS>
 }
 
 impl<T, CS> Display for Graph<T, CS> 
-    where T: Display
+    where
+        T: Display + Eq + Hash,
+        CS: Eq + Hash
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut text = String::new();
@@ -494,14 +514,20 @@ impl<T, CS> Display for Graph<T, CS>
 }
 
 
-pub struct CoordinationSequence<'a, T, CS> {
+pub struct CoordinationSequence<'a, T, CS>
+    where
+        T: Eq + Hash,
+        CS: Eq + Hash
+{
     graph: &'a Graph<T, CS>,
     last_shell: HashSet<(Vertex, T)>,
     this_shell: HashSet<(Vertex, T)>,
 }
 
 impl <'a, T, CS> CoordinationSequence<'a, T, CS>
-    where T: LabelVector<CS>
+    where
+        T: LabelVector<CS> + Eq + Hash,
+        CS: Eq + Hash
 {
     fn new(graph: &'a Graph<T, CS>, v0: &Vertex) -> Self {
         let last_shell = HashSet::new();
