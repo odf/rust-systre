@@ -517,8 +517,7 @@ impl<T, CS> Graph<T, CS>
             }
         }
 
-        let es: Vec<_> = self.edges.iter().cloned().collect();
-        p.classes(&es[..])
+        p.classes(&self.edges)
     }
 }
 
