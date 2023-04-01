@@ -1,6 +1,7 @@
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, VecDeque, HashSet};
 use std::hash::{Hash, Hasher};
+use std::ops::Mul;
 
 use itertools::Itertools;
 use num_bigint::BigInt;
@@ -138,8 +139,7 @@ pub fn symmetries<T, CS>(graph: &Graph<T, CS>) -> Vec<Automorphism<T, CS>>
     let keys: Vec<_> = edge_lists.iter().map(hash_value).collect();
     let seeds: Vec<_> = map_vec(|es| es[0].head, &edge_lists);
     let bases: Vec<_> = map_vec(
-        |es| matrix_from_edge_list(&es, &graph),
-        &edge_lists
+        |es| matrix_from_edge_list(&es, &graph), &edge_lists
     );
 
     let inv_b = bases[0].inverse().unwrap();
@@ -158,8 +158,7 @@ pub fn symmetries<T, CS>(graph: &Graph<T, CS>) -> Vec<Automorphism<T, CS>>
                 if let Some(iso) = iso {
                     for k in 0..edge_lists.len() {
                         let mapped = map_vec(
-                            |e| iso.edge_map.get(&e).unwrap(),
-                            &edge_lists[k]
+                            |e| iso.edge_map.get(&e).unwrap(), &edge_lists[k]
                         );
                         p.unite(&keys[k], &hash_value(&mapped));
                     }
@@ -169,11 +168,22 @@ pub fn symmetries<T, CS>(graph: &Graph<T, CS>) -> Vec<Automorphism<T, CS>>
         }
     }
 
-    let mut result = HashSet::from([Automorphism::identity(&graph)]);
-    let mut queue = VecDeque::from([Automorphism::identity(&graph)]);
+    multiplicative_group(&Automorphism::identity(&graph), &gens)
+}
+
+
+fn multiplicative_group<T>(identity: &T, gens: &Vec<T>) -> Vec<T>
+    where
+        T: Clone + Eq + Hash,
+        for <'a> &'a T: Mul<&'a T, Output=T>
+{
+    // TODO should be an iterator to be more general (infinite groups!)
+
+    let mut result = HashSet::from([identity.clone()]);
+    let mut queue = VecDeque::from([identity.clone()]);
 
     while let Some(phi) = queue.pop_front() {
-        for psi in &gens {
+        for psi in gens {
             let product = &phi * psi;
             if !result.contains(&product) {
                 queue.push_back(product.clone());
@@ -181,7 +191,6 @@ pub fn symmetries<T, CS>(graph: &Graph<T, CS>) -> Vec<Automorphism<T, CS>>
             }
         }
     }
-
     result.into_iter().collect()
 }
 
