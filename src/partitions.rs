@@ -4,68 +4,72 @@ use std::collections::HashMap;
 
 
 struct PartitionImpl<T> {
-    elements: Vec<T>,
     index: HashMap<T, usize>,
-    rank: HashMap<usize, usize>,
-    parent: HashMap<usize, usize>,
+    elements: Vec<T>,
+    rank: Vec<usize>,
+    parent: Vec<usize>,
 }
 
 impl<T> PartitionImpl<T> where T: Clone + Eq + Hash {
     fn new() -> Self {
         PartitionImpl {
-            elements: vec![],
             index: HashMap::new(),
-            rank: HashMap::new(),
-            parent: HashMap::new(),
+            elements: vec![],
+            rank: vec![],
+            parent: vec![],
         }
     }
 
     fn get_index(&mut self, a: &T) -> usize {
-        if self.index.contains_key(&a) {
-            *self.index.get(&a).unwrap()
+        if let Some(x) = self.index.get(a) {
+            *x
         } else {
             let i = self.elements.len();
-            self.elements.push(a.clone());
             self.index.insert(a.clone(), i);
+            self.elements.push(a.clone());
+            self.rank.push(0);
+            self.parent.push(i);
             i
         }
     }
 
-    fn find(&mut self, a: &T) -> T {
+    fn root_index(&mut self, a: &T) -> usize {
         let mut x = self.get_index(a);
         let mut root = x;
 
-        while self.parent.contains_key(&root) {
-            root = *self.parent.get(&root).unwrap();
+        while self.parent[root] != root {
+            root = self.parent[root];
         }
 
         while x != root {
             let t = x;
-            x = *self.parent.get(&x).unwrap();
-            self.parent.insert(t, root);
+            x = self.parent[x];
+            self.parent[t] = root;
         }
 
+        root
+    }
+
+    fn find(&mut self, a: &T) -> T {
+        let root = self.root_index(a);
         self.elements[root].clone()
     }
 
     fn unite(&mut self, a: &T, b: &T) {
-        let a0 = self.find(a);
-        let b0 = self.find(b);
+        let x = self.root_index(a);
+        let y = self.root_index(b);
 
-        let x0 = *self.index.get(&a0).unwrap();
-        let y0 = *self.index.get(&b0).unwrap();
-
-        if x0 != y0 {
-            let rx = *self.rank.get(&x0).unwrap_or(&0);
-            let ry = *self.rank.get(&y0).unwrap_or(&0);
+        if x != y {
+            let rx = self.rank[x];
+            let ry = self.rank[y];
 
             if rx < ry {
-                self.parent.insert(x0, y0);
+                self.parent[x] = y;
             } else {
                 if rx == ry {
-                    self.rank.insert(x0, rx + 1);
+                    self.rank[x] = rx + 1;
                 }
-                self.parent.insert(y0, x0);
+                self.parent[y] = x;
             }
         }
     }
