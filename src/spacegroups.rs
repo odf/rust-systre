@@ -1,6 +1,5 @@
 use std::ops::{SubAssign, AddAssign, Mul, Neg, MulAssign};
 
-use num_rational::BigRational;
 use num_traits::{Signed, Zero, One};
 
 use crate::arithmetic::matrices::Matrix;
