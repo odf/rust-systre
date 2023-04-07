@@ -1,7 +1,7 @@
-use std::ops::{SubAssign, AddAssign, Mul};
+use std::ops::{SubAssign, AddAssign, Mul, Neg, MulAssign};
 
 use num_rational::BigRational;
-use num_traits::{Signed, Zero};
+use num_traits::{Signed, Zero, One};
 
 use crate::arithmetic::matrices::Matrix;
 use crate::arithmetic::linear_algebra::LinearAlgebra;
@@ -22,6 +22,20 @@ enum CrystalSystem3d {
     Trigonal,
     Monoclinic,
     Triclinic,
+}
+
+
+fn normalized<T>(v: &[T]) -> Vec<T>
+    where
+        T: Clone + Signed,
+        for <'a> &'a T: Neg<Output=T>
+{
+    if let Some(x) = v.iter().find(|x| !x.is_zero()) {
+        if x.is_negative() {
+            return v.iter().map(|x| -x).collect();
+        }
+    }
+    v.to_vec()
 }
 
 
@@ -59,15 +73,19 @@ fn are_collinear<T>(v: &[T], w: &[T]) -> bool
 }
 
 
-fn matrix_order(matrix: &Matrix<BigRational>, max: usize) -> usize {
+fn matrix_order<T>(matrix: &Matrix<T>, max: usize) -> usize
+    where
+        T: Clone + Zero + One + PartialEq,
+        for <'a> Matrix<T>: MulAssign<&'a Matrix<T>>
+{
     let (nrows, ncols) = matrix.shape();
     assert_eq!(nrows, ncols);
 
-    let identity = Matrix::<BigRational>::identity(nrows);
+    let identity = Matrix::identity(nrows);
     let mut a = identity.clone();
 
     for i in 1..=max {
-        a = a * matrix;
+        a *= matrix;
         if a == identity {
             return i;
         }
@@ -89,6 +107,7 @@ fn preserves_orientation<T>(matrix: &Matrix<T>) -> bool
 fn operator_axis<T>(matrix: &Matrix<T>) -> Option<Vec<T>>
     where
         T: Clone + Signed,
+        for <'a> &'a T: Neg<Output=T>,
         Matrix<T>: LinearAlgebra<T> + AddAssign<Matrix<T>> + SubAssign<Matrix<T>>
 {
     let (dim, ncols) = matrix.shape();
@@ -103,9 +122,40 @@ fn operator_axis<T>(matrix: &Matrix<T>) -> Option<Vec<T>>
 
     if let Some(z) = r.null_space() {
         if z.ncols == 1 {
-            return Some(z.get_col(0));
+            return Some(normalized(&z.get_col(0)));
         }
     }
 
     None
+}
+
+
+struct OperatorDetails<T> {
+    matrix: Matrix<T>,
+    dimension: usize,
+    axis: Option<Vec<T>>,
+    order: usize,
+    is_orientation_preserving: bool,
+    is_clockwise: bool,
+}
+
+
+impl<T> OperatorDetails<T>
+    where
+        T: Clone + Zero + One + Signed + PartialEq,
+        for <'a> &'a T: Neg<Output=T>,
+        Matrix<T>: LinearAlgebra<T> + AddAssign<Matrix<T>> + SubAssign<Matrix<T>>,
+        for <'a> Matrix<T>: MulAssign<&'a Matrix<T>>
+{
+    fn from(matrix: Matrix<T>) -> Self {
+        let (nrows, ncols) = matrix.shape();
+        assert_eq!(nrows, ncols);
+
+        let dimension = nrows;
+        let is_orientation_preserving = preserves_orientation(&matrix);
+        let order = matrix_order(&matrix, 6);
+        let axis = operator_axis(&matrix);
+
+        todo!()
+    }
 }
