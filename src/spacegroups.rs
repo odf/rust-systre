@@ -66,7 +66,7 @@ fn are_orthogonal<T>(v: &[T], w: &[T]) -> bool
 
 fn are_collinear<T>(v: &[T], w: &[T]) -> bool
     where
-        T: PartialEq + Zero + Signed + Mul<T, Output=T>,
+        T: PartialEq + Zero + Signed,
         for <'a> &'a T: Mul<&'a T, Output=T>
 {
     dot(v, w) * dot(v, w) == dot(v, v) * dot(w, w)
@@ -108,15 +108,15 @@ fn operator_axis<T>(matrix: &Matrix<T>) -> Option<Vec<T>>
     where
         T: Clone + Signed,
         for <'a> &'a T: Neg<Output=T>,
-        Matrix<T>: LinearAlgebra<T> + AddAssign<Matrix<T>> + SubAssign<Matrix<T>>
+        Matrix<T>: LinearAlgebra<T>,
+        Matrix<T>: AddAssign<Matrix<T>> + SubAssign<Matrix<T>>,
 {
     let (dim, ncols) = matrix.shape();
     assert_eq!(dim, ncols);
 
     let r = if dim % 2 == 0 && !preserves_orientation(matrix) {
         matrix + Matrix::identity(dim)
-    }
-    else {
+    } else {
         matrix - Matrix::identity(dim)
     };
 
@@ -143,19 +143,50 @@ struct OperatorDetails<T> {
 impl<T> OperatorDetails<T>
     where
         T: Clone + Zero + One + Signed + PartialEq,
-        for <'a> &'a T: Neg<Output=T>,
-        Matrix<T>: LinearAlgebra<T> + AddAssign<Matrix<T>> + SubAssign<Matrix<T>>,
+        for <'a> &'a T: Neg<Output=T> + Mul<&'a T, Output=T>,
+        Matrix<T>: LinearAlgebra<T>,
+        Matrix<T>: AddAssign<Matrix<T>> + SubAssign<Matrix<T>>,
         for <'a> Matrix<T>: MulAssign<&'a Matrix<T>>
 {
     fn from(matrix: Matrix<T>) -> Self {
         let (nrows, ncols) = matrix.shape();
         assert_eq!(nrows, ncols);
+        assert!(nrows == 2 || nrows == 3);
 
         let dimension = nrows;
         let is_orientation_preserving = preserves_orientation(&matrix);
         let order = matrix_order(&matrix, 6);
         let axis = operator_axis(&matrix);
 
-        todo!()
+        let is_clockwise = if dimension == 2 {
+            if !is_orientation_preserving {
+                false
+            } else if order == 0 || order > 2 {
+                !(matrix[(0, 1)]).is_negative()
+            } else {
+                true
+            }
+        } else if (order == 0 || order > 2) && axis.is_some() {
+            let axis = axis.clone().unwrap();
+            let u0 = [T::one(), T::zero(), T::zero()];
+            let u1 = [T::zero(), T::one(), T::zero()];
+            let v = if are_collinear(&axis, &u0) { u1 } else { u0 };
+            let v = Matrix::col(&v);
+            let w = &matrix * &v;
+            let a = Matrix::hstack(&[Matrix::col(&axis), v, w]);
+
+            preserves_orientation(&a)
+        } else {
+            true
+        };
+
+        Self {
+            matrix,
+            dimension,
+            axis,
+            order,
+            is_orientation_preserving,
+            is_clockwise
+        }
     }
 }
