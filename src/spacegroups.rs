@@ -190,6 +190,63 @@ impl<T> OperatorDetails<T>
 }
 
 
+fn crystal_system_and_basis_2d<T>(ops: &[Matrix<T>])
+    -> (CrystalSystem2d, Matrix<T>)
+    where
+        T: Clone + Zero + One + Signed + PartialEq,
+        for <'a> &'a T: Neg<Output=T> + Mul<&'a T, Output=T>,
+        for <'a> T: MulAssign<&'a T> + AddAssign<&'a T>,
+        Matrix<T>: LinearAlgebra<T>,
+        Matrix<T>: AddAssign<Matrix<T>> + SubAssign<Matrix<T>>
+{
+    let ops_with_details: Vec<_> = ops.iter()
+        .map(|op| OperatorDetails::from(op.clone()))
+        .collect();
+    let mirrors: Vec<_> = ops_with_details.iter()
+        .filter(|opd| !opd.is_orientation_preserving)
+        .collect();
+    let n = ops_with_details.iter().map(|opd| opd.order).max().unwrap();
+    let m = if n == 6 { 3 } else { n };
+
+    let crystal_system = match n {
+        3 | 6 => CrystalSystem2d::Hexagonal,
+        4 => CrystalSystem2d::Square,
+        _ => if mirrors.len() > 0 {
+            CrystalSystem2d::Rectangular
+        } else {
+            CrystalSystem2d::Oblique
+        }
+    };
+
+    let x = if mirrors.len() > 0 {
+        Matrix::col(&mirrors[0].axis.clone().unwrap())
+    } else {
+        Matrix::col(&[T::one(), T::zero()])
+    };
+
+    let y = if m >= 3 {
+        let s = ops_with_details.iter().find(|s|
+            s.is_orientation_preserving && s.is_clockwise && s.order == m
+        ).unwrap();
+        &s.matrix * &x
+    } else if mirrors.len() > 1 {
+        Matrix::col(&mirrors[1].axis.clone().unwrap())
+    } else {
+        let t = if x[(0, 0)] == T::zero() {
+            Matrix::col(&[T::one(), T::zero()])
+        } else {
+            Matrix::col(&[T::zero(), T::one()])
+        };
+        if mirrors.len() > 0 {
+            &t - &mirrors[0].matrix * &t
+        } else {
+            t
+        }
+    };
+    todo!()
+}
+
+
 #[cfg(test)]
 mod tests {
     use num_bigint::BigInt;
