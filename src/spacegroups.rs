@@ -75,7 +75,7 @@ fn are_collinear<T>(v: &[T], w: &[T]) -> bool
 fn matrix_order<T>(matrix: &Matrix<T>, max: usize) -> usize
     where
         T: Clone + Zero + One + PartialEq,
-        for <'a> Matrix<T>: MulAssign<&'a Matrix<T>>
+        for <'a> T: MulAssign<&'a T> + AddAssign<&'a T>
 {
     let (nrows, ncols) = matrix.shape();
     assert_eq!(nrows, ncols);
@@ -84,7 +84,7 @@ fn matrix_order<T>(matrix: &Matrix<T>, max: usize) -> usize
     let mut a = identity.clone();
 
     for i in 1..=max {
-        a *= matrix;
+        a = &a * matrix;
         if a == identity {
             return i;
         }
@@ -113,7 +113,7 @@ fn operator_axis<T>(matrix: &Matrix<T>) -> Option<Vec<T>>
     let (dim, ncols) = matrix.shape();
     assert_eq!(dim, ncols);
 
-    let r = if dim % 2 == 0 && !preserves_orientation(matrix) {
+    let r = if dim % 2 != 0 && !preserves_orientation(matrix) {
         matrix + Matrix::identity(dim)
     } else {
         matrix - Matrix::identity(dim)
@@ -138,14 +138,13 @@ struct OperatorDetails<T> {
     is_clockwise: bool,
 }
 
-
 impl<T> OperatorDetails<T>
     where
         T: Clone + Zero + One + Signed + PartialEq,
         for <'a> &'a T: Neg<Output=T> + Mul<&'a T, Output=T>,
+        for <'a> T: MulAssign<&'a T> + AddAssign<&'a T>,
         Matrix<T>: LinearAlgebra<T>,
-        Matrix<T>: AddAssign<Matrix<T>> + SubAssign<Matrix<T>>,
-        for <'a> Matrix<T>: MulAssign<&'a Matrix<T>>
+        Matrix<T>: AddAssign<Matrix<T>> + SubAssign<Matrix<T>>
 {
     fn from(matrix: Matrix<T>) -> Self {
         let (nrows, ncols) = matrix.shape();
@@ -179,7 +178,7 @@ impl<T> OperatorDetails<T>
             true
         };
 
-        Self {
+        OperatorDetails {
             matrix,
             dimension,
             axis,
@@ -187,5 +186,68 @@ impl<T> OperatorDetails<T>
             is_orientation_preserving,
             is_clockwise
         }
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use num_bigint::BigInt;
+    use num_rational::BigRational;
+
+    use crate::arithmetic::matrices::Matrix;
+
+    use super::*;
+
+    fn r(x: i32) -> BigRational {
+        BigRational::from(BigInt::from(x))
+    }
+
+    #[test]
+    fn test_spacegroups_operator_details() {
+        let m = Matrix::new(2, &[r(1), r(0), r(0), r(1)]);
+        let opd = OperatorDetails::from(m.clone());
+        assert_eq!(&opd.matrix, &m);
+        assert_eq!(opd.dimension, 2);
+        assert_eq!(opd.axis, None);
+        assert_eq!(opd.order, 1);
+        assert_eq!(opd.is_orientation_preserving, true);
+        assert_eq!(opd.is_clockwise, true);
+
+        let m = Matrix::new(2, &[r(1), r(0), r(0), r(-1)]);
+        let opd = OperatorDetails::from(m.clone());
+        assert_eq!(&opd.matrix, &m);
+        assert_eq!(opd.dimension, 2);
+        assert_eq!(&opd.axis, &Some(vec![r(1), r(0)]));
+        assert_eq!(opd.order, 2);
+        assert_eq!(opd.is_orientation_preserving, false);
+        assert_eq!(opd.is_clockwise, false);
+
+        let m = Matrix::new(2, &[r(0), r(1), r(-1), r(0)]);
+        let opd = OperatorDetails::from(m.clone());
+        assert_eq!(&opd.matrix, &m);
+        assert_eq!(opd.dimension, 2);
+        assert_eq!(opd.axis, None);
+        assert_eq!(opd.order, 4);
+        assert_eq!(opd.is_orientation_preserving, true);
+        assert_eq!(opd.is_clockwise, true);
+
+        let m = Matrix::new(2, &[r(0), r(-1), r(1), r(1)]);
+        let opd = OperatorDetails::from(m.clone());
+        assert_eq!(&opd.matrix, &m);
+        assert_eq!(opd.dimension, 2);
+        assert_eq!(opd.axis, None);
+        assert_eq!(opd.order, 6);
+        assert_eq!(opd.is_orientation_preserving, true);
+        assert_eq!(opd.is_clockwise, false);
+
+        let m = Matrix::new(2, &[r(-1), r(0), r(1), r(1)]);
+        let opd = OperatorDetails::from(m.clone());
+        assert_eq!(&opd.matrix, &m);
+        assert_eq!(opd.dimension, 2);
+        assert_eq!(&opd.axis, &Some(vec![r(0), r(1)]));
+        assert_eq!(opd.order, 2);
+        assert_eq!(opd.is_orientation_preserving, false);
+        assert_eq!(opd.is_clockwise, false);
     }
 }
