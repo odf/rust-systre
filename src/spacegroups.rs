@@ -6,6 +6,7 @@ use crate::arithmetic::matrices::Matrix;
 use crate::arithmetic::linear_algebra::LinearAlgebra;
 
 
+#[derive(Debug, PartialEq)]
 enum CrystalSystem2d {
     Oblique,
     Rectangular,
@@ -94,12 +95,12 @@ fn matrix_order<T>(matrix: &Matrix<T>, max: usize) -> usize
 }
 
 
-fn preserves_orientation<T>(matrix: &Matrix<T>) -> bool
+fn is_left_handed<T>(matrix: &Matrix<T>) -> bool
     where
         T: Signed,
         Matrix<T>: LinearAlgebra<T>
 {
-    !matrix.determinant().is_negative()
+    matrix.determinant().is_negative()
 }
 
 
@@ -113,7 +114,7 @@ fn operator_axis<T>(matrix: &Matrix<T>) -> Option<Vec<T>>
     let (dim, ncols) = matrix.shape();
     assert_eq!(dim, ncols);
 
-    let r = if dim % 2 != 0 && !preserves_orientation(matrix) {
+    let r = if dim % 2 != 0 && is_left_handed(matrix) {
         matrix + Matrix::identity(dim)
     } else {
         matrix - Matrix::identity(dim)
@@ -149,10 +150,10 @@ impl<T> OperatorDetails<T>
     fn from(matrix: Matrix<T>) -> Self {
         let (nrows, ncols) = matrix.shape();
         assert_eq!(nrows, ncols);
-        assert!(nrows == 2 || nrows == 3);
+        assert!(nrows >= 1 && nrows <= 3);
 
         let dimension = nrows;
-        let is_orientation_preserving = preserves_orientation(&matrix);
+        let is_orientation_preserving = !is_left_handed(&matrix);
         let order = matrix_order(&matrix, 6);
         let axis = operator_axis(&matrix);
 
@@ -173,7 +174,7 @@ impl<T> OperatorDetails<T>
             let w = &matrix * &v;
             let a = Matrix::hstack(&[Matrix::col(&axis), v, w]);
 
-            preserves_orientation(&a)
+            !is_left_handed(&a)
         } else {
             true
         };
@@ -245,11 +246,7 @@ fn crystal_system_and_basis_2d<T>(ops: &[Matrix<T>])
     };
 
     let b = Matrix::hstack(&[x.clone(), y.clone()]);
-    let basis = if b.determinant().is_negative() {
-        vec![x, -y]
-    } else {
-        vec![x, y]
-    };
+    let basis = if is_left_handed(&b) { vec![x, -y] } else { vec![x, y] };
 
     (crystal_system, basis)
 }
@@ -266,6 +263,27 @@ mod tests {
 
     fn r(x: i32) -> BigRational {
         BigRational::from(BigInt::from(x))
+    }
+
+    #[test]
+    fn test_spacegroups_operator_details_1d() {
+        let m = Matrix::new(1, &[r(1)]);
+        let opd = OperatorDetails::from(m.clone());
+        assert_eq!(&opd.matrix, &m);
+        assert_eq!(opd.dimension, 1);
+        assert_eq!(&opd.axis, &Some(vec![r(1)]));
+        assert_eq!(opd.order, 1);
+        assert_eq!(opd.is_orientation_preserving, true);
+        assert_eq!(opd.is_clockwise, true);
+
+        let m = Matrix::new(1, &[r(-1)]);
+        let opd = OperatorDetails::from(m.clone());
+        assert_eq!(&opd.matrix, &m);
+        assert_eq!(opd.dimension, 1);
+        assert_eq!(&opd.axis, &Some(vec![r(1)]));
+        assert_eq!(opd.order, 2);
+        assert_eq!(opd.is_orientation_preserving, false);
+        assert_eq!(opd.is_clockwise, true);
     }
 
     #[test]
@@ -361,5 +379,43 @@ mod tests {
         assert_eq!(opd.order, 6);
         assert_eq!(opd.is_orientation_preserving, false);
         assert_eq!(opd.is_clockwise, false);
+    }
+
+    #[test]
+    fn test_spacegroups_crystal_system_2d() {
+        let ops = vec![
+            Matrix::new(2, &[r(1), r(0), r(0), r(1)]),
+            Matrix::new(2, &[r(-1), r(0), r(0), r(-1)])
+        ];
+        let (cs, b) = crystal_system_and_basis_2d(&ops);
+        assert_eq!(CrystalSystem2d::Oblique, cs);
+        assert_eq!(
+            &b,
+            &vec![Matrix::col(&[r(1), r(0)]),Matrix::col(&[r(0), r(1)])]
+        );
+
+        let ops = vec![
+            Matrix::new(2, &[r(1), r(0), r(0), r(1)]),
+            Matrix::new(2, &[r(1), r(0), r(0), r(-1)])
+        ];
+        let (cs, _) = crystal_system_and_basis_2d(&ops);
+        assert_eq!(CrystalSystem2d::Rectangular, cs);
+
+        let ops = vec![
+            Matrix::new(2, &[r(1), r(0), r(0), r(1)]),
+            Matrix::new(2, &[r(0), r(1), r(-1), r(-1)]).transpose(),
+            Matrix::new(2, &[r(-1), r(-1), r(1), r(0)]).transpose(),
+        ];
+        let (cs, _) = crystal_system_and_basis_2d(&ops);
+        assert_eq!(CrystalSystem2d::Hexagonal, cs);
+
+        let ops = vec![
+            Matrix::new(2, &[r(1), r(0), r(0), r(1)]),
+            Matrix::new(2, &[r(0), r(1), r(-1), r(0)]).transpose(),
+            Matrix::new(2, &[r(-1), r(0), r(0), r(-1)]).transpose(),
+            Matrix::new(2, &[r(0), r(-1), r(1), r(0)]).transpose(),
+        ];
+        let (cs, _) = crystal_system_and_basis_2d(&ops);
+        assert_eq!(CrystalSystem2d::Square, cs);
     }
 }
