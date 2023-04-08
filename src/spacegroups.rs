@@ -204,7 +204,7 @@ mod tests {
     }
 
     #[test]
-    fn test_spacegroups_operator_details() {
+    fn test_spacegroups_operator_details_2d() {
         let m = Matrix::new(2, &[r(1), r(0), r(0), r(1)]);
         let opd = OperatorDetails::from(m.clone());
         assert_eq!(&opd.matrix, &m);
@@ -247,6 +247,53 @@ mod tests {
         assert_eq!(opd.dimension, 2);
         assert_eq!(&opd.axis, &Some(vec![r(0), r(1)]));
         assert_eq!(opd.order, 2);
+        assert_eq!(opd.is_orientation_preserving, false);
+        assert_eq!(opd.is_clockwise, false);
+    }
+
+    #[test]
+    fn test_spacegroups_operator_details_3d() {
+        let m = Matrix::new(
+            3, &[r(1), r(0), r(0), r(0), r(1), r(0), r(0), r(0), r(1)]
+        );
+        let opd = OperatorDetails::from(m.clone());
+        assert_eq!(&opd.matrix, &m);
+        assert_eq!(opd.dimension, 3);
+        assert_eq!(opd.axis, None);
+        assert_eq!(opd.order, 1);
+        assert_eq!(opd.is_orientation_preserving, true);
+        assert_eq!(opd.is_clockwise, true);
+
+        let m = Matrix::new(
+            3, &[r(-1), r(0), r(0), r(0), r(-1), r(0), r(0), r(0), r(-1)]
+        );
+        let opd = OperatorDetails::from(m.clone());
+        assert_eq!(&opd.matrix, &m);
+        assert_eq!(opd.dimension, 3);
+        assert_eq!(opd.axis, None);
+        assert_eq!(opd.order, 2);
+        assert_eq!(opd.is_orientation_preserving, false);
+        assert_eq!(opd.is_clockwise, true);
+
+        let m = Matrix::new(
+            3, &[r(0), r(0), r(1), r(1), r(0), r(0), r(0), r(1), r(0)]
+        );
+        let opd = OperatorDetails::from(m.clone());
+        assert_eq!(&opd.matrix, &m);
+        assert_eq!(opd.dimension, 3);
+        assert_eq!(&opd.axis, &Some(vec![r(1), r(1), r(1)]));
+        assert_eq!(opd.order, 3);
+        assert_eq!(opd.is_orientation_preserving, true);
+        assert_eq!(opd.is_clockwise, true);
+
+        let m = Matrix::new(
+            3, &[r(0), r(0), r(-1), r(-1), r(0), r(0), r(0), r(-1), r(0)]
+        );
+        let opd = OperatorDetails::from(m.clone());
+        assert_eq!(&opd.matrix, &m);
+        assert_eq!(opd.dimension, 3);
+        assert_eq!(&opd.axis, &Some(vec![r(1), r(1), r(1)]));
+        assert_eq!(opd.order, 6);
         assert_eq!(opd.is_orientation_preserving, false);
         assert_eq!(opd.is_clockwise, false);
     }
