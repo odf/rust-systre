@@ -191,7 +191,7 @@ impl<T> OperatorDetails<T>
 
 
 fn crystal_system_and_basis_2d<T>(ops: &[Matrix<T>])
-    -> (CrystalSystem2d, Matrix<T>)
+    -> (CrystalSystem2d, Vec<Matrix<T>>)
     where
         T: Clone + Zero + One + Signed + PartialEq,
         for <'a> &'a T: Neg<Output=T> + Mul<&'a T, Output=T>,
@@ -243,7 +243,15 @@ fn crystal_system_and_basis_2d<T>(ops: &[Matrix<T>])
             t
         }
     };
-    todo!()
+
+    let b = Matrix::hstack(&[x.clone(), y.clone()]);
+    let basis = if b.determinant().is_negative() {
+        vec![x, -y]
+    } else {
+        vec![x, y]
+    };
+
+    (crystal_system, basis)
 }
 
 
