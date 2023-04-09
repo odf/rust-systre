@@ -25,6 +25,67 @@ enum CrystalSystem3d {
 }
 
 
+struct OperatorDetails<T> {
+    matrix: Matrix<T>,
+    dimension: usize,
+    axis: Option<Vec<T>>,
+    order: usize,
+    is_orientation_preserving: bool,
+    is_clockwise: bool,
+}
+
+impl<T> OperatorDetails<T>
+    where
+        T: Clone + Zero + One + Signed + PartialEq,
+        for <'a> &'a T: Neg<Output=T> + Mul<&'a T, Output=T>,
+        for <'a> T: MulAssign<&'a T> + AddAssign<&'a T>,
+        Matrix<T>: LinearAlgebra<T>,
+        Matrix<T>: AddAssign<Matrix<T>> + SubAssign<Matrix<T>>
+{
+    fn from(matrix: Matrix<T>) -> Self {
+        let (nrows, ncols) = matrix.shape();
+        assert_eq!(nrows, ncols);
+        assert!(nrows >= 1 && nrows <= 3);
+
+        let dimension = nrows;
+        let is_orientation_preserving = !is_left_handed(&matrix);
+        let order = matrix_order(&matrix, 6);
+        let axis = operator_axis(&matrix);
+
+        let is_clockwise = if dimension == 2 {
+            if !is_orientation_preserving {
+                false
+            } else if order == 0 || order > 2 {
+                !(matrix[(0, 1)]).is_negative()
+            } else {
+                true
+            }
+        } else if (order == 0 || order > 2) && axis.is_some() {
+            let axis = axis.clone().unwrap();
+            let u0 = [T::one(), T::zero(), T::zero()];
+            let u1 = [T::zero(), T::one(), T::zero()];
+            let v = if are_collinear(&axis, &u0) { u1 } else { u0 };
+            let v = Matrix::col(&v);
+            let w = &matrix * &v;
+            let a = Matrix::hstack(&[Matrix::col(&axis), v, w]);
+
+            !is_left_handed(&a)
+        } else {
+            true
+        };
+
+        OperatorDetails {
+            matrix,
+            dimension,
+            axis,
+            order,
+            is_orientation_preserving,
+            is_clockwise
+        }
+    }
+}
+
+
 fn normalized<T>(v: &[T]) -> Vec<T>
     where
         T: Clone + Signed,
@@ -127,67 +188,6 @@ fn operator_axis<T>(matrix: &Matrix<T>) -> Option<Vec<T>>
     }
 
     None
-}
-
-
-struct OperatorDetails<T> {
-    matrix: Matrix<T>,
-    dimension: usize,
-    axis: Option<Vec<T>>,
-    order: usize,
-    is_orientation_preserving: bool,
-    is_clockwise: bool,
-}
-
-impl<T> OperatorDetails<T>
-    where
-        T: Clone + Zero + One + Signed + PartialEq,
-        for <'a> &'a T: Neg<Output=T> + Mul<&'a T, Output=T>,
-        for <'a> T: MulAssign<&'a T> + AddAssign<&'a T>,
-        Matrix<T>: LinearAlgebra<T>,
-        Matrix<T>: AddAssign<Matrix<T>> + SubAssign<Matrix<T>>
-{
-    fn from(matrix: Matrix<T>) -> Self {
-        let (nrows, ncols) = matrix.shape();
-        assert_eq!(nrows, ncols);
-        assert!(nrows >= 1 && nrows <= 3);
-
-        let dimension = nrows;
-        let is_orientation_preserving = !is_left_handed(&matrix);
-        let order = matrix_order(&matrix, 6);
-        let axis = operator_axis(&matrix);
-
-        let is_clockwise = if dimension == 2 {
-            if !is_orientation_preserving {
-                false
-            } else if order == 0 || order > 2 {
-                !(matrix[(0, 1)]).is_negative()
-            } else {
-                true
-            }
-        } else if (order == 0 || order > 2) && axis.is_some() {
-            let axis = axis.clone().unwrap();
-            let u0 = [T::one(), T::zero(), T::zero()];
-            let u1 = [T::zero(), T::one(), T::zero()];
-            let v = if are_collinear(&axis, &u0) { u1 } else { u0 };
-            let v = Matrix::col(&v);
-            let w = &matrix * &v;
-            let a = Matrix::hstack(&[Matrix::col(&axis), v, w]);
-
-            !is_left_handed(&a)
-        } else {
-            true
-        };
-
-        OperatorDetails {
-            matrix,
-            dimension,
-            axis,
-            order,
-            is_orientation_preserving,
-            is_clockwise
-        }
-    }
 }
 
 
