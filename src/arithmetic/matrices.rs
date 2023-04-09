@@ -137,6 +137,10 @@ impl<T: Clone> Matrix<T> {
         self.data[(i * m)..(i * m + m)].to_vec()
     }
 
+    pub fn get_rows(&self) -> Vec<Vec<T>> {
+        (0..self.nrows).map(|i| self.get_row(i)).collect()
+    }
+
     pub fn get_col(&self, j: usize) -> Vec<T> {
         let (nrows, ncols) = self.shape();
         assert!(j < ncols);

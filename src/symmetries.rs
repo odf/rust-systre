@@ -310,7 +310,7 @@ fn extended_translation_basis<T, CS>(graph: &Graph<T, CS>, orbit: &[Vertex])
     let f = BigRational::from(BigInt::from(common_denom));
 
     let id: Matrix<i32> = Matrix::identity(T::dim()) * common_denom;
-    let mut basis: Vec<_> = (0..T::dim()).map(|i| id.get_row(i)).collect();
+    let mut basis: Vec<_> = id.get_rows();
 
     for d in deltas {
         let d: Vec<_> = d.iter().map(|x| r_to_i32(&(x * &f)).unwrap()).collect();
