@@ -200,9 +200,7 @@ fn solve_row_primitive_int<T>(a: &Vec<T>, x: &Vec<Vec<T>>, b: &Vec<T>)
 
 
 pub fn extend_basis<T>(v: &[T], bs: &mut Vec<Vec<T>>)
-    where
-        for <'a> T: Scalar + Clone,
-        for <'a> &'a T: Neg<Output=T>,
+    where T: Scalar + Clone + Neg<Output=T>,
 {
     let pivot_column = |v: &Vec<T>| { v.iter().position(|x| !x.is_zero()) };
 
@@ -217,7 +215,7 @@ pub fn extend_basis<T>(v: &[T], bs: &mut Vec<Vec<T>>)
 
             if col < col_b {
                 if (bs.len() - i) % 2 > 0 {
-                    v = v.iter().map(|x| -x).collect();
+                    v = v.iter().map(|x| -x.clone()).collect();
                 }
                 bs.insert(i, v);
                 return;
@@ -247,9 +245,9 @@ pub trait LinearAlgebra<T> where Self: Sized {
 
 impl<T> LinearAlgebra<T> for Matrix<T>
     where
-        T: Scalar + Clone + Sub<Output=T>,
+        T: Scalar + Clone + Sub<Output=T> + Neg<Output=T>,
         for <'a> T: Mul<&'a T, Output=T> + AddAssign<&'a T> + MulAssign<&'a T>,
-        for <'a> &'a T: Neg<Output=T> + Mul<&'a T, Output=T>,
+        for <'a> &'a T: Mul<&'a T, Output=T>,
 {
     fn rank(&self) -> usize {
         let (nrows, _) = self.shape();
