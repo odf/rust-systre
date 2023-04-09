@@ -2,8 +2,9 @@ use std::ops::{SubAssign, AddAssign, Mul, Neg, MulAssign};
 
 use num_traits::{Signed, Zero, One};
 
+use crate::arithmetic::geometry::{AffineMap, Vector};
 use crate::arithmetic::matrices::Matrix;
-use crate::arithmetic::linear_algebra::LinearAlgebra;
+use crate::arithmetic::linear_algebra::{LinearAlgebra, extend_basis, Scalar};
 
 
 #[derive(Debug, PartialEq)]
@@ -22,6 +23,23 @@ enum CrystalSystem3d {
     Trigonal,
     Monoclinic,
     Triclinic,
+}
+
+
+enum Centering2d {
+    Primitive,
+    Centered,
+}
+
+
+enum Centering3d {
+    Primitive,
+    FaceCentered,
+    BodyCentered,
+    Rhombohedral,
+    AFaceCentered,
+    BFaceCentered,
+    CFaceCentered,
 }
 
 
@@ -249,6 +267,29 @@ fn crystal_system_and_basis_2d<T>(ops: &[Matrix<T>])
     let basis = if is_left_handed(&b) { vec![x, -y] } else { vec![x, y] };
 
     (crystal_system, basis)
+}
+
+
+fn primitive_cell<T, CS>(ops: &[AffineMap<T, CS>]) -> Vec<Vec<T>>
+    where
+        T: Clone + PartialEq + Scalar + Neg<Output=T>,
+        CS: Clone + PartialEq,
+        Vector<T, CS>: MulAssign<T>
+{
+    let dim = ops[0].dim();
+    let identity: Matrix<T> = Matrix::identity(dim);
+
+    let mut cell = identity.get_rows();
+
+    for op in ops {
+        let shift = op.shift();
+        if &shift != &(&shift * T::zero()) && op.linear_matrix() == identity {
+            let s: Vec<_> = shift.into_iter().collect();
+            extend_basis(&s, &mut cell);
+        }
+    }
+
+    cell
 }
 
 

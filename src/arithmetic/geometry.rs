@@ -536,6 +536,14 @@ impl<T: Clone, CS: Clone> AffineMap<T, CS> {
         }
     }
 
+    pub fn linear_matrix(&self) -> Matrix<T> {
+        self.linear_coeffs.clone()
+    }
+
+    pub fn shift(&self) -> Vector<T, CS> {
+        self.shift.clone()
+    }
+
     pub fn identity(dim: usize) -> Self
         where T: Zero + One
     {
