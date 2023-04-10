@@ -3,7 +3,7 @@ use std::ops::{Add, Sub, Mul, Neg};
 use num_traits::{Zero, One, Signed};
 
 
-trait Coord:
+pub trait Coord:
     Clone + PartialOrd + Zero + One + Signed
     + for <'a> Add<&'a Self, Output=Self>
 {
@@ -11,11 +11,39 @@ trait Coord:
 }
 
 
-trait CoordPtr<T>:
+pub trait CoordPtr<T>:
     Sized
     + Add<Output=T> + Sub<Output=T> + Sub<T, Output=T> + Neg<Output=T>
     + Mul<Output=T>
 {
+}
+
+
+pub fn dirichlet_vectors<T>(basis: &[Vec<T>], epsilon: T) -> Vec<Vec<T>>
+    where T: Coord, for <'a> &'a T: CoordPtr<T>
+{
+    let n = basis.len();
+    assert!(basis.iter().all(|v| v.len() == n));
+
+    match n {
+        0 | 1 => basis.to_vec(),
+        2 => {
+            let (u, v) = gauss_reduced(&basis[0], &basis[1], epsilon);
+            let s = (0..2).map(|i| &u[i] + &v[i]).collect();
+            vec![u, v, s]
+        }
+        3 => {
+            let (u, v, w) = selling_reduced(
+                &basis[0], &basis[1], &basis[2], epsilon
+            );
+            let uv = (0..2).map(|i| &u[i] + &v[i]).collect();
+            let uw = (0..2).map(|i| &u[i] + &w[i]).collect();
+            let vw = (0..2).map(|i| &v[i] + &w[i]).collect();
+            let uvw = (0..2).map(|i| &u[i] + &v[i] + &w[i]).collect();
+            vec![u, v, w, uv, uw, vw, uvw]
+        }
+        _ => panic!("dimension {} not supported", n)
+    }
 }
 
 
@@ -60,7 +88,7 @@ fn selling_reduced<T>(u: &[T], v: &[T], w: &[T], epsilon: T)
                 if dot(&vs[i], &vs[j]) > epsilon {
                     for k in 0..4 {
                         if k != i && k != j {
-                            vs[k] = (0..4).map(|mu|
+                            vs[k] = (0..u.len()).map(|mu|
                                 &vs[k][mu] + &vs[i][mu]
                             ).collect();
                         }
