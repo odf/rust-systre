@@ -104,7 +104,7 @@ impl<T> OperatorDetails<T>
 }
 
 
-fn normalized<T>(v: &[T]) -> Vec<T>
+fn positive_direction<T>(v: &[T]) -> Vec<T>
     where
         T: Clone + Signed,
         for <'a> &'a T: Neg<Output=T>
@@ -201,7 +201,7 @@ fn operator_axis<T>(matrix: &Matrix<T>) -> Option<Vec<T>>
 
     if let Some(z) = r.null_space() {
         if z.ncols == 1 {
-            return Some(normalized(&z.get_col(0)));
+            return Some(positive_direction(&z.get_col(0)));
         }
     }
 
