@@ -2,7 +2,7 @@ use std::ops::{SubAssign, AddAssign, Mul, Neg, MulAssign};
 
 use num_traits::{Signed, Zero, One};
 
-use crate::arithmetic::geometry::{AffineMap, Vector};
+use crate::arithmetic::geometry::{AffineMap, Vector, CoordinateMap};
 use crate::arithmetic::matrices::Matrix;
 use crate::arithmetic::linear_algebra::{LinearAlgebra, extend_basis, Scalar};
 
@@ -209,6 +209,34 @@ fn operator_axis<T>(matrix: &Matrix<T>) -> Option<Vec<T>>
 }
 
 
+struct SpaceGroup2d {
+    dimension: usize,
+    crystal_system: CrystalSystem2d,
+    centering: Centering2d,
+    full_name: String,
+    group_name: String,
+    extension: String,
+}
+
+
+fn identitify_spacegroup_2d<T, CSIn, CSOut>(ops: &[AffineMap<T, CSIn>])
+    -> (SpaceGroup2d, CoordinateMap<T, CSIn, CSOut>)
+    where
+        CSIn: Clone + PartialEq,
+        T: Clone + PartialEq + Scalar + Signed,
+        for <'a> &'a T: Neg<Output=T> + Mul<&'a T, Output=T>,
+        for <'a> T: MulAssign<&'a T> + AddAssign<&'a T>,
+        Matrix<T>: LinearAlgebra<T>,
+        Matrix<T>: AddAssign<Matrix<T>> + SubAssign<Matrix<T>>
+{
+    let lin_ops: Vec<_> = ops.iter().map(|op| op.linear_matrix()).collect();
+    let (crystal_system, raw_basis) = crystal_system_and_basis_2d(&lin_ops);
+    let primitive_cell = primitive_cell(ops);
+
+    todo!()
+}
+
+
 fn crystal_system_and_basis_2d<T>(ops: &[Matrix<T>])
     -> (CrystalSystem2d, Vec<Matrix<T>>)
     where
@@ -282,9 +310,9 @@ fn primitive_cell<T, CS>(ops: &[AffineMap<T, CS>]) -> Vec<Vec<T>>
     let mut cell = identity.get_rows();
 
     for op in ops {
-        let shift = op.shift();
-        if &shift != &(&shift * T::zero()) && op.linear_matrix() == identity {
-            let s: Vec<_> = shift.into_iter().collect();
+        let has_shift = op.shift().iter().any(|x| !x.is_zero());
+        if has_shift && op.linear_matrix() == identity {
+            let s: Vec<_> = op.shift().into_iter().collect();
             extend_basis(&s, &mut cell);
         }
     }
