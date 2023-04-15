@@ -23,9 +23,11 @@ pub trait CoordPtr<T>:
 }
 
 
-pub fn shift_for_dirichlet_domain<T>(p: &[T], vs: &[Vec<T>], epsilon: T)
+pub fn shift_for_dirichlet_domain<T, F>(
+    p: &[T], vs: &[Vec<T>], dot: F, epsilon: T
+)
     -> Vec<T>
-    where T: Coord, for <'a> &'a T: CoordPtr<T>
+    where T: Coord, for <'a> &'a T: CoordPtr<T>, F: Fn(&[T], &[T]) -> T
 {
     let pos = p.to_vec();
     let mut shift = vec![T::zero(); p.len()];
@@ -48,21 +50,20 @@ pub fn shift_for_dirichlet_domain<T>(p: &[T], vs: &[Vec<T>], epsilon: T)
 }
 
 
-pub fn reduced_lattice_basis<T>(vs: &[Vec<T>], epsilon: T)
+pub fn reduced_lattice_basis<T, F>(vs: &[Vec<T>], dot: F, epsilon: T)
     -> Option<Vec<Vec<T>>>
-    where T: Coord, for <'a> &'a T: CoordPtr<T>
+    where T: Coord, for <'a> &'a T: CoordPtr<T>, F: Fn(&[T], &[T]) -> T
 {
     let dim = vs[0].len();
     let mut a: Vec<Vec<T>> = vec![];
-    let mut i = 0;
 
-    let mut ws = dirichlet_vectors(vs, epsilon.clone());
+    let mut ws = dirichlet_vectors(vs, &dot, epsilon.clone());
     ws.sort_by(|v, w| {
         let d = dot(v, v).partial_cmp(&dot(w, w)).unwrap();
         if d <= Ordering::Equal {
             d
         } else {
-            positive_direction(v).partial_cmp(&positive_direction(w)).unwrap()
+            positive_direction(w).partial_cmp(&positive_direction(v)).unwrap()
         }
     });
 
@@ -70,17 +71,16 @@ pub fn reduced_lattice_basis<T>(vs: &[Vec<T>], epsilon: T)
         let w: Vec<_> = w.iter().map(|x|
                 if &abs(x.clone()) < &epsilon { T::zero() } else { x.clone() }
             ).collect();
-        a[i] = if i > 0 && dot(&a[0], &w).is_positive() {
+        a.push(if a.len() > 0 && dot(&a[0], &w).is_positive() {
             neg(&w)
         } else {
             w.clone()
-        };
+        });
 
-        if rank(&a) > i {
-            i += 1;
-            if i >= dim {
-                return Some(a);
-            }
+        if rank(&a) < a.len() {
+            a.pop();
+        } else if a.len() >= dim {
+            return Some(a);
         }
     }
 
@@ -88,8 +88,9 @@ pub fn reduced_lattice_basis<T>(vs: &[Vec<T>], epsilon: T)
 }
 
 
-pub fn dirichlet_vectors<T>(basis: &[Vec<T>], epsilon: T) -> Vec<Vec<T>>
-    where T: Coord, for <'a> &'a T: CoordPtr<T>
+pub fn dirichlet_vectors<T, F>(basis: &[Vec<T>], dot: F, epsilon: T)
+    -> Vec<Vec<T>>
+    where T: Coord, for <'a> &'a T: CoordPtr<T>, F: Fn(&[T], &[T]) -> T
 {
     let n = basis.len();
     assert!(basis.iter().all(|v| v.len() == n));
@@ -97,18 +98,18 @@ pub fn dirichlet_vectors<T>(basis: &[Vec<T>], epsilon: T) -> Vec<Vec<T>>
     match n {
         0 | 1 => basis.to_vec(),
         2 => {
-            let (u, v) = gauss_reduced(&basis[0], &basis[1], epsilon);
+            let (u, v) = lagrange_reduced(&basis[0], &basis[1], dot, epsilon);
             let s = (0..2).map(|i| &u[i] + &v[i]).collect();
             vec![u, v, s]
         }
         3 => {
             let (u, v, w) = selling_reduced(
-                &basis[0], &basis[1], &basis[2], epsilon
+                &basis[0], &basis[1], &basis[2], dot, epsilon
             );
-            let uv = (0..2).map(|i| &u[i] + &v[i]).collect();
-            let uw = (0..2).map(|i| &u[i] + &w[i]).collect();
-            let vw = (0..2).map(|i| &v[i] + &w[i]).collect();
-            let uvw = (0..2).map(|i| &u[i] + &v[i] + &w[i]).collect();
+            let uv = (0..3).map(|i| &u[i] + &v[i]).collect();
+            let uw = (0..3).map(|i| &u[i] + &w[i]).collect();
+            let vw = (0..3).map(|i| &v[i] + &w[i]).collect();
+            let uvw = (0..3).map(|i| &u[i] + &v[i] + &w[i]).collect();
             vec![u, v, w, uv, uw, vw, uvw]
         }
         _ => panic!("dimension {} not supported", n)
@@ -116,8 +117,9 @@ pub fn dirichlet_vectors<T>(basis: &[Vec<T>], epsilon: T) -> Vec<Vec<T>>
 }
 
 
-fn gauss_reduced<T>(u: &[T], v: &[T], epsilon: T) -> (Vec<T>, Vec<T>)
-    where T: Coord, for <'a> &'a T: CoordPtr<T>
+fn lagrange_reduced<T, F>(u: &[T], v: &[T], dot: F, epsilon: T)
+    -> (Vec<T>, Vec<T>)
+    where T: Coord, for <'a> &'a T: CoordPtr<T>, F: Fn(&[T], &[T]) -> T
 {
     let norm = |v: &[T]| dot(v, v);
     let fudge = &T::one() - &epsilon;
@@ -142,9 +144,9 @@ fn gauss_reduced<T>(u: &[T], v: &[T], epsilon: T) -> (Vec<T>, Vec<T>)
 }
 
 
-fn selling_reduced<T>(u: &[T], v: &[T], w: &[T], epsilon: T)
+fn selling_reduced<T, F>(u: &[T], v: &[T], w: &[T], dot: F, epsilon: T)
     -> (Vec<T>, Vec<T>, Vec<T>)
-    where T: Coord, for <'a> &'a T: CoordPtr<T>
+    where T: Coord, for <'a> &'a T: CoordPtr<T>, F: Fn(&[T], &[T]) -> T
 {
     let s: Vec<_> = (0..u.len()).map(|i| -(&u[i] + &v[i] + &w[i])).collect();
     let mut vs = [u.to_vec(), v.to_vec(), w.to_vec(), s];
@@ -188,7 +190,7 @@ fn rank<T>(vs: &[Vec<T>]) -> usize
 }
 
 
-fn dot<T>(v: &[T], w: &[T]) -> T
+fn default_dot<T>(v: &[T], w: &[T]) -> T
     where T: Coord, for <'a> &'a T: CoordPtr<T>
 {
     assert_eq!(v.len(), w.len());
@@ -239,4 +241,62 @@ fn mul<T>(v: &[T], t: &T) -> Vec<T>
     where T: Coord, for <'a> &'a T: CoordPtr<T>
 {
     (0..v.len()).map(|i| &v[i] * t).collect()
+}
+
+
+#[cfg(test)]
+mod tests {
+    use num_bigint::BigInt;
+    use num_rational::BigRational;
+
+    use super::*;
+
+    impl Coord for BigRational {
+        fn round(&self) -> Self {
+            BigRational::round(self)
+        }
+
+        fn div_rounded(&self, other: &Self) -> Self {
+            BigRational::round(&(self / other))
+        }
+    }
+
+    impl CoordPtr<BigRational> for &BigRational {
+    }
+
+    fn r(x: i32) -> BigRational {
+        BigRational::from(BigInt::from(x))
+    }
+
+    #[test]
+    fn test_lattice_reduced2d() {
+        let dot = default_dot;
+        let eps = r(0);
+        let vs = [vec![r(3), r(2)], vec![r(4), r(3)]];
+
+        let ws = reduced_lattice_basis(&vs, dot, eps).unwrap();
+        let (u, v) = (ws[0].clone(), ws[1].clone());
+        assert_eq!(rank(&vec![u.clone(), v.clone()]), 2);
+        assert!(dot(&u, &u) <= dot(&v, &v));
+        assert!(!dot(&u, &v).is_positive());
+    }
+
+    #[test]
+    fn test_lattice_reduced3d() {
+        let dot = default_dot;
+        let eps = r(0);
+        let vs = [
+            vec![r(3), r(2), r(5)],
+            vec![r(4), r(3), r(2)],
+            vec![r(7), r(5), r(8)],
+        ];
+
+        let ws = reduced_lattice_basis(&vs, dot, eps).unwrap();
+        let (u, v, w) = (ws[0].clone(), ws[1].clone(), ws[2].clone());
+        assert_eq!(rank(&vec![u.clone(), v.clone(), w.clone()]), 3);
+        assert!(dot(&u, &u) <= dot(&v, &v));
+        assert!(dot(&v, &v) <= dot(&w, &w));
+        assert!(!dot(&u, &v).is_positive());
+        assert!(!dot(&u, &w).is_positive());
+    }
 }
