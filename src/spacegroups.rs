@@ -3,6 +3,7 @@ use std::ops::{SubAssign, AddAssign, Mul, Neg, MulAssign, Add, Sub};
 use num_traits::{Signed, Zero, One};
 
 use crate::arithmetic::geometry::{AffineMap, Vector, CoordinateMap};
+use crate::arithmetic::lattices::reduced_lattice_basis;
 use crate::arithmetic::matrices::Matrix;
 use crate::arithmetic::linear_algebra::{LinearAlgebra, extend_basis, Scalar};
 
@@ -44,21 +45,17 @@ enum Centering3d {
 
 
 pub trait Coord:
-    Clone + PartialOrd + Signed + Scalar
-    + for <'a> Add<&'a Self, Output=Self>
+    crate::arithmetic::lattices::Coord
     + for <'a> AddAssign<&'a Self>
     + for <'a> SubAssign<&'a Self>
     + for <'a> MulAssign<&'a Self>
 {
-    fn round(&self) -> Self;
-    fn div_rounded(&self, other: &Self) -> Self;
+    fn epsilon() -> Self;
 }
 
 
 pub trait CoordPtr<T>:
-    Sized
-    + Add<Output=T> + Sub<Output=T> + Sub<T, Output=T> + Neg<Output=T>
-    + Mul<Output=T>
+    crate::arithmetic::lattices::CoordPtr<T>
 {
 }
 
@@ -233,7 +230,9 @@ fn identitify_spacegroup_2d<T, CSIn, CSOut>(ops: &[AffineMap<T, CSIn>])
 {
     let lin_ops: Vec<_> = ops.iter().map(|op| op.linear_matrix()).collect();
     let (crystal_system, raw_basis) = crystal_system_and_basis_2d(&lin_ops);
-    let primitive_cell = primitive_cell(ops);
+    let to_raw_basis = Matrix::hstack(&raw_basis).inverse().unwrap();
+    let pcell: Vec<_> = primitive_cell(ops).iter()
+        .map(|b| &to_raw_basis * b).collect();
 
     todo!()
 }
@@ -297,7 +296,7 @@ fn crystal_system_and_basis_2d<T>(ops: &[Matrix<T>])
 }
 
 
-fn primitive_cell<T, CS>(ops: &[AffineMap<T, CS>]) -> Vec<Vec<T>>
+fn primitive_cell<T, CS>(ops: &[AffineMap<T, CS>]) -> Vec<Matrix<T>>
     where
         T: Coord, for <'a> &'a T: CoordPtr<T>,
         CS: Clone + PartialEq
@@ -315,7 +314,21 @@ fn primitive_cell<T, CS>(ops: &[AffineMap<T, CS>]) -> Vec<Vec<T>>
         }
     }
 
-    cell
+    cell.iter().map(|v| Matrix::col(v)).collect()
+}
+
+
+fn normalized_basis2d<T>(crys: CrystalSystem2d, basis_in: Vec<Matrix<T>>)
+    -> Vec<Matrix<T>>
+    where
+        T: Coord, for <'a> &'a T: CoordPtr<T>,
+        Matrix<T>: LinearAlgebra<T>
+{
+    let vs: Vec<Vec<T>> = basis_in.iter()
+        .map(|v| v.iter().cloned().collect()).collect();
+    let basis_reduced = reduced_lattice_basis(&vs, dot, &T::epsilon());
+
+    todo!()
 }
 
 
@@ -329,12 +342,8 @@ mod tests {
     use super::*;
 
     impl Coord for BigRational {
-        fn round(&self) -> Self {
-            BigRational::round(self)
-        }
-
-        fn div_rounded(&self, other: &Self) -> Self {
-            BigRational::round(&(self / other))
+        fn epsilon() -> Self {
+            BigRational::zero()
         }
     }
 
