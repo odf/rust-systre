@@ -274,6 +274,12 @@ mod tests {
         let eps = r(0);
         let vs = [vec![r(3), r(2)], vec![r(4), r(3)]];
 
+        let (u, v) = lagrange_reduced(&vs[0], &vs[1], dot, &eps);
+        let w = neg(&add(&u, &v));
+        assert!(!dot(&u, &v).is_positive());
+        assert!(!dot(&u, &w).is_positive());
+        assert!(!dot(&v, &w).is_positive());
+
         let ws = reduced_lattice_basis(&vs, dot, &eps).unwrap();
         let (u, v) = (ws[0].clone(), ws[1].clone());
         assert_eq!(rank(&vec![u.clone(), v.clone()]), 2);
@@ -290,6 +296,15 @@ mod tests {
             vec![r(4), r(3), r(2)],
             vec![r(7), r(5), r(8)],
         ];
+
+        let (u, v, w) = selling_reduced(&vs[0], &vs[1], &vs[2], dot, &eps);
+        let t = neg(&add(&add(&u, &v), &w));
+        assert!(!dot(&u, &v).is_positive());
+        assert!(!dot(&u, &w).is_positive());
+        assert!(!dot(&u, &t).is_positive());
+        assert!(!dot(&v, &w).is_positive());
+        assert!(!dot(&v, &t).is_positive());
+        assert!(!dot(&w, &t).is_positive());
 
         let ws = reduced_lattice_basis(&vs, dot, &eps).unwrap();
         let (u, v, w) = (ws[0].clone(), ws[1].clone(), ws[2].clone());
