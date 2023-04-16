@@ -1,4 +1,4 @@
-use std::ops::{SubAssign, AddAssign, Mul, Neg, MulAssign};
+use std::ops::{SubAssign, AddAssign, Mul, Neg, MulAssign, Add, Sub};
 
 use num_traits::{Signed, Zero, One};
 
@@ -43,6 +43,26 @@ enum Centering3d {
 }
 
 
+pub trait Coord:
+    Clone + PartialOrd + Signed + Scalar
+    + for <'a> Add<&'a Self, Output=Self>
+    + for <'a> AddAssign<&'a Self>
+    + for <'a> SubAssign<&'a Self>
+    + for <'a> MulAssign<&'a Self>
+{
+    fn round(&self) -> Self;
+    fn div_rounded(&self, other: &Self) -> Self;
+}
+
+
+pub trait CoordPtr<T>:
+    Sized
+    + Add<Output=T> + Sub<Output=T> + Sub<T, Output=T> + Neg<Output=T>
+    + Mul<Output=T>
+{
+}
+
+
 struct OperatorDetails<T> {
     matrix: Matrix<T>,
     dimension: usize,
@@ -54,11 +74,8 @@ struct OperatorDetails<T> {
 
 impl<T> OperatorDetails<T>
     where
-        T: Clone + Zero + One + Signed + PartialEq,
-        for <'a> &'a T: Neg<Output=T> + Mul<&'a T, Output=T>,
-        for <'a> T: MulAssign<&'a T> + AddAssign<&'a T>,
-        Matrix<T>: LinearAlgebra<T>,
-        Matrix<T>: AddAssign<Matrix<T>> + SubAssign<Matrix<T>>
+        T: Coord, for <'a> &'a T: CoordPtr<T>,
+        Matrix<T>: LinearAlgebra<T>
 {
     fn from(matrix: Matrix<T>) -> Self {
         let (nrows, ncols) = matrix.shape();
@@ -105,9 +122,7 @@ impl<T> OperatorDetails<T>
 
 
 fn positive_direction<T>(v: &[T]) -> Vec<T>
-    where
-        T: Clone + Signed,
-        for <'a> &'a T: Neg<Output=T>
+    where T: Coord, for <'a> &'a T: CoordPtr<T>
 {
     if let Some(x) = v.iter().find(|x| !x.is_zero()) {
         if x.is_negative() {
@@ -119,9 +134,7 @@ fn positive_direction<T>(v: &[T]) -> Vec<T>
 
 
 fn dot<T>(v: &[T], w: &[T]) -> T
-    where
-        T: Zero,
-        for <'a> &'a T: Mul<&'a T, Output=T>
+    where T: Coord, for <'a> &'a T: CoordPtr<T>
 {
     assert_eq!(v.len(), w.len());
 
@@ -135,27 +148,21 @@ fn dot<T>(v: &[T], w: &[T]) -> T
 
 
 fn are_orthogonal<T>(v: &[T], w: &[T]) -> bool
-    where
-        T: PartialEq + Zero,
-        for <'a> &'a T: Mul<&'a T, Output=T>
+    where T: Coord, for <'a> &'a T: CoordPtr<T>
 {
     dot(v, w) == T::zero()
 }
 
 
 fn are_collinear<T>(v: &[T], w: &[T]) -> bool
-    where
-        T: PartialEq + Zero + Signed,
-        for <'a> &'a T: Mul<&'a T, Output=T>
+    where T: Coord, for <'a> &'a T: CoordPtr<T>
 {
     dot(v, w) * dot(v, w) == dot(v, v) * dot(w, w)
 }
 
 
 fn matrix_order<T>(matrix: &Matrix<T>, max: usize) -> usize
-    where
-        T: Clone + Zero + One + PartialEq,
-        for <'a> T: MulAssign<&'a T> + AddAssign<&'a T>
+    where T: Coord, for <'a> &'a T: CoordPtr<T>
 {
     let (nrows, ncols) = matrix.shape();
     assert_eq!(nrows, ncols);
@@ -176,7 +183,7 @@ fn matrix_order<T>(matrix: &Matrix<T>, max: usize) -> usize
 
 fn is_left_handed<T>(matrix: &Matrix<T>) -> bool
     where
-        T: Signed,
+        T: Coord, for <'a> &'a T: CoordPtr<T>,
         Matrix<T>: LinearAlgebra<T>
 {
     matrix.determinant().is_negative()
@@ -185,10 +192,8 @@ fn is_left_handed<T>(matrix: &Matrix<T>) -> bool
 
 fn operator_axis<T>(matrix: &Matrix<T>) -> Option<Vec<T>>
     where
-        T: Clone + Signed,
-        for <'a> &'a T: Neg<Output=T>,
-        Matrix<T>: LinearAlgebra<T>,
-        Matrix<T>: AddAssign<Matrix<T>> + SubAssign<Matrix<T>>,
+        T: Coord, for <'a> &'a T: CoordPtr<T>,
+        Matrix<T>: LinearAlgebra<T>
 {
     let (dim, ncols) = matrix.shape();
     assert_eq!(dim, ncols);
@@ -223,11 +228,8 @@ fn identitify_spacegroup_2d<T, CSIn, CSOut>(ops: &[AffineMap<T, CSIn>])
     -> (SpaceGroup2d, CoordinateMap<T, CSIn, CSOut>)
     where
         CSIn: Clone + PartialEq,
-        T: Clone + PartialEq + Scalar + Signed,
-        for <'a> &'a T: Neg<Output=T> + Mul<&'a T, Output=T>,
-        for <'a> T: MulAssign<&'a T> + AddAssign<&'a T>,
-        Matrix<T>: LinearAlgebra<T>,
-        Matrix<T>: AddAssign<Matrix<T>> + SubAssign<Matrix<T>>
+        T: Coord, for <'a> &'a T: CoordPtr<T>,
+        Matrix<T>: LinearAlgebra<T>
 {
     let lin_ops: Vec<_> = ops.iter().map(|op| op.linear_matrix()).collect();
     let (crystal_system, raw_basis) = crystal_system_and_basis_2d(&lin_ops);
@@ -240,11 +242,8 @@ fn identitify_spacegroup_2d<T, CSIn, CSOut>(ops: &[AffineMap<T, CSIn>])
 fn crystal_system_and_basis_2d<T>(ops: &[Matrix<T>])
     -> (CrystalSystem2d, Vec<Matrix<T>>)
     where
-        T: Clone + Zero + One + Signed + PartialEq,
-        for <'a> &'a T: Neg<Output=T> + Mul<&'a T, Output=T>,
-        for <'a> T: MulAssign<&'a T> + AddAssign<&'a T>,
-        Matrix<T>: LinearAlgebra<T>,
-        Matrix<T>: AddAssign<Matrix<T>> + SubAssign<Matrix<T>>
+        T: Coord, for <'a> &'a T: CoordPtr<T>,
+        Matrix<T>: LinearAlgebra<T>
 {
     let ops_with_details: Vec<_> = ops.iter()
         .map(|op| OperatorDetails::from(op.clone()))
@@ -300,9 +299,8 @@ fn crystal_system_and_basis_2d<T>(ops: &[Matrix<T>])
 
 fn primitive_cell<T, CS>(ops: &[AffineMap<T, CS>]) -> Vec<Vec<T>>
     where
-        T: Clone + PartialEq + Scalar + Neg<Output=T>,
-        CS: Clone + PartialEq,
-        Vector<T, CS>: MulAssign<T>
+        T: Coord, for <'a> &'a T: CoordPtr<T>,
+        CS: Clone + PartialEq
 {
     let dim = ops[0].dim();
     let identity: Matrix<T> = Matrix::identity(dim);
@@ -329,6 +327,19 @@ mod tests {
     use crate::arithmetic::matrices::Matrix;
 
     use super::*;
+
+    impl Coord for BigRational {
+        fn round(&self) -> Self {
+            BigRational::round(self)
+        }
+
+        fn div_rounded(&self, other: &Self) -> Self {
+            BigRational::round(&(self / other))
+        }
+    }
+
+    impl CoordPtr<BigRational> for &BigRational {
+    }
 
     fn r(x: i32) -> BigRational {
         BigRational::from(BigInt::from(x))
