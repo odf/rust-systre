@@ -99,17 +99,17 @@ pub fn dirichlet_vectors<T, F>(basis: &[Vec<T>], dot: F, epsilon: &T)
         0 | 1 => basis.to_vec(),
         2 => {
             let (u, v) = lagrange_reduced(&basis[0], &basis[1], dot, epsilon);
-            let s = (0..2).map(|i| &u[i] + &v[i]).collect();
-            vec![u, v, s]
+            let w = add(&u, &v);
+            vec![u, v, w]
         }
         3 => {
             let (u, v, w) = selling_reduced(
                 &basis[0], &basis[1], &basis[2], dot, epsilon
             );
-            let uv = (0..3).map(|i| &u[i] + &v[i]).collect();
-            let uw = (0..3).map(|i| &u[i] + &w[i]).collect();
-            let vw = (0..3).map(|i| &v[i] + &w[i]).collect();
-            let uvw = (0..3).map(|i| &u[i] + &v[i] + &w[i]).collect();
+            let uv = add(&u, &v);
+            let uw = add(&u, &w);
+            let vw = add(&v, &w);
+            let uvw = add(&uv, &w);
             vec![u, v, w, uv, uw, vw, uvw]
         }
         _ => panic!("dimension {} not supported", n)
@@ -132,12 +132,12 @@ fn lagrange_reduced<T, F>(u: &[T], v: &[T], dot: F, epsilon: &T)
 
     while norm(&u) < &norm(&v) * &fudge {
         let t = dot(&u, &v).div_rounded(&norm(&u));
-        let w: Vec<_> = (0..u.len()).map(|i| &v[i] - &t * &u[i]).collect();
+        let w = sub(&v, &mul(&u, &t));
         (u, v) = (w, u);
     }
 
     if dot(&u, &v).is_positive() {
-        v = v.into_iter().map(|x| -x).collect();
+        v = neg(&v);
     }
 
     (u, v)
@@ -148,7 +148,7 @@ fn selling_reduced<T, F>(u: &[T], v: &[T], w: &[T], dot: F, epsilon: &T)
     -> (Vec<T>, Vec<T>, Vec<T>)
     where T: Coord, for <'a> &'a T: CoordPtr<T>, F: Fn(&[T], &[T]) -> T
 {
-    let s: Vec<_> = (0..u.len()).map(|i| -(&u[i] + &v[i] + &w[i])).collect();
+    let s = neg(&add(&add(&u, &v), &w));
     let mut vs = [u.to_vec(), v.to_vec(), w.to_vec(), s];
 
     loop {
@@ -159,12 +159,10 @@ fn selling_reduced<T, F>(u: &[T], v: &[T], w: &[T], dot: F, epsilon: &T)
                 if &dot(&vs[i], &vs[j]) > epsilon {
                     for k in 0..4 {
                         if k != i && k != j {
-                            vs[k] = (0..u.len()).map(|mu|
-                                &vs[k][mu] + &vs[i][mu]
-                            ).collect();
+                            vs[k] = add(&vs[k], &vs[i]);
                         }
                     }
-                    vs[i] = vs[i].iter().map(|x| -x).collect();
+                    vs[i] = neg(&vs[i]);
                     changed = true;
                 }
             }
@@ -190,7 +188,7 @@ fn rank<T>(vs: &[Vec<T>]) -> usize
 }
 
 
-fn default_dot<T>(v: &[T], w: &[T]) -> T
+fn dot<T>(v: &[T], w: &[T]) -> T
     where T: Coord, for <'a> &'a T: CoordPtr<T>
 {
     assert_eq!(v.len(), w.len());
@@ -270,7 +268,6 @@ mod tests {
 
     #[test]
     fn test_lattice_reduced2d() {
-        let dot = default_dot;
         let eps = r(0);
         let vs = [vec![r(3), r(2)], vec![r(4), r(3)]];
 
@@ -289,7 +286,6 @@ mod tests {
 
     #[test]
     fn test_lattice_reduced3d() {
-        let dot = default_dot;
         let eps = r(0);
         let vs = [
             vec![r(3), r(2), r(5)],
