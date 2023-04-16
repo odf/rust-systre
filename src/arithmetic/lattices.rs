@@ -24,7 +24,7 @@ pub trait CoordPtr<T>:
 
 
 pub fn shift_for_dirichlet_domain<T, F>(
-    p: &[T], vs: &[Vec<T>], dot: F, epsilon: T
+    p: &[T], vs: &[Vec<T>], dot: F, epsilon: &T
 )
     -> Vec<T>
     where T: Coord, for <'a> &'a T: CoordPtr<T>, F: Fn(&[T], &[T]) -> T
@@ -39,7 +39,7 @@ pub fn shift_for_dirichlet_domain<T, F>(
         for v in vs {
             let t = dot(&add(&pos, &shift), &shift) / dot(v, v);
             let t2 = &t + &t;
-            if t2 < -T::one() || t2 > T::one() + &epsilon {
+            if t2 < -T::one() || t2 > T::one() + epsilon {
                 shift = sub(&shift, &mul(v, &t.round()));
                 proceed = true;
             }
@@ -50,14 +50,14 @@ pub fn shift_for_dirichlet_domain<T, F>(
 }
 
 
-pub fn reduced_lattice_basis<T, F>(vs: &[Vec<T>], dot: F, epsilon: T)
+pub fn reduced_lattice_basis<T, F>(vs: &[Vec<T>], dot: F, epsilon: &T)
     -> Option<Vec<Vec<T>>>
     where T: Coord, for <'a> &'a T: CoordPtr<T>, F: Fn(&[T], &[T]) -> T
 {
     let dim = vs[0].len();
     let mut a: Vec<Vec<T>> = vec![];
 
-    let mut ws = dirichlet_vectors(vs, &dot, epsilon.clone());
+    let mut ws = dirichlet_vectors(vs, &dot, epsilon);
     ws.sort_by(|v, w| {
         let d = dot(v, v).partial_cmp(&dot(w, w)).unwrap();
         if d <= Ordering::Equal {
@@ -69,7 +69,7 @@ pub fn reduced_lattice_basis<T, F>(vs: &[Vec<T>], dot: F, epsilon: T)
 
     for w in &ws {
         let w: Vec<_> = w.iter().map(|x|
-                if &abs(x.clone()) < &epsilon { T::zero() } else { x.clone() }
+                if &abs(x.clone()) < epsilon { T::zero() } else { x.clone() }
             ).collect();
         a.push(if a.len() > 0 && dot(&a[0], &w).is_positive() {
             neg(&w)
@@ -88,7 +88,7 @@ pub fn reduced_lattice_basis<T, F>(vs: &[Vec<T>], dot: F, epsilon: T)
 }
 
 
-pub fn dirichlet_vectors<T, F>(basis: &[Vec<T>], dot: F, epsilon: T)
+pub fn dirichlet_vectors<T, F>(basis: &[Vec<T>], dot: F, epsilon: &T)
     -> Vec<Vec<T>>
     where T: Coord, for <'a> &'a T: CoordPtr<T>, F: Fn(&[T], &[T]) -> T
 {
@@ -117,12 +117,12 @@ pub fn dirichlet_vectors<T, F>(basis: &[Vec<T>], dot: F, epsilon: T)
 }
 
 
-fn lagrange_reduced<T, F>(u: &[T], v: &[T], dot: F, epsilon: T)
+fn lagrange_reduced<T, F>(u: &[T], v: &[T], dot: F, epsilon: &T)
     -> (Vec<T>, Vec<T>)
     where T: Coord, for <'a> &'a T: CoordPtr<T>, F: Fn(&[T], &[T]) -> T
 {
     let norm = |v: &[T]| dot(v, v);
-    let fudge = &T::one() - &epsilon;
+    let fudge = &T::one() - epsilon;
     let mut u = u.to_vec();
     let mut v = v.to_vec();
 
@@ -144,7 +144,7 @@ fn lagrange_reduced<T, F>(u: &[T], v: &[T], dot: F, epsilon: T)
 }
 
 
-fn selling_reduced<T, F>(u: &[T], v: &[T], w: &[T], dot: F, epsilon: T)
+fn selling_reduced<T, F>(u: &[T], v: &[T], w: &[T], dot: F, epsilon: &T)
     -> (Vec<T>, Vec<T>, Vec<T>)
     where T: Coord, for <'a> &'a T: CoordPtr<T>, F: Fn(&[T], &[T]) -> T
 {
@@ -156,7 +156,7 @@ fn selling_reduced<T, F>(u: &[T], v: &[T], w: &[T], dot: F, epsilon: T)
 
         for i in 0..3 {
             for j in (i + 1)..4 {
-                if dot(&vs[i], &vs[j]) > epsilon {
+                if &dot(&vs[i], &vs[j]) > epsilon {
                     for k in 0..4 {
                         if k != i && k != j {
                             vs[k] = (0..u.len()).map(|mu|
@@ -274,7 +274,7 @@ mod tests {
         let eps = r(0);
         let vs = [vec![r(3), r(2)], vec![r(4), r(3)]];
 
-        let ws = reduced_lattice_basis(&vs, dot, eps).unwrap();
+        let ws = reduced_lattice_basis(&vs, dot, &eps).unwrap();
         let (u, v) = (ws[0].clone(), ws[1].clone());
         assert_eq!(rank(&vec![u.clone(), v.clone()]), 2);
         assert!(dot(&u, &u) <= dot(&v, &v));
@@ -291,7 +291,7 @@ mod tests {
             vec![r(7), r(5), r(8)],
         ];
 
-        let ws = reduced_lattice_basis(&vs, dot, eps).unwrap();
+        let ws = reduced_lattice_basis(&vs, dot, &eps).unwrap();
         let (u, v, w) = (ws[0].clone(), ws[1].clone(), ws[2].clone());
         assert_eq!(rank(&vec![u.clone(), v.clone(), w.clone()]), 3);
         assert!(dot(&u, &u) <= dot(&v, &v));
