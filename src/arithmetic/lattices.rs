@@ -37,7 +37,7 @@ pub fn shift_for_dirichlet_domain<T, F>(
         proceed = false;
 
         for v in vs {
-            let t = dot(&add(&pos, &shift), &shift) / dot(v, v);
+            let t = dot(&add(&pos, &shift), v) / dot(v, v);
             let t2 = &t + &t;
             if t2 < -T::one() || t2 > T::one() + epsilon {
                 shift = sub(&shift, &mul(v, &t.round()));
@@ -285,6 +285,16 @@ mod tests {
     }
 
     #[test]
+    fn test_lattice_shift2d() {
+        let eps = r(0);
+        let p = vec![r(32) / r(10), -r(14) / r(10)];
+        let vs = vec![vec![r(1), r(0)], vec![r(0), r(1)], vec![r(1), r(1)]];
+        let s = shift_for_dirichlet_domain(&p, &vs, dot, &eps);
+        let q = add(&p, &s);
+        assert_eq!(&q, &vec![r(2) / r(10), -r(4) / r(10)]);
+    }
+
+    #[test]
     fn test_lattice_reduced3d() {
         let eps = r(0);
         let vs = [
@@ -309,5 +319,23 @@ mod tests {
         assert!(dot(&v, &v) <= dot(&w, &w));
         assert!(!dot(&u, &v).is_positive());
         assert!(!dot(&u, &w).is_positive());
+    }
+
+    #[test]
+    fn test_lattice_shift3d() {
+        let eps = r(0);
+        let p = vec![r(36) / r(10), -r(16) / r(10), r(24) / r(10)];
+        let vs = vec![
+            vec![r(1), r(0), r(0)],
+            vec![r(0), r(1), r(0)],
+            vec![r(0), r(0), r(1)],
+            vec![r(1), r(1), r(0)],
+            vec![r(1), r(0), r(1)],
+            vec![r(0), r(1), r(1)],
+            vec![r(1), r(1), r(1)],
+        ];
+        let s = shift_for_dirichlet_domain(&p, &vs, dot, &eps);
+        let q = add(&p, &s);
+        assert_eq!(&q, &vec![r(-4) / r(10), r(4) / r(10), r(4) / r(10)]);
     }
 }
