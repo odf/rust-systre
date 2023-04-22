@@ -1,11 +1,11 @@
-use std::ops::{SubAssign, AddAssign, Mul, Neg, MulAssign, Add, Sub};
+use std::ops::{SubAssign, AddAssign, MulAssign};
 
-use num_traits::{Signed, Zero, One};
+use num_traits::Zero;
 
-use crate::arithmetic::geometry::{AffineMap, Vector, CoordinateMap};
+use crate::arithmetic::geometry::{AffineMap, CoordinateMap};
 use crate::arithmetic::lattices::reduced_lattice_basis;
 use crate::arithmetic::matrices::Matrix;
-use crate::arithmetic::linear_algebra::{LinearAlgebra, extend_basis, Scalar};
+use crate::arithmetic::linear_algebra::{LinearAlgebra, extend_basis};
 
 
 #[derive(Debug, PartialEq)]
