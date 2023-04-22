@@ -211,7 +211,7 @@ fn operator_axis<T>(matrix: &Matrix<T>) -> Option<Vec<T>>
 }
 
 
-struct SpaceGroup2d {
+pub struct SpaceGroup2d {
     dimension: usize,
     crystal_system: CrystalSystem2d,
     centering: Centering2d,
@@ -221,7 +221,7 @@ struct SpaceGroup2d {
 }
 
 
-fn identitify_spacegroup_2d<T, CSIn, CSOut>(ops: &[AffineMap<T, CSIn>])
+pub fn identitify_spacegroup_2d<T, CSIn, CSOut>(ops: &[AffineMap<T, CSIn>])
     -> (SpaceGroup2d, CoordinateMap<T, CSIn, CSOut>)
     where
         CSIn: Clone + PartialEq,
@@ -229,10 +229,11 @@ fn identitify_spacegroup_2d<T, CSIn, CSOut>(ops: &[AffineMap<T, CSIn>])
         Matrix<T>: LinearAlgebra<T>
 {
     let lin_ops: Vec<_> = ops.iter().map(|op| op.linear_matrix()).collect();
-    let (crystal_system, raw_basis) = crystal_system_and_basis_2d(&lin_ops);
-    let to_raw_basis = Matrix::hstack(&raw_basis).inverse().unwrap();
+    let (crystal_system, basis) = crystal_system_and_basis_2d(&lin_ops);
+    let to_basis = Matrix::hstack(&basis).inverse().unwrap();
     let pcell: Vec<_> = primitive_cell(ops).iter()
-        .map(|b| &to_raw_basis * b).collect();
+        .map(|b| &to_basis * b).collect();
+    let (normalized, centering) = normalized_basis2d(crystal_system, &pcell);
 
     todo!()
 }
@@ -314,21 +315,82 @@ fn primitive_cell<T, CS>(ops: &[AffineMap<T, CS>]) -> Vec<Matrix<T>>
         }
     }
 
-    cell.iter().map(|v| Matrix::col(v)).collect()
+    as_columns(cell)
 }
 
 
-fn normalized_basis2d<T>(crys: CrystalSystem2d, basis_in: Vec<Matrix<T>>)
-    -> Vec<Matrix<T>>
+fn normalized_basis2d<T>(crys: CrystalSystem2d, basis_in: &Vec<Matrix<T>>)
+    -> (Vec<Matrix<T>>, Centering2d)
     where
         T: Coord, for <'a> &'a T: CoordPtr<T>,
         Matrix<T>: LinearAlgebra<T>
 {
-    let vs: Vec<Vec<T>> = basis_in.iter()
-        .map(|v| v.iter().cloned().collect()).collect();
-    let basis_reduced = reduced_lattice_basis(&vs, dot, &T::epsilon());
+    let vs: Vec<Vec<T>> = from_columns(basis_in.clone());
+    let b = reduced_lattice_basis(&vs, dot, &T::epsilon()).unwrap();
 
-    todo!()
+    match crys {
+        CrystalSystem2d::Oblique => (
+            as_columns(b),
+            Centering2d::Primitive
+        ),
+        CrystalSystem2d::Rectangular => {
+            if !b[0][0].is_zero() && !b[0][1].is_zero() {
+                (
+                    as_columns(vec![
+                        vec![T::zero(), &b[0][1] + &b[0][1]],
+                        vec![&b[0][0] + &b[0][0], T::zero()]
+                    ]),
+                    Centering2d::Centered
+                )
+            } else if !b[1][0].is_zero() && !b[1][1].is_zero() {
+                (
+                    as_columns(vec![
+                        vec![T::zero(), &b[1][1] + &b[1][1]],
+                        vec![&b[1][0] + &b[1][0], T::zero()]
+                    ]),
+                    Centering2d::Centered
+                )
+            } else if b[0][1].is_zero() {
+                (
+                    as_columns(vec![
+                        b[1].clone(),
+                        vec![-&b[0][0], -&b[0][1]]
+                    ]),
+                    Centering2d::Primitive
+                )
+            } else {
+                (as_columns(b), Centering2d::Primitive)
+            }
+        },
+        CrystalSystem2d::Square => (
+            as_columns(vec![
+                b[0].clone(),
+                vec![-&b[0][1], b[0][0].clone()]
+            ]),
+            Centering2d::Primitive
+        ),
+        CrystalSystem2d::Hexagonal => (
+            as_columns(vec![
+                b[0].clone(),
+                vec![-&b[0][1], &b[0][0] - &b[0][1]]
+            ]),
+            Centering2d::Primitive
+        ),
+    }
+}
+
+
+fn from_columns<T>(cols: Vec<Matrix<T>>) -> Vec<Vec<T>>
+    where T: Clone
+{
+    cols.iter().map(|v| v.iter().cloned().collect()).collect()
+}
+
+
+fn as_columns<T>(vs: Vec<Vec<T>>) -> Vec<Matrix<T>>
+    where T: Clone
+{
+    vs.iter().map(|v| Matrix::col(v)).collect()
 }
 
 
