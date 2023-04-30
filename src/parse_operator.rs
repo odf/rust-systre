@@ -4,6 +4,7 @@ use nom::character::complete::{char, digit1, one_of, space0};
 use nom::combinator::map_opt;
 use nom::multi::{many0, separated_list1};
 use nom::sequence::{separated_pair, tuple, pair, preceded};
+use num_rational::Ratio;
 
 
 #[derive(Debug, PartialEq)]
@@ -14,7 +15,7 @@ enum Axis {
     None,
 }
 
-type Fraction = (i32, u32);
+type Fraction = Ratio<i32>;
 type Term = (Fraction, Axis);
 type Coordinate = Vec<Term>;
 type Operator = Vec<Coordinate>;
@@ -41,7 +42,7 @@ fn term(input: &str) -> IResult<&str, Term> {
 fn signed_term(input: &str) -> IResult<&str, Term> {
     map_opt(
         separated_pair(sign, space0, unsigned_term),
-        |(s, ((n, d), a))| Some(((s * n, d), a))
+        |(s, (q, a))| Some((Ratio::from_integer(s) * q, a))
     )(input)
 }
 
@@ -53,7 +54,7 @@ fn unsigned_term(input: &str) -> IResult<&str, Term> {
             |(q, a)| Some((q, a))
         ),
         map_opt(unsigned_fraction, |q| Some((q, Axis::None))),
-        map_opt(axis, |a| Some(((1, 1), a))),
+        map_opt(axis, |a| Some((Ratio::from_integer(1), a))),
     ))(input)
 }
 
@@ -64,9 +65,9 @@ fn unsigned_fraction(input: &str) -> IResult<&str, Fraction> {
             separated_pair(
                 integer, tuple((space0, char('/'), space0)), integer
             ),
-            |(n, d)| Some((n as i32, d))
+            |(n, d)| Some(Ratio::new(n as i32, d as i32))
         ),
-        map_opt(integer, |n| Some((n as i32, 1))),
+        map_opt(integer, |n| Some(Ratio::from_integer(n as i32))),
     ))(input)
 }
 
@@ -144,26 +145,26 @@ fn test_parse_integer() {
 
 #[test]
 fn test_parse_fraction() {
-    assert_eq!(unsigned_fraction("12/3  "), Ok(("  ", (12, 3))));
-    assert_eq!(unsigned_fraction("23  "), Ok(("  ", (23, 1))));
+    assert_eq!(unsigned_fraction("12/3  "), Ok(("  ", Ratio::new(12, 3))));
+    assert_eq!(unsigned_fraction("23  "), Ok(("  ", Ratio::new(23, 1))));
     assert!(unsigned_fraction("/3  ").is_err());
 }
 
 
 #[test]
 fn test_parse_unsigned_term() {
-    assert_eq!(unsigned_term("12/3x  "), Ok(("  ", ((12, 3), Axis::X))));
-    assert_eq!(unsigned_term("12/3  "), Ok(("  ", ((12, 3), Axis::None))));
-    assert_eq!(unsigned_term("y/  "), Ok(("/  ", ((1, 1), Axis::Y))));
+    assert_eq!(unsigned_term("12/3x  "), Ok(("  ", (Ratio::new(12, 3), Axis::X))));
+    assert_eq!(unsigned_term("12/3  "), Ok(("  ", (Ratio::new(12, 3), Axis::None))));
+    assert_eq!(unsigned_term("y/  "), Ok(("/  ", (Ratio::new(1, 1), Axis::Y))));
     assert!(unsigned_term("/x  ").is_err());
 }
 
 
 #[test]
 fn test_parse_signed_term() {
-    assert_eq!(signed_term("+12/3x  "), Ok(("  ", ((12, 3), Axis::X))));
-    assert_eq!(signed_term("-12/3  "), Ok(("  ", ((-12, 3), Axis::None))));
-    assert_eq!(signed_term("+y/  "), Ok(("/  ", ((1, 1), Axis::Y))));
+    assert_eq!(signed_term("+12/3x  "), Ok(("  ", (Ratio::new(12, 3), Axis::X))));
+    assert_eq!(signed_term("-12/3  "), Ok(("  ", (Ratio::new(-12, 3), Axis::None))));
+    assert_eq!(signed_term("+y/  "), Ok(("/  ", (Ratio::new(1, 1), Axis::Y))));
     assert!(signed_term("4/5x  ").is_err());
     assert!(signed_term("/x  ").is_err());
 }
@@ -171,12 +172,12 @@ fn test_parse_signed_term() {
 
 #[test]
 fn test_parse_term() {
-    assert_eq!(term("12/3x  "), Ok(("  ", ((12, 3), Axis::X))));
-    assert_eq!(term("12/3  "), Ok(("  ", ((12, 3), Axis::None))));
-    assert_eq!(term("y/  "), Ok(("/  ", ((1, 1), Axis::Y))));
-    assert_eq!(term("+12/3 x  "), Ok(("  ", ((12, 3), Axis::X))));
-    assert_eq!(term("- 12 / 3  "), Ok(("  ", ((-12, 3), Axis::None))));
-    assert_eq!(term("+y/  "), Ok(("/  ", ((1, 1), Axis::Y))));
+    assert_eq!(term("12/3x  "), Ok(("  ", (Ratio::new(12, 3), Axis::X))));
+    assert_eq!(term("12/3  "), Ok(("  ", (Ratio::new(12, 3), Axis::None))));
+    assert_eq!(term("y/  "), Ok(("/  ", (Ratio::new(1, 1), Axis::Y))));
+    assert_eq!(term("+12/3 x  "), Ok(("  ", (Ratio::new(12, 3), Axis::X))));
+    assert_eq!(term("- 12 / 3  "), Ok(("  ", (Ratio::new(-12, 3), Axis::None))));
+    assert_eq!(term("+y/  "), Ok(("/  ", (Ratio::new(1, 1), Axis::Y))));
     assert!(term("/x  ").is_err());
 }
 
@@ -185,13 +186,20 @@ fn test_parse_term() {
 fn test_parse_coordinate() {
     assert_eq!(
         coordinate("x-z"),
-        Ok(("", vec![((1, 1), Axis::X), ((-1, 1), Axis::Z)]))
+        Ok((
+            "",
+            vec![(Ratio::new(1, 1), Axis::X), (Ratio::new(-1, 1), Axis::Z)]
+        ))
     );
     assert_eq!(
         coordinate("-1/3 - 2 x + 1 / 2 y"),
         Ok((
             "",
-            vec![((-1, 3), Axis::None), ((-2, 1), Axis::X), ((1, 2), Axis::Y)]
+            vec![
+                (Ratio::new(-1, 3), Axis::None),
+                (Ratio::new(-2, 1), Axis::X),
+                (Ratio::new(1, 2), Axis::Y)
+            ]
         ))
     );
 }
@@ -204,9 +212,9 @@ fn test_parse_operator() {
         Ok((
             "",
             vec![
-                vec![((-1, 1), Axis::X)],
-                vec![((1, 1), Axis::Y), ((-1, 1), Axis::X)],
-                vec![((-1, 1), Axis::Z)],
+                vec![(Ratio::new(-1, 1), Axis::X)],
+                vec![(Ratio::new(1, 1), Axis::Y), (Ratio::new(-1, 1), Axis::X)],
+                vec![(Ratio::new(-1, 1), Axis::Z)],
             ]
         ))
     );
