@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use nom::IResult;
 use nom::branch::alt;
 use nom::character::complete::{char, digit1, one_of, space0};
@@ -5,9 +7,10 @@ use nom::combinator::map_opt;
 use nom::multi::{many0, separated_list1};
 use nom::sequence::{separated_pair, tuple, pair, preceded};
 use num_rational::Ratio;
+use num_traits::CheckedAdd;
 
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, Hash, PartialEq)]
 enum Axis {
     X,
     Y,
@@ -17,7 +20,7 @@ enum Axis {
 
 type Fraction = Ratio<i32>;
 type Term = (Fraction, Axis);
-type Coordinate = Vec<Term>;
+type Coordinate = HashMap<Axis, Fraction>;
 type Operator = Vec<Coordinate>;
 
 
@@ -88,11 +91,15 @@ fn integer(input: &str) -> IResult<&str, u32> {
 
 
 fn collect_terms(first: Term, rest: Vec<Term>) -> Coordinate {
-    let mut terms = vec![first];
-    for t in rest {
-        terms.push(t);
+    let (q, a) = first;
+    let mut coeffs = HashMap::from([(a, q)]);
+    for (q, a) in rest {
+        coeffs.entry(a)
+            .and_modify(|c| *c = q.checked_add(c).unwrap())
+            .or_insert(q);
     }
-    terms
+
+    coeffs
 }
 
 
@@ -116,7 +123,11 @@ fn map_axis(c: char) -> Option<Axis> {
 
 
 fn map_integer(digits: &str) -> Option<u32> {
-    Some(digits.chars().fold(0, |n, c| n * 10 + c.to_digit(10).unwrap()))
+    if digits.len() <= 9 {
+        Some(digits.chars().fold(0, |n, c| n * 10 + c.to_digit(10).unwrap()))
+    } else {
+        None
+    }
 }
 
 
@@ -139,7 +150,9 @@ fn test_parse_axis() {
 #[test]
 fn test_parse_integer() {
     assert_eq!(integer("123  "), Ok(("  ", 123)));
+    assert_eq!(integer("123456789  "), Ok(("  ", 123456789)));
     assert!(integer("x123  ").is_err());
+    assert!(integer("1234567890  ").is_err());
 }
 
 
@@ -153,18 +166,30 @@ fn test_parse_fraction() {
 
 #[test]
 fn test_parse_unsigned_term() {
-    assert_eq!(unsigned_term("12/3x  "), Ok(("  ", (Ratio::new(12, 3), Axis::X))));
-    assert_eq!(unsigned_term("12/3  "), Ok(("  ", (Ratio::new(12, 3), Axis::None))));
-    assert_eq!(unsigned_term("y/  "), Ok(("/  ", (Ratio::new(1, 1), Axis::Y))));
+    assert_eq!(
+        unsigned_term("12/3x  "), Ok(("  ", (Ratio::new(12, 3), Axis::X)))
+    );
+    assert_eq!(
+        unsigned_term("12/3  "), Ok(("  ", (Ratio::new(12, 3), Axis::None)))
+    );
+    assert_eq!(
+        unsigned_term("y/  "), Ok(("/  ", (Ratio::new(1, 1), Axis::Y)))
+    );
     assert!(unsigned_term("/x  ").is_err());
 }
 
 
 #[test]
 fn test_parse_signed_term() {
-    assert_eq!(signed_term("+12/3x  "), Ok(("  ", (Ratio::new(12, 3), Axis::X))));
-    assert_eq!(signed_term("-12/3  "), Ok(("  ", (Ratio::new(-12, 3), Axis::None))));
-    assert_eq!(signed_term("+y/  "), Ok(("/  ", (Ratio::new(1, 1), Axis::Y))));
+    assert_eq!(
+        signed_term("+12/3x  "), Ok(("  ", (Ratio::new(12, 3), Axis::X)))
+    );
+    assert_eq!(
+        signed_term("-12/3  "), Ok(("  ", (Ratio::new(-12, 3), Axis::None)))
+    );
+    assert_eq!(
+        signed_term("+y/  "), Ok(("/  ", (Ratio::new(1, 1), Axis::Y)))
+    );
     assert!(signed_term("4/5x  ").is_err());
     assert!(signed_term("/x  ").is_err());
 }
@@ -176,7 +201,9 @@ fn test_parse_term() {
     assert_eq!(term("12/3  "), Ok(("  ", (Ratio::new(12, 3), Axis::None))));
     assert_eq!(term("y/  "), Ok(("/  ", (Ratio::new(1, 1), Axis::Y))));
     assert_eq!(term("+12/3 x  "), Ok(("  ", (Ratio::new(12, 3), Axis::X))));
-    assert_eq!(term("- 12 / 3  "), Ok(("  ", (Ratio::new(-12, 3), Axis::None))));
+    assert_eq!(
+        term("- 12 / 3  "), Ok(("  ", (Ratio::new(-12, 3), Axis::None)))
+    );
     assert_eq!(term("+y/  "), Ok(("/  ", (Ratio::new(1, 1), Axis::Y))));
     assert!(term("/x  ").is_err());
 }
@@ -188,18 +215,21 @@ fn test_parse_coordinate() {
         coordinate("x-z"),
         Ok((
             "",
-            vec![(Ratio::new(1, 1), Axis::X), (Ratio::new(-1, 1), Axis::Z)]
+            HashMap::from([
+                (Axis::X, Ratio::new(1, 1)),
+                (Axis::Z, Ratio::new(-1, 1))
+            ])
         ))
     );
     assert_eq!(
-        coordinate("-1/3 - 2 x + 1 / 2 y"),
+        coordinate("-1/3 - 2 x + 1 / 2 y - 1/3y + 1/4"),
         Ok((
             "",
-            vec![
-                (Ratio::new(-1, 3), Axis::None),
-                (Ratio::new(-2, 1), Axis::X),
-                (Ratio::new(1, 2), Axis::Y)
-            ]
+            HashMap::from([
+                (Axis::None, Ratio::new(-1, 12)),
+                (Axis::X, Ratio::new(-2, 1)),
+                (Axis::Y, Ratio::new(1, 6))
+            ])
         ))
     );
 }
@@ -212,9 +242,11 @@ fn test_parse_operator() {
         Ok((
             "",
             vec![
-                vec![(Ratio::new(-1, 1), Axis::X)],
-                vec![(Ratio::new(1, 1), Axis::Y), (Ratio::new(-1, 1), Axis::X)],
-                vec![(Ratio::new(-1, 1), Axis::Z)],
+                HashMap::from([(Axis::X, Ratio::new(-1, 1))]),
+                HashMap::from([
+                    (Axis::Y, Ratio::new(1, 1)), (Axis::X, Ratio::new(-1, 1)),
+                ]),
+                HashMap::from([(Axis::Z, Ratio::new(-1, 1))]),
             ]
         ))
     );
