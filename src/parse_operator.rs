@@ -1,11 +1,11 @@
-use std::collections::HashMap;
+use std::iter;
 
-use nom::IResult;
+use nom::{IResult, Finish};
 use nom::branch::alt;
 use nom::character::complete::{char, digit1, one_of, space0};
 use nom::combinator::map_opt;
 use nom::multi::{many0, separated_list1};
-use nom::sequence::{separated_pair, tuple, pair, preceded};
+use nom::sequence::{separated_pair, tuple, pair, preceded, delimited};
 use num_rational::Ratio;
 use num_traits::CheckedAdd;
 
@@ -20,11 +20,20 @@ enum Axis {
 
 type Fraction = Ratio<i32>;
 type Term = (Fraction, Axis);
-type Coordinate = HashMap<Axis, Fraction>;
-type Operator = Vec<Coordinate>;
+type Coordinate = (Vec<Ratio<i32>>, Ratio<i32>);
+type Operator = (Vec<Vec<Ratio<i32>>>, Vec<Ratio<i32>>);
 
 
-fn operator(input: &str) -> IResult<&str, Operator> {
+pub fn parse_operator(input: &str) -> Result<(&str, Operator), String>
+{
+    match delimited(space0, operator, space0)(input).finish() {
+        Ok((rest, op)) => Ok((rest, convert_operator(&op))),
+        Err(err) => Err(err.to_string()),
+    }
+}
+
+
+fn operator(input: &str) -> IResult<&str, Vec<Coordinate>> {
     separated_list1(tuple((space0, char(','), space0)), coordinate)(input)
 }
 
@@ -32,7 +41,7 @@ fn operator(input: &str) -> IResult<&str, Operator> {
 fn coordinate(input: &str) -> IResult<&str, Coordinate> {
     map_opt(
         pair(term, many0(preceded(space0, signed_term))),
-        |(first, rest)| Some(collect_terms(first, rest))
+        |(first, rest)| collect_terms(first, rest)
     )(input)
 }
 
@@ -90,16 +99,33 @@ fn integer(input: &str) -> IResult<&str, u32> {
 }
 
 
-fn collect_terms(first: Term, rest: Vec<Term>) -> Coordinate {
-    let (q, a) = first;
-    let mut coeffs = HashMap::from([(a, q)]);
-    for (q, a) in rest {
-        coeffs.entry(a)
-            .and_modify(|c| *c = q.checked_add(c).unwrap())
-            .or_insert(q);
+fn convert_operator(op: &[Coordinate]) -> Operator {
+    let mut rows = vec![];
+    let mut shift = vec![];
+
+    for (r, s) in op {
+        rows.push(r.clone());
+        shift.push(*s);
     }
 
-    coeffs
+    (rows, shift)
+}
+
+
+fn collect_terms(first: Term, rest: Vec<Term>) -> Option<Coordinate> {
+    let mut shift = Ratio::new(0, 1);
+    let mut row = vec![Ratio::new(0, 1); 3];
+
+    for (q, a) in iter::once(first).chain(rest) {
+        match a {
+            Axis::X => row[0] = q.checked_add(&row[0])?,
+            Axis::Y => row[1] = q.checked_add(&row[1])?,
+            Axis::Z => row[2] = q.checked_add(&row[2])?,
+            Axis::None => shift = q.checked_add(&shift)?,
+        }
+    }
+
+    Some((row, shift))
 }
 
 
@@ -215,21 +241,20 @@ fn test_parse_coordinate() {
         coordinate("x-z"),
         Ok((
             "",
-            HashMap::from([
-                (Axis::X, Ratio::new(1, 1)),
-                (Axis::Z, Ratio::new(-1, 1))
-            ])
+            (
+                vec![Ratio::new(1, 1), Ratio::new(0, 1), Ratio::new(-1, 1)],
+                Ratio::new(0, 1)
+            )
         ))
     );
     assert_eq!(
         coordinate("-1/3 - 2 x + 1 / 2 y - 1/3y + 1/4"),
         Ok((
             "",
-            HashMap::from([
-                (Axis::None, Ratio::new(-1, 12)),
-                (Axis::X, Ratio::new(-2, 1)),
-                (Axis::Y, Ratio::new(1, 6))
-            ])
+            (
+                vec![Ratio::new(-2, 1), Ratio::new(1, 6), Ratio::new(0, 1)],
+                Ratio::new(-1, 12)
+            )
         ))
     );
 }
@@ -237,17 +262,20 @@ fn test_parse_coordinate() {
 
 #[test]
 fn test_parse_operator() {
+    let r = |d| Ratio::new(d, 1);
+
     assert_eq!(
-        operator("-x, y - x, -z"),
+        parse_operator("  -x, y - x, -z  "),
         Ok((
             "",
-            vec![
-                HashMap::from([(Axis::X, Ratio::new(-1, 1))]),
-                HashMap::from([
-                    (Axis::Y, Ratio::new(1, 1)), (Axis::X, Ratio::new(-1, 1)),
-                ]),
-                HashMap::from([(Axis::Z, Ratio::new(-1, 1))]),
-            ]
+            (
+                vec![
+                    vec![r(-1), r(0), r(0)],
+                    vec![r(-1), r(1), r(0)],
+                    vec![r(0), r(0), r(-1)],
+                ],
+                vec![r(0), r(0), r(0)]
+            )
         ))
     );
 }
