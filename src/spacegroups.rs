@@ -1,11 +1,13 @@
 use std::ops::{SubAssign, AddAssign, MulAssign};
 
+use num_rational::Ratio;
 use num_traits::Zero;
 
 use crate::arithmetic::geometry::{AffineMap, CoordinateMap};
 use crate::arithmetic::lattices::reduced_lattice_basis;
 use crate::arithmetic::matrices::Matrix;
 use crate::arithmetic::linear_algebra::{LinearAlgebra, extend_basis};
+use crate::parse_operator::parse_operator;
 
 
 #[derive(Debug, PartialEq)]
@@ -51,6 +53,7 @@ pub trait Coord:
     + for <'a> MulAssign<&'a Self>
 {
     fn epsilon() -> Self;
+    fn promote(q: Ratio<i32>) -> Self;
 }
 
 
@@ -337,24 +340,24 @@ fn normalized_basis2d<T>(crys: CrystalSystem2d, basis_in: &Vec<Matrix<T>>)
             if !b[0][0].is_zero() && !b[0][1].is_zero() {
                 (
                     as_columns(vec![
-                        vec![T::zero(), &b[0][1] + &b[0][1]],
-                        vec![&b[0][0] + &b[0][0], T::zero()]
+                        apply_operator("0, 2y", &b[0]),
+                        apply_operator("2x, 0", &b[0]),
                     ]),
                     Centering2d::Centered
                 )
             } else if !b[1][0].is_zero() && !b[1][1].is_zero() {
                 (
                     as_columns(vec![
-                        vec![T::zero(), &b[1][1] + &b[1][1]],
-                        vec![&b[1][0] + &b[1][0], T::zero()]
+                        apply_operator("0, 2y", &b[1]),
+                        apply_operator("2x, 0", &b[1]),
                     ]),
                     Centering2d::Centered
                 )
             } else if b[0][1].is_zero() {
                 (
                     as_columns(vec![
-                        b[1].clone(),
-                        vec![-&b[0][0], -&b[0][1]]
+                        apply_operator("x, y", &b[1]),
+                        apply_operator("-x, -y", &b[0]),
                     ]),
                     Centering2d::Primitive
                 )
@@ -364,19 +367,43 @@ fn normalized_basis2d<T>(crys: CrystalSystem2d, basis_in: &Vec<Matrix<T>>)
         },
         CrystalSystem2d::Square => (
             as_columns(vec![
-                b[0].clone(),
-                vec![-&b[0][1], b[0][0].clone()]
+                apply_operator("x, y", &b[0]),
+                apply_operator("-y, x", &b[0]),
             ]),
             Centering2d::Primitive
         ),
         CrystalSystem2d::Hexagonal => (
             as_columns(vec![
-                b[0].clone(),
-                vec![-&b[0][1], &b[0][0] - &b[0][1]]
+                apply_operator("x, y", &b[0]),
+                apply_operator("-y, x-y", &b[0]),
             ]),
             Centering2d::Primitive
         ),
     }
+}
+
+
+fn apply_operator<T>(op: &str, b: &Vec<T>) -> Vec<T>
+    where T: Coord, for <'a> &'a T: CoordPtr<T>
+{
+    let (_, (m, s)) = parse_operator(op).unwrap();
+    let n = m.len();
+    assert_eq!(s.len(), n);
+
+    let mut result = vec![];
+
+    for k in 0..n {
+        let r = &m[k];
+        assert_eq!(r.len(), n);
+
+        let mut x = T::zero();
+        for i in 0..n {
+            x = x + &Coord::promote(r[i]) * &b[i];
+        }
+        result.push(x + &Coord::promote(s[k]));
+    }
+
+    result
 }
 
 
@@ -406,6 +433,10 @@ mod tests {
     impl Coord for BigRational {
         fn epsilon() -> Self {
             BigRational::zero()
+        }
+
+        fn promote(q: Ratio<i32>) -> Self {
+            Ratio::new(BigInt::from(*q.numer()), BigInt::from(*q.denom()))
         }
     }
 
