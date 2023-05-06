@@ -108,6 +108,11 @@ fn convert_operator(op: &[Coordinate]) -> Operator {
         shift.push(*s);
     }
 
+    let n = shift.len();
+    let rows = rows.iter()
+        .map(|v| v.iter().take(n).copied().collect())
+        .collect();
+
     (rows, shift)
 }
 
@@ -261,7 +266,7 @@ fn test_parse_coordinate() {
 
 
 #[test]
-fn test_parse_operator() {
+fn test_parse_operator_3d() {
     let r = |d| Ratio::new(d, 1);
 
     assert_eq!(
@@ -275,6 +280,26 @@ fn test_parse_operator() {
                     vec![r(0), r(0), r(-1)],
                 ],
                 vec![r(0), r(0), r(0)]
+            )
+        ))
+    );
+}
+
+
+#[test]
+fn test_parse_operator_2d() {
+    let r = |d| Ratio::new(d, 1);
+
+    assert_eq!(
+        parse_operator("  1 - x, 2y - x  "),
+        Ok((
+            "",
+            (
+                vec![
+                    vec![r(-1), r(0)],
+                    vec![r(-1), r(2)],
+                ],
+                vec![r(1), r(0)]
             )
         ))
     );
