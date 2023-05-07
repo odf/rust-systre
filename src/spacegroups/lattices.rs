@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 
 use num_traits::{Signed, abs};
 
-use super::linear_algebra::{extend_basis, Scalar};
+use crate::arithmetic::linear_algebra::{extend_basis, Scalar};
 
 
 pub trait Coord:
