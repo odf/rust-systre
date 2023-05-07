@@ -227,18 +227,25 @@ pub struct SpaceGroup2d {
 pub fn identitify_spacegroup_2d<T, CSIn, CSOut>(ops: &[AffineMap<T, CSIn>])
     -> (SpaceGroup2d, CoordinateMap<T, CSIn, CSOut>)
     where
-        CSIn: Clone + PartialEq,
         T: Coord, for <'a> &'a T: CoordPtr<T>,
+        CSIn: Clone + PartialEq,
+        CSOut: Clone,
         Matrix<T>: LinearAlgebra<T>
 {
     let lin_ops: Vec<_> = ops.iter().map(|op| op.linear_matrix()).collect();
     let (crystal_system, basis) = crystal_system_and_basis_2d(&lin_ops);
-    let to_basis = Matrix::hstack(&basis).inverse().unwrap();
-    let pcell: Vec<_> = primitive_cell(ops).iter()
-        .map(|b| &to_basis * b).collect();
-    let (normalized, centering) = normalized_basis2d(crystal_system, &pcell);
+    let basis = Matrix::hstack(&basis);
 
-    todo!()
+    let m = basis.transpose().inverse().unwrap();
+    let pcell = primitive_cell(ops).iter().map(|b| &m * b).collect();
+
+    let (normalized, centering) = normalized_basis_2d(crystal_system, &pcell);
+    let normalized = Matrix::hstack(&normalized);
+
+    let to_normalized = (&normalized * &basis).transpose().inverse().unwrap()
+        .into();
+
+    (todo!(), to_normalized)
 }
 
 
@@ -322,7 +329,7 @@ fn primitive_cell<T, CS>(ops: &[AffineMap<T, CS>]) -> Vec<Matrix<T>>
 }
 
 
-fn normalized_basis2d<T>(crys: CrystalSystem2d, basis_in: &Vec<Matrix<T>>)
+fn normalized_basis_2d<T>(crys: CrystalSystem2d, basis_in: &Vec<Matrix<T>>)
     -> (Vec<Matrix<T>>, Centering2d)
     where
         T: Coord, for <'a> &'a T: CoordPtr<T>,
