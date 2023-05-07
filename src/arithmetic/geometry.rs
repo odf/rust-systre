@@ -564,11 +564,17 @@ impl<T: Clone, CS: Clone> AffineMap<T, CS> {
         }
     }
 
-    fn from<CSIn>(src: AffineMap<T, CSIn>) -> Self {
+    fn adjust<CSIn>(src: AffineMap<T, CSIn>) -> Self {
         AffineMap {
             linear_coeffs: src.linear_coeffs,
             shift: Vector::from(src.shift.coords),
         }
+    }
+}
+
+impl<T: Clone + Zero, CS: Clone> From<Matrix<T>> for AffineMap<T, CS> {
+    fn from(coords: Matrix<T>) -> Self {
+        Self::new(&coords, &Vector::zero(coords.nrows))
     }
 }
 
@@ -655,7 +661,7 @@ impl<T, CSIn, CSOut> CoordinateMap<T, CSIn, CSOut>
     pub fn new(forward: &AffineMap<T, CSIn>) -> Self {
         CoordinateMap {
             forward: forward.clone(),
-            backward: AffineMap::from(forward.inverse().unwrap()),
+            backward: AffineMap::adjust(forward.inverse().unwrap()),
         }
     }
 
@@ -664,6 +670,19 @@ impl<T, CSIn, CSOut> CoordinateMap<T, CSIn, CSOut>
             forward: self.backward.clone(),
             backward: self.forward.clone()
         }
+    }
+}
+
+impl<T, CSIn, CSOut> From<Matrix<T>> for CoordinateMap<T, CSIn, CSOut>
+    where
+        T: Clone + Zero + Neg<Output=T>,
+        CSIn: Clone,
+        CSOut: Clone,
+        Matrix<T>: LinearAlgebra<T>,
+        for <'a> &'a Matrix<T>: Mul<&'a Matrix<T>, Output=Matrix<T>>
+{
+    fn from(coords: Matrix<T>) -> Self {
+        Self::new(&coords.into())
     }
 }
 
@@ -683,8 +702,8 @@ impl<T, CSIn, CSOut, CSOther> Mul<&CoordinateMap<T, CSIn, CSOut>>
 
     fn mul(self, rhs: &CoordinateMap<T, CSIn, CSOut>) -> Self::Output {
         CoordinateMap {
-            forward: AffineMap::from(self.forward.clone()) * &rhs.forward,
-            backward: AffineMap::from(rhs.backward.clone()) * &self.backward,
+            forward: AffineMap::adjust(self.forward.clone()) * &rhs.forward,
+            backward: AffineMap::adjust(rhs.backward.clone()) * &self.backward,
         }
     }
 }
@@ -744,7 +763,7 @@ impl<T, CSIn, CSOut> Mul<&AffineMap<T, CSIn>>
     type Output = AffineMap<T, CSOut>;
 
     fn mul(self, rhs: &AffineMap<T, CSIn>) -> Self::Output {
-        AffineMap::from(&self.forward * rhs) * &self.backward
+        AffineMap::adjust(&self.forward * rhs) * &self.backward
     }
 }
 
