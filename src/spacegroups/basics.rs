@@ -1,14 +1,15 @@
+use std::hash::Hash;
 use std::ops::{Rem, Mul, Neg};
 use std::collections::HashSet;
 
 use num_traits::{One, Zero};
 
 use crate::arithmetic::geometry::{AffineMap, Vector, CoordinateMap};
-use crate::arithmetic::linear_algebra::{Scalar, extend_basis};
+use crate::arithmetic::linear_algebra::{Scalar, extend_basis, LinearAlgebra};
 use crate::arithmetic::matrices::Matrix;
 
 
-pub fn mod_z<T, CS>(op: AffineMap<T, CS>) -> AffineMap<T, CS>
+pub fn mod_z<T, CS>(op: &AffineMap<T, CS>) -> AffineMap<T, CS>
     where
         T: Clone + One + Rem<Output=T>,
         CS: Clone
@@ -21,8 +22,8 @@ pub fn mod_z<T, CS>(op: AffineMap<T, CS>) -> AffineMap<T, CS>
 pub fn generate<T, CS>(gens: Vec<AffineMap<T, CS>>)
     -> Vec<AffineMap<T, CS>>
     where
-        T: Clone + Eq + std::hash::Hash + Zero + One + Rem<Output=T>,
-        CS: Clone + Eq + std::hash::Hash,
+        T: Clone + Eq + Hash + Zero + One + Rem<Output=T>,
+        CS: Clone + Eq + Hash,
         for <'a> &'a AffineMap<T, CS>:
             Mul<&'a AffineMap<T, CS>, Output=AffineMap<T, CS>>
 {
@@ -39,7 +40,7 @@ pub fn generate<T, CS>(gens: Vec<AffineMap<T, CS>>)
         i += 1;
 
         for b in &gens {
-            let ab = mod_z(&a * b);
+            let ab = mod_z(&(&a * b));
             if !seen.contains(&ab) {
                 seen.insert(ab.clone());
                 result.push(ab);
@@ -54,30 +55,53 @@ pub fn generate<T, CS>(gens: Vec<AffineMap<T, CS>>)
 pub struct PrimitiveSetting<T, CS, CSP> {
     cell: Vec<Vector<T, CS>>,
     to_primitive: CoordinateMap<T, CS, CSP>,
-    ops: Vec<AffineMap<T, CS>>
+    ops: Vec<AffineMap<T, CSP>>
 }
 
 
 impl<T, CS, CSP> PrimitiveSetting<T, CS, CSP>
     where
-        T: Clone + Eq + Scalar + Neg<Output=T>,
-        CS: Clone + Eq
+        T: Clone + Eq + Hash,
+        T: Scalar + Neg<Output=T> + Rem<Output=T>,
+        Matrix<T>: LinearAlgebra<T>,
+        for <'a> &'a Matrix<T>: Mul<&'a Matrix<T>, Output=Matrix<T>>,
+        for <'a> &'a AffineMap<T, CS>:
+            Mul<&'a AffineMap<T, CS>, Output=AffineMap<T, CS>>,
+        for <'a> AffineMap<T, CSP>:
+            Mul<&'a AffineMap<T, CSP>, Output=AffineMap<T, CSP>>,
+        CS: Clone + Eq,
+        CSP: Clone + Eq + Hash
 {
-    fn new(ops: &Vec<AffineMap<T, CS>>) -> Self {
-        assert!(!ops.is_empty());
+    fn new(ops_all: &Vec<AffineMap<T, CS>>) -> Self {
+        assert!(!ops_all.is_empty());
 
-        let dim = ops[0].dim();
+        let dim = ops_all[0].dim();
         let id = Matrix::identity(dim);
         let s0 = Vector::zero(dim);
 
         let mut cell = id.get_rows();
 
-        for op in ops {
+        for op in ops_all {
             if op.linear_matrix() == id && op.shift() != s0 {
                 let s: Vec<_> = op.shift().into_iter().collect();
                 extend_basis(&s, &mut cell);
             }
         }
-        todo!()
+
+        let cell: Vec<_> = cell.into_iter().map(|v| Vector::new(&v)).collect();
+        let to_primitive = CoordinateMap::to_basis(&cell);
+
+        let mut seen = HashSet::new();
+        let mut ops = vec![];
+
+        for op in ops_all {
+            let t = mod_z(&(&to_primitive * op));
+            if !seen.contains(&t) {
+                seen.insert(t.clone());
+                ops.push(t);
+            }
+        }
+
+        PrimitiveSetting { cell, to_primitive, ops }
     }
 }
