@@ -671,6 +671,19 @@ impl<T, CSIn, CSOut> CoordinateMap<T, CSIn, CSOut>
             backward: self.forward.clone()
         }
     }
+
+    pub fn from_basis(basis: &[Vector<T, CSOut>]) -> Self
+        where T: Zero
+    {
+        let cols: Vec<_> = basis.iter().map(|a| a.coords.clone()).collect();
+        Self::new(&Matrix::hstack(&cols).into())
+    }
+
+    pub fn to_basis(basis: &[Vector<T, CSIn>]) -> Self
+        where T: Zero
+    {
+        CoordinateMap::<T, CSOut, CSIn>::from_basis(basis).inverse()
+    }
 }
 
 impl<T, CSIn, CSOut> From<Matrix<T>> for CoordinateMap<T, CSIn, CSOut>
@@ -1068,6 +1081,34 @@ mod tests {
         let v: Vector<f64, World> = Vector::unit(2, 0);
         assert_eq!(&a * &v, Vector::unit(2, 1));
         assert_eq!(&a * (&ai * &v), v);
+    }
+
+    #[test]
+    fn test_coordinate_map_from_basis() {
+        let a: AffineMap<_, World> = AffineMap::new(
+            &Matrix::new(2, &[1.0, 1.0, 0.0, 1.0]), &Vector::new(&[0.0, 0.0])
+        );
+        let b: Vec<Vector<_, World>> = vec![
+            Vector::new(&[1.0, 0.0]), Vector::new(&[1.0, 1.0])
+        ];
+        assert_eq!(
+            CoordinateMap::from_basis(&b),
+            CoordinateMap::new(&a)
+        );
+    }
+
+    #[test]
+    fn test_coordinate_map_to_basis() {
+        let a: AffineMap<_, World> = AffineMap::new(
+            &Matrix::new(2, &[1.0, -1.0, 0.0, 1.0]), &Vector::new(&[0.0, 0.0])
+        );
+        let b: Vec<Vector<_, World>> = vec![
+            Vector::new(&[1.0, 0.0]), Vector::new(&[1.0, 1.0])
+        ];
+        assert_eq!(
+            CoordinateMap::<_, World, Local>::to_basis(&b),
+            CoordinateMap::new(&a)
+        );
     }
 
     #[test]
