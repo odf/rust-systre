@@ -6,12 +6,12 @@ use itertools::Itertools;
 use num_bigint::BigInt;
 use num_rational::BigRational;
 use num_traits::{One, Zero, ToPrimitive, Signed};
-use num_integer::Integer;
 
 use crate::arithmetic::matrices::Matrix;
 use crate::partitions::Partition;
 use crate::pgraphs::*;
 use crate::arithmetic::linear_algebra::{extend_basis, LinearAlgebra};
+use crate::spacegroups::lattices::rational_lattice_basis;
 
 
 pub fn ladder_symmetries<T, CS>(graph: &Graph<T, CS>) -> Vec<Automorphism<T, CS>>
@@ -290,39 +290,16 @@ fn extended_translation_basis<T, CS>(graph: &Graph<T, CS>, orbit: &[Vertex])
         T: LabelVector<CS>,
         CS: Clone + Eq + Hash + Ord
 {
-    let one = BigInt::one();
     let p0 = &graph.position(&orbit[0]);
 
     let deltas: Vec<_> = orbit.iter().skip(1)
         .map(|v| (graph.position(&v) - p0).iter()
-            .map(|x| x % &one)
+            .map(|x| x % &BigInt::one())
             .collect::<Vec<_>>()
         )
         .collect();
 
-    let mut common_denom = one;
-    for d in &deltas {
-        for x in d {
-            common_denom *= x.denom() / common_denom.gcd(x.denom());
-        }
-    }
-    let common_denom = common_denom.to_i32().unwrap();
-    let f = BigRational::from(BigInt::from(common_denom));
-
-    let id: Matrix<i32> = Matrix::identity(T::dim()) * common_denom;
-    let mut basis: Vec<_> = id.get_rows();
-
-    for d in deltas {
-        let d: Vec<_> = d.iter().map(|x| r_to_i32(&(x * &f)).unwrap()).collect();
-        extend_basis(&d, &mut basis);
-    }
-
-    basis.iter()
-        .map(|b| b.iter()
-            .map(|x| BigRational::from(BigInt::from(*x)) / &f)
-            .collect::<Vec<_>>()
-        )
-        .collect()
+    rational_lattice_basis(deltas)
 }
 
 

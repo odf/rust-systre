@@ -1,7 +1,10 @@
 use std::ops::{Add, Sub, Mul, Neg};
 use std::cmp::Ordering;
 
-use num_traits::{Signed, abs};
+use num_bigint::BigInt;
+use num_rational::BigRational;
+use num_traits::{One, ToPrimitive, Signed, abs};
+use num_integer::Integer;
 
 use crate::arithmetic::linear_algebra::{extend_basis, Scalar};
 
@@ -239,6 +242,52 @@ fn mul<T>(v: &[T], t: &T) -> Vec<T>
     where T: Coord, for <'a> &'a T: CoordPtr<T>
 {
     (0..v.len()).map(|i| &v[i] * t).collect()
+}
+
+
+pub fn rational_lattice_basis(vectors: Vec<Vec<BigRational>>)
+    -> Vec<Vec<BigRational>>
+{
+    let dim = vectors[0].len();
+    let mut common_denom = BigInt::one();
+
+    for d in &vectors {
+        for x in d {
+            common_denom *= x.denom() / common_denom.gcd(x.denom());
+        }
+    }
+
+    let common_denom = common_denom.to_i32().unwrap();
+    let f = BigRational::from(BigInt::from(common_denom));
+
+    let mut basis = vec![];
+
+    for k in 0..dim {
+        let mut b = vec![0; dim];
+        b[k] = common_denom;
+        extend_basis(&b, &mut basis);
+    }
+
+    for d in vectors {
+        let d: Vec<_> = d.iter().map(|x| r_to_i32(&(x * &f)).unwrap()).collect();
+        extend_basis(&d, &mut basis);
+    }
+
+    basis.iter()
+        .map(|b| b.iter()
+            .map(|x| BigRational::from(BigInt::from(*x)) / &f)
+            .collect::<Vec<_>>()
+        )
+        .collect()
+}
+
+
+fn r_to_i32(x: &BigRational) -> Option<i32> {
+    if x.is_integer() {
+        x.to_integer().to_i32()
+    } else {
+        None
+    }
 }
 
 
