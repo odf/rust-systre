@@ -19,7 +19,7 @@ pub fn mod_z<T, CS>(op: &AffineMap<T, CS>) -> AffineMap<T, CS>
 }
 
 
-pub fn generate<T, CS>(gens: Vec<AffineMap<T, CS>>)
+pub fn generate<T, CS>(gens: &Vec<AffineMap<T, CS>>)
     -> Vec<AffineMap<T, CS>>
     where
         T: Clone + Eq + Hash + Zero + One + Rem<Output=T>,
@@ -39,7 +39,7 @@ pub fn generate<T, CS>(gens: Vec<AffineMap<T, CS>>)
         let a = result[i].clone();
         i += 1;
 
-        for b in &gens {
+        for b in gens {
             let ab = mod_z(&(&a * b));
             if !seen.contains(&ab) {
                 seen.insert(ab.clone());
@@ -103,5 +103,44 @@ impl<T, CS, CSP> PrimitiveSetting<T, CS, CSP>
         }
 
         PrimitiveSetting { cell, to_primitive, ops }
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use num_bigint::BigInt;
+    use num_rational::BigRational;
+
+    use super::*;
+
+    fn r(x: i32) -> BigRational {
+        BigRational::from(BigInt::from(x))
+    }
+
+    #[derive(Clone, Debug, Eq, PartialEq, Hash)]
+    struct Standard {}
+
+    #[derive(Clone, Debug, Eq, PartialEq, Hash)]
+    struct Primitive {}
+
+    #[test]
+    fn test_spacegroup_primitive_settings() {
+        let gens: Vec<AffineMap<_, Standard>> = vec![
+            AffineMap::from(Matrix::new(2, &[r(-1), r(0), r(0), r(1)])),
+            AffineMap::new(
+                &Matrix::new(2, &[r(1), r(0), r(0), r(1)]),
+                &(Vector::new(&[r(1), r(1)]) / r(2))
+            )
+        ];
+        let ops = generate(&gens);
+        eprintln!("{}", ops.len());
+        let primitive: PrimitiveSetting<_, Standard, Primitive>
+            = PrimitiveSetting::new(&ops);
+
+        assert_eq!(primitive.cell, vec![
+            Vector::new(&[r(-1), r(-1)]) / r(2),
+            Vector::new(&[r(0), r(1)])
+        ]);
     }
 }
