@@ -299,7 +299,7 @@ fn extended_translation_basis<T, CS>(graph: &Graph<T, CS>, orbit: &[Vertex])
         )
         .collect();
 
-    rational_lattice_basis(deltas)
+    rational_lattice_basis(&deltas)
 }
 
 

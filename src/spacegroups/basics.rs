@@ -2,11 +2,13 @@ use std::hash::Hash;
 use std::ops::{Rem, Mul, Neg};
 use std::collections::HashSet;
 
+use num_rational::BigRational;
 use num_traits::{One, Zero};
 
 use crate::arithmetic::geometry::{AffineMap, Vector, CoordinateMap};
 use crate::arithmetic::linear_algebra::{Scalar, extend_basis, LinearAlgebra};
 use crate::arithmetic::matrices::Matrix;
+use crate::spacegroups::lattices::rational_lattice_basis;
 
 
 pub fn mod_z<T, CS>(op: &AffineMap<T, CS>) -> AffineMap<T, CS>
@@ -52,43 +54,33 @@ pub fn generate<T, CS>(gens: &Vec<AffineMap<T, CS>>)
 }
 
 
-pub struct PrimitiveSetting<T, CS, CSP> {
-    cell: Vec<Vector<T, CS>>,
-    to_primitive: CoordinateMap<T, CS, CSP>,
-    ops: Vec<AffineMap<T, CSP>>
+pub struct PrimitiveSetting<CS, CSP> {
+    cell: Vec<Vector<BigRational, CS>>,
+    to_primitive: CoordinateMap<BigRational, CS, CSP>,
+    ops: Vec<AffineMap<BigRational, CSP>>
 }
 
 
-impl<T, CS, CSP> PrimitiveSetting<T, CS, CSP>
+impl<CS, CSP> PrimitiveSetting<CS, CSP>
     where
-        T: Clone + Eq + Hash,
-        T: Scalar + Neg<Output=T> + Rem<Output=T>,
-        Matrix<T>: LinearAlgebra<T>,
-        for <'a> &'a Matrix<T>: Mul<&'a Matrix<T>, Output=Matrix<T>>,
-        for <'a> &'a AffineMap<T, CS>:
-            Mul<&'a AffineMap<T, CS>, Output=AffineMap<T, CS>>,
-        for <'a> AffineMap<T, CSP>:
-            Mul<&'a AffineMap<T, CSP>, Output=AffineMap<T, CSP>>,
         CS: Clone + Eq,
         CSP: Clone + Eq + Hash
 {
-    fn new(ops_all: &Vec<AffineMap<T, CS>>) -> Self {
+    fn new(ops_all: &Vec<AffineMap<BigRational, CS>>) -> Self {
         assert!(!ops_all.is_empty());
 
         let dim = ops_all[0].dim();
         let id = Matrix::identity(dim);
         let s0 = Vector::zero(dim);
 
-        let mut cell = id.get_rows();
-
+        let mut translations = vec![];
         for op in ops_all {
             if op.linear_matrix() == id && op.shift() != s0 {
-                let s: Vec<_> = op.shift().into_iter().collect();
-                extend_basis(&s, &mut cell);
+                translations.push(op.shift().into_iter().collect());
             }
         }
-
-        let cell: Vec<_> = cell.into_iter().map(|v| Vector::new(&v)).collect();
+        let cell: Vec<_> = rational_lattice_basis(&translations)
+            .into_iter().map(|v| Vector::new(&v)).collect();
         let to_primitive = CoordinateMap::to_basis(&cell);
 
         let mut seen = HashSet::new();
@@ -135,11 +127,12 @@ mod tests {
         ];
         let ops = generate(&gens);
         eprintln!("{}", ops.len());
-        let primitive: PrimitiveSetting<_, Standard, Primitive>
+        let primitive: PrimitiveSetting<Standard, Primitive>
             = PrimitiveSetting::new(&ops);
 
+        // TODO test this without relying on arbitrary choices in the code
         assert_eq!(primitive.cell, vec![
-            Vector::new(&[r(-1), r(-1)]) / r(2),
+            Vector::new(&[r(1), r(-1)]) / r(2),
             Vector::new(&[r(0), r(1)])
         ]);
     }

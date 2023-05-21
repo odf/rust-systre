@@ -245,13 +245,13 @@ fn mul<T>(v: &[T], t: &T) -> Vec<T>
 }
 
 
-pub fn rational_lattice_basis(vectors: Vec<Vec<BigRational>>)
+pub fn rational_lattice_basis(vectors: &Vec<Vec<BigRational>>)
     -> Vec<Vec<BigRational>>
 {
     let dim = vectors[0].len();
     let mut common_denom = BigInt::one();
 
-    for d in &vectors {
+    for d in vectors {
         for x in d {
             common_denom *= x.denom() / common_denom.gcd(x.denom());
         }
