@@ -1,12 +1,11 @@
 use std::hash::Hash;
-use std::ops::{Rem, Mul, Neg};
+use std::ops::{Rem, Mul};
 use std::collections::HashSet;
 
 use num_rational::BigRational;
 use num_traits::{One, Zero};
 
 use crate::arithmetic::geometry::{AffineMap, Vector, CoordinateMap};
-use crate::arithmetic::linear_algebra::{Scalar, extend_basis, LinearAlgebra};
 use crate::arithmetic::matrices::Matrix;
 use crate::spacegroups::lattices::rational_lattice_basis;
 
@@ -130,10 +129,16 @@ mod tests {
         let primitive: PrimitiveSetting<Standard, Primitive>
             = PrimitiveSetting::new(&ops);
 
-        // TODO test this without relying on arbitrary choices in the code
-        assert_eq!(primitive.cell, vec![
-            Vector::new(&[r(1), r(-1)]) / r(2),
-            Vector::new(&[r(0), r(1)])
-        ]);
+        let dim = ops[0].dim();
+        let id_m = Matrix::identity(dim);
+        let id_op = AffineMap::identity(dim);
+
+        for op in ops {
+            if op.linear_matrix() == id_m {
+                assert_eq!(mod_z(&(&primitive.to_primitive * &op)), id_op);
+            }
+        }
+
+        assert_eq!(primitive.to_primitive.determinant(), r(2));
     }
 }
