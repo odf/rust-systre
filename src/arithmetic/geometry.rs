@@ -684,6 +684,10 @@ impl<T, CSIn, CSOut> CoordinateMap<T, CSIn, CSOut>
     {
         CoordinateMap::<T, CSOut, CSIn>::from_basis(basis).inverse()
     }
+
+    pub fn determinant(&self) -> T {
+        self.forward.linear_matrix().determinant()
+    }
 }
 
 impl<T, CSIn, CSOut> From<Matrix<T>> for CoordinateMap<T, CSIn, CSOut>
