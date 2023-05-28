@@ -363,11 +363,10 @@ impl<T> LinearAlgebra<T> for Matrix<T>
 
     fn null_space(&self) -> Option<Matrix<T>> {
         let m = self.transpose();
-        let nrows = m.nrows;
-        let t = Matrix::hstack(&[m.clone(), Matrix::identity(nrows)])
+        let t = Matrix::hstack(&[m.clone(), Matrix::identity(m.nrows)])
             .reduced_basis();
-        let lft = t.submatrix(0..t.nrows, 0..nrows);
-        let rgt = t.submatrix(0..t.nrows, nrows..t.ncols);
+        let lft = t.submatrix(0..t.nrows, 0..m.ncols);
+        let rgt = t.submatrix(0..t.nrows, m.ncols..t.ncols);
         let k = lft.rank();
 
         if k < rgt.nrows {
@@ -502,15 +501,13 @@ mod test {
     }
 
     #[test]
-    fn test_solve() {
+    fn test_linalg_solve() {
         let a = _r(&Matrix::new(2, &[1, 2, 3, 4]));
         let x = _r(&Matrix::new(2, &[1, 0, 1, -3]));
         let b = &a * &x;
         assert_eq!(b, _r(&Matrix::new(2, &[3, -6, 7, -12])));
         let s = a.solve(&b).unwrap();
         assert_eq!(s, x);
-        let n = a.null_space();
-        assert_eq!(n, None);
 
         let id = Matrix::identity(2);
         let a_inv = a.solve(&id).unwrap();
@@ -522,8 +519,6 @@ mod test {
         assert_eq!(b, _r(&Matrix::new(1, &[3, 9])));
         let s = a.solve(&b).unwrap();
         assert_eq!(&a * s, b);
-        let n = a.null_space().unwrap();
-        assert_eq!(&a * &n, Matrix::zero(2, 1));
 
         let a = Matrix::new(2, &[1.0, 2.0, 3.0, 4.0]);
         let x = Matrix::new(2, &[1.0, 0.0, 1.0, -3.0]);
@@ -531,12 +526,29 @@ mod test {
         assert_eq!(b, Matrix::new(2, &[3.0, -6.0, 7.0, -12.0]));
         let s = a.solve(&b).unwrap();
         assert_eq!(s, x);
-        let n = a.null_space();
-        assert_eq!(n, None);
 
         let id = Matrix::identity(2);
         let a_inv = a.solve(&id).unwrap();
         assert_eq!(a * a_inv, id);
+    }
+
+    #[test]
+    fn test_linalg_nullspace() {
+        let a = _r(&Matrix::new(2, &[1, 2, 3, 4]));
+        let n = a.null_space();
+        assert_eq!(n, None);
+
+        let a = _r(&Matrix::new(2, &[1, 2, 3, 6]));
+        let n = a.null_space().unwrap();
+        assert_eq!(&a * &n, Matrix::zero(2, 1));
+
+        let a = Matrix::new(2, &[1.0, 2.0, 3.0, 4.0]);
+        let n = a.null_space();
+        assert_eq!(n, None);
+
+        let a = Matrix::new(3, &[0.0, 1.0, 0.0]);
+        let n = a.null_space().unwrap();
+        assert_eq!(&n, &Matrix::new(2, &[1.0, 0.0, 0.0, 0.0, 0.0, 1.0]));
     }
 
     #[test]
