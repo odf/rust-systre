@@ -6,6 +6,7 @@ use num_rational::BigRational;
 use num_traits::{One, Zero};
 
 use crate::arithmetic::geometry::{AffineMap, Vector, CoordinateMap};
+use crate::arithmetic::linear_algebra::{extend_basis, LinearAlgebra};
 use crate::arithmetic::matrices::Matrix;
 use crate::spacegroups::lattices::rational_lattice_basis;
 
@@ -98,6 +99,50 @@ impl<CS, CSP> PrimitiveSetting<CS, CSP>
 }
 
 
+fn gram_matrix_conditions<CS>(ops: &Vec<AffineMap<BigRational, CS>>)
+    -> Matrix<BigRational>
+    where CS: Clone
+{
+    let dim = ops[0].dim();
+
+    let mut k = Matrix::zero(dim, dim);
+    let mut m = 0;
+
+    for i in 0..dim {
+        for j in i..dim {
+            k[(i, j)] = m;
+            k[(j, i)] = m;
+            m += 1;
+        }
+    }
+
+    let k = k;
+    let m = m;
+
+    let mut eqns = vec![];
+
+    for op in ops {
+        let s = op.linear_matrix();
+
+        for ia in 0..dim {
+            for ib in ia..dim {
+                let mut eqn = vec![BigRational::zero(); m];
+                for ja in 0..dim {
+                    for jb in 0..dim {
+                        eqn[k[(ja, jb)]] += &s[(ia, ja)] * &s[(ib, jb)];
+                    }
+                }
+                eqn[k[(ia, ib)]] -= BigRational::one();
+                extend_basis(&eqn, &mut eqns);
+            }
+        }
+    }
+
+    let eqns: Vec<Matrix<_>> = eqns.iter().map(|v| Matrix::row(v)).collect();
+    Matrix::vstack(&eqns).reduced_basis()
+}
+
+
 #[cfg(test)]
 mod tests {
     use num_bigint::BigInt;
@@ -125,7 +170,6 @@ mod tests {
             )
         ];
         let ops = generate(&gens);
-        eprintln!("{}", ops.len());
         let primitive: PrimitiveSetting<Standard, Primitive>
             = PrimitiveSetting::new(&ops);
 
@@ -140,5 +184,17 @@ mod tests {
         }
 
         assert_eq!(primitive.to_primitive.determinant(), r(2));
+    }
+
+    #[test]
+    fn test_spacegroup_gram_matrix_conditions() {
+        let gens: Vec<AffineMap<_, Standard>> = vec![
+            AffineMap::from(Matrix::new(2, &[r(-1), r(0), r(0), r(1)])),
+            AffineMap::new(
+                &Matrix::new(2, &[r(1), r(0), r(0), r(1)]),
+                &(Vector::new(&[r(1), r(1)]) / r(2))
+            )
+        ];
+        assert_eq!(Matrix::new(3, &[]), gram_matrix_conditions(&gens));
     }
 }
