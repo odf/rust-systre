@@ -99,8 +99,10 @@ impl<CS, CSP> PrimitiveSetting<CS, CSP>
 }
 
 
-fn gram_matrix_conditions<CS>(ops: &Vec<AffineMap<BigRational, CS>>)
-    -> Matrix<BigRational>
+pub fn gram_matrix_configuration_space<CS>(
+    ops: &Vec<AffineMap<BigRational, CS>>
+)
+    -> Option<Matrix<BigRational>>
     where CS: Clone
 {
     let dim = ops[0].dim();
@@ -139,7 +141,7 @@ fn gram_matrix_conditions<CS>(ops: &Vec<AffineMap<BigRational, CS>>)
     }
 
     let eqns: Vec<Matrix<_>> = eqns.iter().map(|v| Matrix::row(v)).collect();
-    Matrix::vstack(&eqns).reduced_basis()
+    Matrix::vstack(&eqns).null_space()
 }
 
 
@@ -195,6 +197,9 @@ mod tests {
                 &(Vector::new(&[r(1), r(1)]) / r(2))
             )
         ];
-        assert_eq!(Matrix::new(3, &[]), gram_matrix_conditions(&gens));
+        assert_eq!(
+            gram_matrix_configuration_space(&gens),
+            Some(Matrix::new(2, &[r(1), r(0), r(0), r(0), r(0), r(1)]))
+        );
     }
 }
