@@ -1,5 +1,5 @@
 use std::marker::PhantomData;
-use std::ops::{Neg, Add, AddAssign, Sub, SubAssign};
+use std::ops::{Neg, Add, AddAssign, Sub, SubAssign, Rem};
 use std::ops::{Mul, MulAssign, Div, DivAssign};
 use std::ops::{Index, IndexMut};
 use std::slice::Iter;
@@ -9,6 +9,11 @@ use num_traits::{Zero, One};
 
 use super::matrices::Matrix;
 use super::linear_algebra::LinearAlgebra;
+
+
+pub trait ModZ {
+    fn mod_z(&self) -> Self;
+}
 
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -99,6 +104,15 @@ impl<T, CS> Neg for Vector<T, CS>
 
     fn neg(self) -> Self::Output {
         -(&self)
+    }
+}
+
+
+impl<T, CS> ModZ for Vector<T, CS>
+    where T: Clone + One + Rem<Output=T>
+{
+    fn mod_z(&self) -> Self {
+        self.iter().cloned().map(|x| x % T::one()).collect()
     }
 }
 
@@ -575,6 +589,14 @@ impl<T: Clone, CS: Clone> AffineMap<T, CS> {
 impl<T: Clone + Zero, CS: Clone> From<Matrix<T>> for AffineMap<T, CS> {
     fn from(coords: Matrix<T>) -> Self {
         Self::new(&coords, &Vector::zero(coords.nrows))
+    }
+}
+
+impl<T, CS> ModZ for AffineMap<T, CS>
+    where T: Clone + One + Rem<Output=T>, CS: Clone
+{
+    fn mod_z(&self) -> Self {
+        AffineMap::new(&self.linear_matrix(), &self.shift().mod_z())
     }
 }
 

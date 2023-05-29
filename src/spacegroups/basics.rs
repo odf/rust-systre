@@ -5,20 +5,10 @@ use std::collections::HashSet;
 use num_rational::BigRational;
 use num_traits::{One, Zero};
 
-use crate::arithmetic::geometry::{AffineMap, Vector, CoordinateMap};
+use crate::arithmetic::geometry::{AffineMap, Vector, CoordinateMap, ModZ};
 use crate::arithmetic::linear_algebra::{extend_basis, LinearAlgebra};
 use crate::arithmetic::matrices::Matrix;
 use crate::spacegroups::lattices::rational_lattice_basis;
-
-
-pub fn mod_z<T, CS>(op: &AffineMap<T, CS>) -> AffineMap<T, CS>
-    where
-        T: Clone + One + Rem<Output=T>,
-        CS: Clone
-{
-    let s = op.shift().into_iter().map(|x| x % T::one()).collect();
-    AffineMap::new(&op.linear_matrix(), &s)
-}
 
 
 pub fn generate<T, CS>(gens: &Vec<AffineMap<T, CS>>)
@@ -42,7 +32,7 @@ pub fn generate<T, CS>(gens: &Vec<AffineMap<T, CS>>)
         i += 1;
 
         for b in gens {
-            let ab = mod_z(&(&a * b));
+            let ab = (&a * b).mod_z();
             if !seen.contains(&ab) {
                 seen.insert(ab.clone());
                 result.push(ab);
@@ -87,7 +77,7 @@ impl<CS, CSP> PrimitiveSetting<CS, CSP>
         let mut ops = vec![];
 
         for op in ops_all {
-            let t = mod_z(&(&to_primitive * op));
+            let t = (&to_primitive * op).mod_z();
             if !seen.contains(&t) {
                 seen.insert(t.clone());
                 ops.push(t);
@@ -199,7 +189,7 @@ mod tests {
 
         for op in ops {
             if op.linear_matrix() == id_m {
-                assert_eq!(mod_z(&(&primitive.to_primitive * &op)), id_op);
+                assert_eq!((&primitive.to_primitive * &op).mod_z(), id_op);
             }
         }
 
