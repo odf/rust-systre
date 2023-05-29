@@ -99,11 +99,10 @@ impl<CS, CSP> PrimitiveSetting<CS, CSP>
 }
 
 
-pub fn gram_matrix_configuration_space<CS>(
+pub fn gram_matrix_configuration_space<CS: Clone>(
     ops: &Vec<AffineMap<BigRational, CS>>
 )
     -> Option<Matrix<BigRational>>
-    where CS: Clone
 {
     let dim = ops[0].dim();
 
@@ -145,6 +144,25 @@ pub fn gram_matrix_configuration_space<CS>(
 }
 
 
+pub fn shift_space<CS: Clone>(ops: &Vec<AffineMap<BigRational, CS>>)
+    -> Option<Matrix<BigRational>>
+{
+    let dim = ops[0].dim();
+    let id = Matrix::identity(dim);
+
+    let mut eqns = vec![];
+
+    for op in ops {
+        for row in (op.linear_matrix() - &id).get_rows() {
+            extend_basis(&row, &mut eqns);
+        }
+    }
+
+    let eqns: Vec<Matrix<_>> = eqns.iter().map(|v| Matrix::row(v)).collect();
+    Matrix::vstack(&eqns).null_space()
+}
+
+
 #[cfg(test)]
 mod tests {
     use num_bigint::BigInt;
@@ -163,7 +181,7 @@ mod tests {
     struct Primitive {}
 
     #[test]
-    fn test_spacegroup_primitive_settings() {
+    fn test_spacegroup_basics_primitive_settings() {
         let gens: Vec<AffineMap<_, Standard>> = vec![
             AffineMap::from(Matrix::new(2, &[r(-1), r(0), r(0), r(1)])),
             AffineMap::new(
@@ -189,7 +207,7 @@ mod tests {
     }
 
     #[test]
-    fn test_spacegroup_gram_matrix_conditions() {
+    fn test_spacegroup_basics_gram_matrix_configuration_space() {
         let gens: Vec<AffineMap<_, Standard>> = vec![
             AffineMap::from(Matrix::new(2, &[r(-1), r(0), r(0), r(1)])),
             AffineMap::new(
@@ -200,6 +218,21 @@ mod tests {
         assert_eq!(
             gram_matrix_configuration_space(&gens),
             Some(Matrix::new(2, &[r(1), r(0), r(0), r(0), r(0), r(1)]))
+        );
+    }
+
+    #[test]
+    fn test_spacegroup_basics_shift_space() {
+        let gens: Vec<AffineMap<_, Standard>> = vec![
+            AffineMap::from(Matrix::new(2, &[r(-1), r(0), r(0), r(1)])),
+            AffineMap::new(
+                &Matrix::new(2, &[r(1), r(0), r(0), r(1)]),
+                &(Vector::new(&[r(1), r(1)]) / r(2))
+            )
+        ];
+        assert_eq!(
+            shift_space(&gens),
+            Some(Matrix::new(1, &[r(0), r(1)]))
         );
     }
 }
