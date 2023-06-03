@@ -209,6 +209,14 @@ mod tests {
             gram_matrix_configuration_space(&gens),
             Some(Matrix::new(2, &[r(1), r(0), r(0), r(0), r(0), r(1)]))
         );
+
+        let gens: Vec<AffineMap<_, Standard>> = vec![
+            AffineMap::from(Matrix::new(2, &[r(0), r(1), r(-1), r(0)])),
+        ];
+        assert_eq!(
+            gram_matrix_configuration_space(&gens),
+            Some(Matrix::new(1, &[r(1), r(0), r(1)]))
+        );
     }
 
     #[test]
@@ -220,9 +228,11 @@ mod tests {
                 &(Vector::new(&[r(1), r(1)]) / r(2))
             )
         ];
-        assert_eq!(
-            shift_space(&gens),
-            Some(Matrix::new(1, &[r(0), r(1)]))
-        );
+        assert_eq!(shift_space(&gens), Some(Matrix::new(1, &[r(0), r(1)])));
+
+        let gens: Vec<AffineMap<_, Standard>> = vec![
+            AffineMap::from(Matrix::new(2, &[r(0), r(1), r(-1), r(0)])),
+        ];
+        assert_eq!(shift_space(&gens), None);
     }
 }
