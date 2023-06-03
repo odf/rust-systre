@@ -129,8 +129,12 @@ pub fn gram_matrix_configuration_space<CS: Clone>(
         }
     }
 
-    let eqns: Vec<Matrix<_>> = eqns.iter().map(|v| Matrix::row(v)).collect();
-    Matrix::vstack(&eqns).null_space()
+    if eqns.is_empty() {
+        Some(Matrix::identity(m))
+    } else {
+        let eqns: Vec<Matrix<_>> = eqns.iter().map(|v| Matrix::row(v)).collect();
+        Matrix::vstack(&eqns).null_space()
+    }
 }
 
 
@@ -217,6 +221,26 @@ mod tests {
             gram_matrix_configuration_space(&gens),
             Some(Matrix::new(1, &[r(1), r(0), r(1)]))
         );
+
+        let gens: Vec<AffineMap<_, Standard>> = vec![
+            AffineMap::from(Matrix::new(2, &[r(0), r(1), r(1), r(0)])),
+        ];
+        assert_eq!(
+            gram_matrix_configuration_space(&gens),
+            Some(Matrix::new(
+                3, &[r(1), r(0), r(1), r(0), r(1), r(0)]
+            ).transpose())
+        );
+
+        let gens: Vec<AffineMap<_, Standard>> = vec![
+            AffineMap::from(Matrix::new(2, &[r(-1), r(0), r(0), r(-1)])),
+        ];
+        assert_eq!(
+            gram_matrix_configuration_space(&gens),
+            Some(Matrix::new(
+                3, &[r(1), r(0), r(0), r(0), r(1), r(0), r(0), r(0), r(1)]
+            ))
+        );
     }
 
     #[test]
@@ -232,6 +256,16 @@ mod tests {
 
         let gens: Vec<AffineMap<_, Standard>> = vec![
             AffineMap::from(Matrix::new(2, &[r(0), r(1), r(-1), r(0)])),
+        ];
+        assert_eq!(shift_space(&gens), None);
+
+        let gens: Vec<AffineMap<_, Standard>> = vec![
+            AffineMap::from(Matrix::new(2, &[r(0), r(1), r(1), r(0)])),
+        ];
+        assert_eq!(shift_space(&gens), Some(Matrix::new(1, &[r(1), r(1)])));
+
+        let gens: Vec<AffineMap<_, Standard>> = vec![
+            AffineMap::from(Matrix::new(2, &[r(-1), r(0), r(0), r(-1)])),
         ];
         assert_eq!(shift_space(&gens), None);
     }
