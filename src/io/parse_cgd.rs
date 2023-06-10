@@ -1,5 +1,7 @@
-use nom::character::complete::{char, digit1, space0, none_of};
-use nom::multi::many0;
+use nom::bytes::complete::{take_till1, take_until1};
+use nom::character::complete::{char, digit1, space0};
+use nom::character::is_space;
+use nom::number::complete::double;
 use nom::sequence::{separated_pair, tuple, preceded, delimited};
 use nom::combinator::map_opt;
 use nom::branch::alt;
@@ -7,18 +9,26 @@ use nom::IResult;
 use num_rational::Ratio;
 
 
-type Fraction = Ratio<i32>;
-
-
-fn quoted_string(input: &str) -> IResult<&str, String> {
-    map_opt(
-        delimited(char('"'), many0(none_of("\"\n")), char('"')),
-        |s| Some(s.iter().collect())
-    )(input)
+enum Field {
+    Fraction(Ratio<i32>),
+    Double(f64),
+    Int(i32),
+    Name(String),
 }
 
 
-fn fraction(input: &str) -> IResult<&str, Fraction> {
+fn field(input: &str) -> IResult<&str, Field> {
+    alt((
+        map_opt(fraction, |f| Some(Field::Fraction(f))),
+        map_opt(double, |f| Some(Field::Double(f))),
+        map_opt(integer, |f| Some(Field::Int(f))),
+        map_opt(quoted_string, |f| Some(Field::Name(f.to_string()))),
+        map_opt(name, |f| Some(Field::Name(f.to_string()))),
+    ))(input)
+}
+
+
+fn fraction(input: &str) -> IResult<&str, Ratio<i32>> {
     alt((
         map_opt(
             separated_pair(
@@ -38,6 +48,16 @@ fn integer(input: &str) -> IResult<&str, i32> {
         map_opt(unsigned_integer, |n| Some(n as i32)),
         map_opt(preceded(char('-'), unsigned_integer), |n| Some(-(n as i32)))
     ))(input)
+}
+
+
+fn quoted_string(input: &str) -> IResult<&str, &str> {
+    delimited(char('"'), take_until1("\""), char('"'))(input)
+}
+
+
+fn name(input: &str) -> IResult<&str, &str> {
+    take_till1(|c| c == '"' || is_space(c as u8))(input)
 }
 
 
@@ -75,7 +95,7 @@ fn test_parse_fraction() {
 
 #[test]
 fn test_parse_quoted_string() {
-    assert_eq!(quoted_string("\"\""), Ok(("", "".to_string())));
-    assert_eq!(quoted_string("\"abc \""), Ok(("", "abc ".to_string())));
-    assert!(quoted_string("\"abc\n\"").is_err());
+    assert_eq!(quoted_string("\" \"  "), Ok(("  ", " ")));
+    assert_eq!(quoted_string("\"abc \"  "), Ok(("  ", "abc ")));
+    assert!(quoted_string("\"abc").is_err());
 }
