@@ -29,7 +29,7 @@ pub fn parse_cgd_line(input: &str) -> Result<(&str, Vec<Field>), String> {
 
 fn line(input: &str) -> IResult<&str, Vec<Field>> {
     map_opt(
-        pair(separated_list0(space1, field), opt(pair(space0, comment))),
+        separated_pair(separated_list0(space1, field), space0, opt(comment)),
         |(lines, _)| Some(lines)
     )(input)
 }
@@ -155,10 +155,18 @@ fn test_parse_cgd_line() {
     );
     assert_eq!(
         parse_cgd_line("asdf \""),
-        Ok((" \"", vec![Field::Name("asdf".to_string())]))
+        Ok(("\"", vec![Field::Name("asdf".to_string())]))
+    );
+    assert_eq!(
+        parse_cgd_line("asdf   "),
+        Ok(("", vec![Field::Name("asdf".to_string())]))
     );
     assert_eq!(
         parse_cgd_line("  # This is a comment line."),
+        Ok(("", vec![]))
+    );
+    assert_eq!(
+        parse_cgd_line("  "),
         Ok(("", vec![]))
     );
 }
