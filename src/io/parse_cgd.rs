@@ -2,10 +2,10 @@ use nom::{IResult, Finish};
 use nom::bytes::complete::{take_till1, take_until1, tag};
 use nom::character::complete::{char, digit1, space0, space1};
 use nom::character::is_space;
-use nom::multi::separated_list1;
+use nom::multi::separated_list0;
 use nom::number::complete::double;
 use nom::sequence::{separated_pair, preceded, delimited, pair};
-use nom::combinator::{map_opt, rest};
+use nom::combinator::{map_opt, rest, opt};
 use nom::branch::alt;
 use num_rational::Ratio;
 
@@ -28,13 +28,10 @@ pub fn parse_cgd_line(input: &str) -> Result<(&str, Vec<Field>), String> {
 
 
 fn line(input: &str) -> IResult<&str, Vec<Field>> {
-    alt((
-        map_opt(
-            separated_pair(separated_list1(space1, field), space0, comment),
-            |(fields, _)| Some(fields)
-        ),
-        separated_list1(space1, field),
-    ))(input)
+    map_opt(
+        pair(separated_list0(space1, field), opt(pair(space0, comment))),
+        |(lines, _)| Some(lines)
+    )(input)
 }
 
 
@@ -159,5 +156,9 @@ fn test_parse_cgd_line() {
     assert_eq!(
         parse_cgd_line("asdf \""),
         Ok((" \"", vec![Field::Name("asdf".to_string())]))
+    );
+    assert_eq!(
+        parse_cgd_line("  # This is a comment line."),
+        Ok(("", vec![]))
     );
 }
