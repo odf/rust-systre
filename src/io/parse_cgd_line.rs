@@ -44,14 +44,7 @@ fn comment(input: &str) -> IResult<&str, ()> {
 fn field(input: &str) -> IResult<&str, Field> {
     alt((
         map_opt(fraction, |f| Some(Field::Fraction(f))),
-        map_opt(
-            double,
-            |f| if f == (f as i32) as f64 {
-                Some(Field::Int(f as i32))
-            } else {
-                Some(Field::Double(f))
-            }
-        ),
+        map_opt(double, double_to_field()),
         map_opt(quoted_string, |f| Some(Field::Name(f.to_string()))),
         map_opt(name, |f| Some(Field::Name(f.to_string()))),
     ))(input)
@@ -86,6 +79,15 @@ fn name(input: &str) -> IResult<&str, &str> {
 
 fn unsigned_integer(input: &str) -> IResult<&str, u32> {
     map_opt(digit1, map_integer)(input)
+}
+
+
+fn double_to_field() -> impl Fn(f64) -> Option<Field> {
+    |f| if f == (f as i32) as f64 {
+        Some(Field::Int(f as i32))
+    } else {
+        Some(Field::Double(f))
+    }
 }
 
 
