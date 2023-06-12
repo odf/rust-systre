@@ -28,9 +28,10 @@ pub fn parse_cgd_line(input: &str) -> Result<(&str, Vec<Field>), String> {
 
 
 fn line(input: &str) -> IResult<&str, Vec<Field>> {
-    map_opt(
-        separated_pair(separated_list0(space1, field), space0, opt(comment)),
-        |(lines, _)| Some(lines)
+    delimited(
+        space0,
+        separated_list0(space1, field),
+        pair(space0, opt(comment))
     )(input)
 }
 
@@ -141,7 +142,7 @@ fn test_parse_cgd_field() {
 #[test]
 fn test_parse_cgd_line() {
     assert_eq!(
-        parse_cgd_line("ATOM \"Si1\" 4 .5 -0.3 2.1 # This is a comment "),
+        parse_cgd_line("  ATOM \"Si1\" 4 .5 -0.3 2.1 # This is a comment "),
         Ok(("",
             vec![
                 Field::Name("ATOM".to_string()),
