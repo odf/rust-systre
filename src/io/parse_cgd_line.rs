@@ -1,7 +1,9 @@
+use std::iter;
+
 use nom::{IResult, Finish};
 use nom::bytes::complete::{take_till1, take_until1, tag};
 use nom::character::complete::{char, digit1, space0, space1};
-use nom::character::is_space;
+use nom::character::{is_space, is_alphabetic};
 use nom::multi::separated_list0;
 use nom::number::complete::double;
 use nom::sequence::{separated_pair, preceded, delimited, pair};
@@ -15,6 +17,7 @@ pub enum Field {
     Fraction(Ratio<i32>),
     Int(i32),
     Double(f64),
+    Key(String),
     Name(String),
 }
 
@@ -28,16 +31,37 @@ pub fn parse_cgd_line(input: &str) -> Result<(&str, Vec<Field>), String> {
 
 
 fn line(input: &str) -> IResult<&str, Vec<Field>> {
-    delimited(
-        space0,
+    delimited(space0, line_content, pair(space0, opt(comment)))(input)
+}
+
+
+fn line_content(input: &str) -> IResult<&str, Vec<Field>> {
+    alt((
+        map_opt(
+            separated_pair(key, space1, separated_list0(space1, field)),
+            |(k, rest)| Some(
+                iter::once(Field::Key(k.to_string())).chain(rest).collect()
+            )
+        ),
+        map_opt(key, |k| Some(vec![Field::Key(k.to_string())])),
         separated_list0(space1, field),
-        pair(space0, opt(comment))
-    )(input)
+    ))(input)
 }
 
 
 fn comment(input: &str) -> IResult<&str, ()> {
     map_opt(pair(tag("#"), rest), |_| Some(()))(input)
+}
+
+
+fn key(input: &str) -> IResult<&str, &str> {
+    map_opt(
+        name,
+        |s| match s.bytes().nth(0) {
+            Some(b) if is_alphabetic(b) => Some(s),
+            _ => None,
+        }
+    )(input)
 }
 
 
@@ -147,7 +171,7 @@ fn test_parse_cgd_line() {
         parse_cgd_line("  ATOM \"Si1\" 4 .5 -0.3 2.1 # This is a comment "),
         Ok(("",
             vec![
-                Field::Name("ATOM".to_string()),
+                Field::Key("ATOM".to_string()),
                 Field::Name("Si1".to_string()),
                 Field::Int(4),
                 Field::Double(0.5),
@@ -158,11 +182,16 @@ fn test_parse_cgd_line() {
     );
     assert_eq!(
         parse_cgd_line("asdf \""),
-        Ok(("\"", vec![Field::Name("asdf".to_string())]))
+        Ok(("\"", vec![Field::Key("asdf".to_string())]))
     );
     assert_eq!(
-        parse_cgd_line("asdf   "),
-        Ok(("", vec![Field::Name("asdf".to_string())]))
+        parse_cgd_line("asdf qwer  "),
+        Ok(("",
+            vec![
+                Field::Key("asdf".to_string()),
+                Field::Name("qwer".to_string()),
+            ]
+        ))
     );
     assert_eq!(
         parse_cgd_line("  # This is a comment line."),
