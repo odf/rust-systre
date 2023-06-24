@@ -3,12 +3,14 @@ use std::io::{BufRead, Read, BufReader};
 use super::parse_cgd_line::{parse_cgd_line, Field};
 
 
+#[derive(Debug, PartialEq)]
 pub enum Note {
     Error(String),
     Warning(String),
 }
 
 
+#[derive(Debug)]
 pub struct Context {
     line_number: usize,
     line_content: Option<String>,
@@ -76,7 +78,7 @@ pub fn parse_blocks<T: Read>(input: T) -> Vec<Block> {
                 Err(e) => current_block.add_error(&e, lineno, Some(&s)),
                 Ok((rest, fields)) => {
                     if rest.len() > 0 {
-                        let msg = format!("unparsed line ending '{:?}'", rest);
+                        let msg = format!("unparsed line ending '{}'", rest);
                         current_block.add_warning(&msg, lineno, Some(&s));
                     }
 
@@ -118,6 +120,9 @@ pub fn parse_blocks<T: Read>(input: T) -> Vec<Block> {
                             current_key = Some(new_key.clone());
                             current_block.add_entry(&new_key, &fields[1..]);
                         }
+                    } else if !in_block {
+                        let msg = "data found before block start";
+                        current_block.add_error(msg, lineno, Some(&s));
                     } else if let Some(key) = &current_key {
                         current_block.add_entry(&key, &fields);
                     } else {
@@ -139,4 +144,42 @@ pub fn parse_blocks<T: Read>(input: T) -> Vec<Block> {
     }
 
     blocks
+}
+
+
+#[test]
+fn test_parse_cgd_block() {
+    let input =
+r#"
+FIRST
+    Data 1 two 27/25
+         3 four +27.25E-3
+    Name "Gavrog"
+    Data "some more" "s"a
+END
+
+SECOND
+    456
+END
+
+123
+
+THIRD
+"#;
+
+    let blocks = parse_blocks(input.as_bytes());
+
+    assert_eq!(blocks.len(), 3);
+
+    let first = &blocks[0];
+    assert_eq!(first.block_type, "first");
+    assert_eq!(first.lineno_start, 1);
+    assert_eq!(first.lineno_end, 6);
+    assert_eq!(first.entries.len(), 4);
+    assert_eq!(first.notes.len(), 1);
+
+    assert_eq!(
+        first.notes[0].0,
+        Note::Warning("unparsed line ending 'a'".to_string())
+    );
 }
