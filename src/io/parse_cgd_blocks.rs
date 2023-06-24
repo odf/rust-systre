@@ -79,7 +79,7 @@ pub fn parse_blocks<T: Read>(input: T) -> Vec<Block> {
                 Ok((rest, fields)) => {
                     if rest.len() > 0 {
                         let msg = format!("unparsed line ending '{}'", rest);
-                        current_block.add_warning(&msg, lineno, Some(&s));
+                        current_block.add_error(&msg, lineno, Some(&s));
                     }
 
                     if fields.len() == 0 {
@@ -180,6 +180,6 @@ THIRD
 
     assert_eq!(
         first.notes[0].0,
-        Note::Warning("unparsed line ending 'a'".to_string())
+        Note::Error("unparsed line ending 'a'".to_string())
     );
 }
