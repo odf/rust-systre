@@ -9,12 +9,18 @@ pub enum Note {
 }
 
 
+pub struct Context {
+    line_number: usize,
+    line_content: Option<String>,
+}
+
+
 pub struct Block {
     block_type: String,
-    lineno_start: u32,
-    lineno_end: u32,
+    lineno_start: usize,
+    lineno_end: usize,
     entries: Vec<Vec<Field>>,
-    notes: Vec<Note>,
+    notes: Vec<(Note, Context)>,
 }
 
 
@@ -29,14 +35,23 @@ impl Block {
         }
     }
 
-    fn add_error(&mut self, msg: &str, lineno: usize) {
-        let note = Note::Error(format!("In line {}: {:?}", lineno, msg));
-        self.notes.push(note);
+    fn add_note(
+        &mut self, note: Note, line_number: usize, line: Option<&str>
+    ) {
+        let line_content = line.and_then(|s| Some(s.to_string()));
+        self.notes.push((note, Context { line_number, line_content }));
     }
 
-    fn add_warning(&mut self, msg: &str, lineno: usize) {
-        let note = Note::Warning(format!("In line {}: {:?}", lineno, msg));
-        self.notes.push(note);
+    fn add_error(
+        &mut self, msg: &str, line_number: usize, line: Option<&str>
+    ) {
+        self.add_note(Note::Error(msg.to_string()), line_number, line);
+    }
+
+    fn add_warning(
+        &mut self, msg: &str, line_number: usize, line: Option<&str>
+    ) {
+        self.add_note(Note::Warning(msg.to_string()), line_number, line);
     }
 }
 
@@ -49,13 +64,15 @@ pub fn parse_blocks<T: Read>(input: T) -> Vec<Block> {
 
     for (lineno, line) in BufReader::new(input).lines().enumerate() {
         match line {
-            Err(e) => current_block.add_error(&format!("{:?}", e), lineno),
+            Err(e) => {
+                current_block.add_error(&format!("{:?}", e), lineno, None)
+            },
             Ok(s) => match parse_cgd_line(&s) {
-                Err(e) => current_block.add_error(&e, lineno),
+                Err(e) => current_block.add_error(&e, lineno, Some(&s)),
                 Ok((rest, fields)) => {
                     if rest.len() > 0 {
                         let msg = format!("unparsed line ending '{:?}'", rest);
-                        current_block.add_warning(&msg, lineno);
+                        current_block.add_warning(&msg, lineno, Some(&s));
                     }
                     if fields.len() == 0 {
                         continue
