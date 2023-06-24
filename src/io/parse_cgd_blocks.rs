@@ -110,6 +110,7 @@ pub fn parse_blocks<T: Read>(input: T) -> Vec<Block> {
                             current_block.lineno_start = lineno;
                             current_block.block_type = new_key;
                             in_block = true;
+                            current_key = None;
                             if fields.len() > 1 {
                                 let msg = "text after block type ignored";
                                 current_block.add_warning(
@@ -175,11 +176,44 @@ THIRD
     assert_eq!(first.block_type, "first");
     assert_eq!(first.lineno_start, 1);
     assert_eq!(first.lineno_end, 6);
-    assert_eq!(first.entries.len(), 4);
-    assert_eq!(first.notes.len(), 1);
 
+    assert_eq!(first.entries.len(), 4);
+    assert_eq!(first.entries[0].0, "data");
+    assert_eq!(first.entries[1].0, "data");
+    assert_eq!(first.entries[2].0, "name");
+    assert_eq!(first.entries[3].0, "data");
+
+    assert_eq!(first.notes.len(), 1);
     assert_eq!(
         first.notes[0].0,
         Note::Error("unparsed line ending 'a'".to_string())
+    );
+
+    let second = &blocks[1];
+    assert_eq!(second.block_type, "second");
+    assert_eq!(second.lineno_start, 8);
+    assert_eq!(second.lineno_end, 10);
+
+    assert_eq!(second.entries.len(), 0);
+    assert_eq!(second.notes.len(), 1);
+    assert_eq!(
+        second.notes[0].0,
+        Note::Error("block data is not preceded by a keyword".to_string())
+    );
+
+    let third = &blocks[2];
+    assert_eq!(third.block_type, "third");
+    assert_eq!(third.lineno_start, 14);
+    assert_eq!(third.lineno_end, 15);
+
+    assert_eq!(third.entries.len(), 0);
+    assert_eq!(third.notes.len(), 2);
+    assert_eq!(
+        third.notes[0].0,
+        Note::Error("data found before block start".to_string())
+    );
+    assert_eq!(
+        third.notes[1].0,
+        Note::Error("final block is missing and 'end' statement".to_string())
     );
 }
