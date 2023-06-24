@@ -65,8 +65,9 @@ pub fn parse_blocks<T: Read>(input: T) -> Vec<Block> {
     let mut blocks = vec![];
     let mut current_key: Option<String> = None;
     let mut in_block = false;
+    let mut lineno = 0;
 
-    for (lineno, line) in BufReader::new(input).lines().enumerate() {
+    for line in BufReader::new(input).lines() {
         match line {
             Err(e) => {
                 current_block.add_error(&format!("{:?}", e), lineno, None)
@@ -80,10 +81,8 @@ pub fn parse_blocks<T: Read>(input: T) -> Vec<Block> {
                     }
 
                     if fields.len() == 0 {
-                        continue
-                    }
-
-                    if let Field::Key(s) = &fields[0] {
+                        // nothing to do for this line
+                    } else if let Field::Key(s) = &fields[0] {
                         let new_key = s.to_lowercase();
 
                         if new_key == "end" {
@@ -105,8 +104,6 @@ pub fn parse_blocks<T: Read>(input: T) -> Vec<Block> {
 
                             current_block = Block::new();
                             in_block = false;
-
-                            continue
                         } else if !in_block {
                             current_block.lineno_start = lineno;
                             current_block.block_type = new_key;
@@ -124,13 +121,21 @@ pub fn parse_blocks<T: Read>(input: T) -> Vec<Block> {
                     } else if let Some(key) = &current_key {
                         current_block.add_entry(&key, &fields);
                     } else {
-                        //TODO handle data with no key
+                        let msg = "block data is not preceded by a keyword";
+                        current_block.add_error(msg, lineno, Some(&s));
                     }
                 }
             }
         }
 
-        //TODO handle missing 'end' in final block
+        lineno += 1;
+    }
+
+    if in_block {
+        let msg = "final block is missing and 'end' statement";
+        current_block.lineno_end = lineno;
+        current_block.add_error(msg, 0, None);
+        blocks.push(current_block);
     }
 
     blocks
