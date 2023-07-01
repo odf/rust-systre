@@ -148,9 +148,6 @@ pub fn parse_blocks<T: Read>(input: T) -> Vec<Block> {
                         if !in_block {
                             let msg = "data found before block start";
                             current_entry.add_error(msg);
-                        } else if current_key.is_none() {
-                            let msg = "block data is not preceded by a keyword";
-                            current_entry.add_error(msg);
                         }
                         current_block.entries.push(current_entry);
                     }   
@@ -223,11 +220,8 @@ THIRD
     assert_eq!(second.lineno_end, 10);
 
     assert_eq!(second.entries.len(), 3);
-    assert_eq!(second.entries[1].notes.len(), 1);
-    assert_eq!(
-        second.entries[1].notes[0],
-        Note::Error("block data is not preceded by a keyword".to_string())
-    );
+    assert_eq!(second.entries[1].notes.len(), 0);
+    assert_eq!(second.entries[1].key, None);
 
     let third = &blocks[2];
     assert_eq!(third.block_type, "third");
