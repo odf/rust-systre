@@ -4,6 +4,12 @@ use super::parse_cgd_line::{parse_cgd_line, Field};
 
 
 #[derive(Debug, PartialEq)]
+pub enum EntryType {
+    Begin, End, Data, Empty
+}
+
+
+#[derive(Debug, PartialEq)]
 pub enum Note {
     Error(String),
     Warning(String),
@@ -11,18 +17,45 @@ pub enum Note {
 
 
 #[derive(Debug)]
-pub struct Context {
+pub struct Entry {
+    entry_type: EntryType,
+    key: Option<String>,
+    fields: Vec<Field>,
+    notes: Vec<Note>,
     line_number: usize,
-    line_content: Option<String>,
+    content: Option<String>,
 }
 
 
+impl Entry {
+    fn new(
+        entry_type: EntryType,
+        line_number: usize,
+        content: Option<String>,
+        key: Option<String>,
+        fields: Vec<Field>
+    )
+        -> Self
+    {
+        Entry { entry_type, line_number, content, key, fields, notes: vec![] }
+    }
+
+    fn add_error(&mut self, msg: &str) {
+        self.notes.push(Note::Error(msg.to_string()));
+    }
+
+    fn add_warning(&mut self, msg: &str) {
+        self.notes.push(Note::Warning(msg.to_string()));
+    }
+}
+
+
+#[derive(Debug)]
 pub struct Block {
     block_type: String,
     lineno_start: usize,
     lineno_end: usize,
-    entries: Vec<(String, Vec<Field>)>,
-    notes: Vec<(Note, Context)>,
+    entries: Vec<Entry>,
 }
 
 
@@ -33,103 +66,94 @@ impl Block {
             lineno_start: 0,
             lineno_end: 0,
             entries: vec![],
-            notes: vec![]
         }
-    }
-
-    fn add_note(
-        &mut self, note: Note, line_number: usize, line: Option<&str>
-    ) {
-        let line_content = line.and_then(|s| Some(s.to_string()));
-        self.notes.push((note, Context { line_number, line_content }));
-    }
-
-    fn add_error(
-        &mut self, msg: &str, line_number: usize, line: Option<&str>
-    ) {
-        self.add_note(Note::Error(msg.to_string()), line_number, line);
-    }
-
-    fn add_warning(
-        &mut self, msg: &str, line_number: usize, line: Option<&str>
-    ) {
-        self.add_note(Note::Warning(msg.to_string()), line_number, line);
-    }
-
-    fn add_entry(&mut self, key: &str, fields: &[Field]) {
-        self.entries.push((key.to_string(), fields.iter().cloned().collect()));
     }
 }
 
 
 pub fn parse_blocks<T: Read>(input: T) -> Vec<Block> {
-    let mut current_block = Block::new();
     let mut blocks = vec![];
+    let mut current_block = Block::new();
     let mut current_key: Option<String> = None;
     let mut in_block = false;
     let mut lineno = 0;
 
     for line in BufReader::new(input).lines() {
+        let mut current_entry = Entry::new(
+            EntryType::Data, lineno, None, current_key.clone(), vec![]
+        );
+
         match line {
             Err(e) => {
-                current_block.add_error(&format!("{:?}", e), lineno, None)
+                current_entry.add_error(&format!("{:?}", e));
+                current_block.entries.push(current_entry);
             },
             Ok(s) => match parse_cgd_line(&s) {
-                Err(e) => current_block.add_error(&e, lineno, Some(&s)),
+                Err(e) => {
+                    current_entry.content = Some(s);
+                    current_entry.add_error(&e);
+                    current_block.entries.push(current_entry);
+                },
                 Ok((rest, fields)) => {
+                    current_entry.content = Some(s.clone());
                     if rest.len() > 0 {
                         let msg = format!("unparsed line ending '{}'", rest);
-                        current_block.add_error(&msg, lineno, Some(&s));
+                        current_entry.add_error(&msg);
                     }
 
                     if fields.len() == 0 {
-                        // nothing to do for this line
+                        if current_entry.notes.len() > 0 {
+                            current_entry.entry_type = EntryType::Empty;
+                            current_block.entries.push(current_entry);
+                        }
                     } else if let Field::Key(s) = &fields[0] {
                         let new_key = s.to_lowercase();
 
                         if new_key == "end" {
+                            current_entry.entry_type = EntryType::End;
                             if !in_block {
                                 current_block.lineno_start = lineno;
                                 current_block.block_type =
                                     "--invalid--".to_string();
                                 let msg = "block has no type or content";
-                                current_block.add_error(msg, lineno, None);
+                                current_entry.add_error(msg);
                             }
                             current_block.lineno_end = lineno;
                             if fields.len() > 1 {
                                 let msg = "text after 'end' keyword ignored";
-                                current_block.add_warning(
-                                    msg, lineno, Some(&s)
-                                );
+                                current_entry.add_warning(msg);
                             }
+                            current_block.entries.push(current_entry);
                             blocks.push(current_block);
 
                             current_block = Block::new();
                             in_block = false;
                         } else if !in_block {
+                            current_entry.entry_type = EntryType::Begin;
                             current_block.lineno_start = lineno;
                             current_block.block_type = new_key;
                             in_block = true;
                             current_key = None;
                             if fields.len() > 1 {
                                 let msg = "text after block type ignored";
-                                current_block.add_warning(
-                                    msg, lineno, Some(&s)
-                                );
+                                current_entry.add_warning(msg);
                             }
+                            current_block.entries.push(current_entry);
                         } else {
                             current_key = Some(new_key.clone());
-                            current_block.add_entry(&new_key, &fields[1..]);
+                            current_entry.key = current_key.clone();
+                            current_block.entries.push(current_entry);
                         }
-                    } else if !in_block {
-                        let msg = "data found before block start";
-                        current_block.add_error(msg, lineno, Some(&s));
-                    } else if let Some(key) = &current_key {
-                        current_block.add_entry(&key, &fields);
                     } else {
-                        let msg = "block data is not preceded by a keyword";
-                        current_block.add_error(msg, lineno, Some(&s));
-                    }
+                        if !in_block {
+                            let msg = "data found before block start";
+                            current_entry.add_error(msg);
+                        } else if current_key.is_none() {
+                            let msg = "block data is not preceded by a keyword";
+                            current_entry.add_error(msg);
+                        }
+                        current_block.entries.push(current_entry);
+                    }   
                 }
             }
         }
@@ -138,9 +162,12 @@ pub fn parse_blocks<T: Read>(input: T) -> Vec<Block> {
     }
 
     if in_block {
-        let msg = "final block is missing and 'end' statement";
+        let mut current_entry = Entry::new(
+            EntryType::End, lineno, None, None, vec![]
+        );
+        current_entry.add_error("final block is missing an 'end' statement");
+        current_block.entries.push(current_entry);
         current_block.lineno_end = lineno;
-        current_block.add_error(msg, 0, None);
         blocks.push(current_block);
     }
 
@@ -173,19 +200,20 @@ THIRD
     assert_eq!(blocks.len(), 3);
 
     let first = &blocks[0];
+    eprintln!("{:?}", first);
     assert_eq!(first.block_type, "first");
     assert_eq!(first.lineno_start, 1);
     assert_eq!(first.lineno_end, 6);
 
-    assert_eq!(first.entries.len(), 4);
-    assert_eq!(first.entries[0].0, "data");
-    assert_eq!(first.entries[1].0, "data");
-    assert_eq!(first.entries[2].0, "name");
-    assert_eq!(first.entries[3].0, "data");
+    assert_eq!(first.entries.len(), 6);
+    assert_eq!(first.entries[1].key, Some(String::from("data")));
+    assert_eq!(first.entries[2].key, Some(String::from("data")));
+    assert_eq!(first.entries[3].key, Some(String::from("name")));
+    assert_eq!(first.entries[4].key, Some(String::from("data")));
 
-    assert_eq!(first.notes.len(), 1);
+    assert_eq!(first.entries[4].notes.len(), 1);
     assert_eq!(
-        first.notes[0].0,
+        first.entries[4].notes[0],
         Note::Error("unparsed line ending 'a'".to_string())
     );
 
@@ -194,10 +222,10 @@ THIRD
     assert_eq!(second.lineno_start, 8);
     assert_eq!(second.lineno_end, 10);
 
-    assert_eq!(second.entries.len(), 0);
-    assert_eq!(second.notes.len(), 1);
+    assert_eq!(second.entries.len(), 3);
+    assert_eq!(second.entries[1].notes.len(), 1);
     assert_eq!(
-        second.notes[0].0,
+        second.entries[1].notes[0],
         Note::Error("block data is not preceded by a keyword".to_string())
     );
 
@@ -206,14 +234,15 @@ THIRD
     assert_eq!(third.lineno_start, 14);
     assert_eq!(third.lineno_end, 15);
 
-    assert_eq!(third.entries.len(), 0);
-    assert_eq!(third.notes.len(), 2);
+    assert_eq!(third.entries.len(), 3);
+    assert_eq!(third.entries[0].notes.len(), 1);
     assert_eq!(
-        third.notes[0].0,
+        third.entries[0].notes[0],
         Note::Error("data found before block start".to_string())
     );
+    assert_eq!(third.entries[2].notes.len(), 1);
     assert_eq!(
-        third.notes[1].0,
-        Note::Error("final block is missing and 'end' statement".to_string())
+        third.entries[2].notes[0],
+        Note::Error("final block is missing an 'end' statement".to_string())
     );
 }
