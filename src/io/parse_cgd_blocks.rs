@@ -108,6 +108,7 @@ pub fn parse_blocks<T: Read>(input: T) -> Vec<Block> {
                         }
                     } else if let Field::Key(s) = &fields[0] {
                         let new_key = s.to_lowercase();
+                        current_entry.key = Some(new_key.clone());
 
                         if new_key == "end" {
                             current_entry.entry_type = EntryType::End;
@@ -141,7 +142,6 @@ pub fn parse_blocks<T: Read>(input: T) -> Vec<Block> {
                             current_block.entries.push(current_entry);
                         } else {
                             current_key = Some(new_key.clone());
-                            current_entry.key = current_key.clone();
                             current_block.entries.push(current_entry);
                         }
                     } else {
@@ -203,10 +203,13 @@ THIRD
     assert_eq!(first.lineno_end, 6);
 
     assert_eq!(first.entries.len(), 6);
+    assert_eq!(first.entries[0].entry_type, EntryType::Begin);
+    assert_eq!(first.entries[1].entry_type, EntryType::Data);
     assert_eq!(first.entries[1].key, Some(String::from("data")));
     assert_eq!(first.entries[2].key, Some(String::from("data")));
     assert_eq!(first.entries[3].key, Some(String::from("name")));
     assert_eq!(first.entries[4].key, Some(String::from("data")));
+    assert_eq!(first.entries[5].entry_type, EntryType::End);
 
     assert_eq!(first.entries[4].notes.len(), 1);
     assert_eq!(
