@@ -8,42 +8,7 @@ use crate::arithmetic::matrices::Matrix;
 use crate::arithmetic::linear_algebra::{LinearAlgebra, extend_basis};
 use super::lattices::reduced_lattice_basis;
 use super::parse_operator::parse_operator;
-
-
-#[derive(Debug, PartialEq)]
-enum CrystalSystem2d {
-    Oblique,
-    Rectangular,
-    Square,
-    Hexagonal,
-}
-
-enum CrystalSystem3d {
-    Cubic,
-    Orthorhombic,
-    Hexagonal,
-    Tetragonal,
-    Trigonal,
-    Monoclinic,
-    Triclinic,
-}
-
-
-enum Centering2d {
-    Primitive,
-    Centered,
-}
-
-
-enum Centering3d {
-    Primitive,
-    FaceCentered,
-    BodyCentered,
-    Rhombohedral,
-    AFaceCentered,
-    BFaceCentered,
-    CFaceCentered,
-}
+use super::types::*;
 
 
 pub trait Coord:
@@ -211,16 +176,6 @@ fn operator_axis<T>(matrix: &Matrix<T>) -> Option<Vec<T>>
     }
 
     None
-}
-
-
-pub struct SpaceGroup2d {
-    dimension: usize,
-    crystal_system: CrystalSystem2d,
-    centering: Centering2d,
-    full_name: String,
-    group_name: String,
-    extension: String,
 }
 
 
