@@ -1,31 +1,9 @@
-use std::ops::{SubAssign, AddAssign, MulAssign};
-
-use num_rational::Ratio;
-use num_traits::Zero;
-
 use crate::arithmetic::geometry::{AffineMap, CoordinateMap};
 use crate::arithmetic::matrices::Matrix;
 use crate::arithmetic::linear_algebra::{LinearAlgebra, extend_basis};
 use super::lattices::reduced_lattice_basis;
 use super::parse_operator::parse_operator;
 use super::types::*;
-
-
-pub trait Coord:
-    super::lattices::Coord
-    + for <'a> AddAssign<&'a Self>
-    + for <'a> SubAssign<&'a Self>
-    + for <'a> MulAssign<&'a Self>
-{
-    fn epsilon() -> Self;
-    fn promote(q: Ratio<i32>) -> Self;
-}
-
-
-pub trait CoordPtr<T>:
-    super::lattices::CoordPtr<T>
-{
-}
 
 
 struct OperatorDetails<T> {
@@ -391,19 +369,6 @@ mod tests {
     use crate::arithmetic::matrices::Matrix;
 
     use super::*;
-
-    impl Coord for BigRational {
-        fn epsilon() -> Self {
-            BigRational::zero()
-        }
-
-        fn promote(q: Ratio<i32>) -> Self {
-            Ratio::new(BigInt::from(*q.numer()), BigInt::from(*q.denom()))
-        }
-    }
-
-    impl CoordPtr<BigRational> for &BigRational {
-    }
 
     fn r(x: i32) -> BigRational {
         BigRational::from(BigInt::from(x))

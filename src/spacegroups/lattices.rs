@@ -1,4 +1,3 @@
-use std::ops::{Add, Sub, Mul, Neg};
 use std::cmp::Ordering;
 
 use num_bigint::BigInt;
@@ -6,24 +5,8 @@ use num_rational::BigRational;
 use num_traits::{One, ToPrimitive, Signed, abs};
 use num_integer::Integer;
 
-use crate::arithmetic::linear_algebra::{extend_basis, Scalar};
-
-
-pub trait Coord:
-    Clone + PartialOrd + Signed + Scalar
-    + for <'a> Add<&'a Self, Output=Self>
-{
-    fn round(&self) -> Self;
-    fn div_rounded(&self, other: &Self) -> Self;
-}
-
-
-pub trait CoordPtr<T>:
-    Sized
-    + Add<Output=T> + Sub<Output=T> + Sub<T, Output=T> + Neg<Output=T>
-    + Mul<Output=T>
-{
-}
+use crate::arithmetic::linear_algebra::extend_basis;
+use super::types::{Coord, CoordPtr};
 
 
 pub fn shift_for_dirichlet_domain<T, F>(
@@ -297,19 +280,6 @@ mod tests {
     use num_rational::BigRational;
 
     use super::*;
-
-    impl Coord for BigRational {
-        fn round(&self) -> Self {
-            BigRational::round(self)
-        }
-
-        fn div_rounded(&self, other: &Self) -> Self {
-            BigRational::round(&(self / other))
-        }
-    }
-
-    impl CoordPtr<BigRational> for &BigRational {
-    }
 
     fn r(x: i32) -> BigRational {
         BigRational::from(BigInt::from(x))
