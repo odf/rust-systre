@@ -7,7 +7,9 @@ use crate::arithmetic::geometry::{AffineMap, Vector, CoordinateMap};
 use crate::arithmetic::matrices::Matrix;
 
 use super::parse_operator::parse_operator;
-use super::types::{CrystalSystem3d, Centering3d, Coord};
+use super::types::{
+    Coord, CrystalSystem2d, Centering2d, CrystalSystem3d, Centering3d
+};
 
 
 #[derive(Clone, Debug, PartialEq)]
@@ -18,11 +20,45 @@ struct Group {}
 struct Setting {}
 
 
-struct Lookup {
+struct TableEntry {
     name: String,
-    system: CrystalSystem3d,
-    centering: Centering3d,
-    from_std: CoordinateMap<BigRational, Group, Setting>,
+    canonical_name: String,
+    transform: CoordinateMap<BigRational, Group, Setting>,
+    operators: Vec<AffineMap<BigRational, Setting>>,
+}
+
+
+enum Lookup {
+    Entry2d {
+        name: String,
+        system: CrystalSystem2d,
+        centering: Centering2d,
+        from_std: CoordinateMap<BigRational, Group, Setting>,
+    },
+    Entry3d {
+        name: String,
+        system: CrystalSystem3d,
+        centering: Centering3d,
+        from_std: CoordinateMap<BigRational, Group, Setting>,
+    },
+}
+
+
+impl CrystalSystem2d {
+    pub fn from_string(s: &str) -> Option<Self> {
+        match &s.to_lowercase()[..] {
+            _ => None,
+        }
+    }
+}
+
+
+impl Centering2d {
+    pub fn from_string(s: &str) -> Option<Self> {
+        match &s.to_lowercase()[..] {
+            _ => None,
+        }
+    }
 }
 
 
@@ -81,9 +117,19 @@ fn promote_vec<T: Coord>(v: &Vec<Ratio<i32>>) -> Vec<T> {
 }
 
 
+impl<CSIn: Clone, CSOut: Clone>  CoordinateMap<BigRational, CSIn, CSOut> {
+    pub fn from_string(s: &str) -> Option<Self> {
+        Some(CoordinateMap::new(&AffineMap::from_string(s)?))
+    }
+}
+
+
 pub fn parse_space_group_table<T: Read>(input: T) -> Result<(), Error> {
+    let mut table: HashMap<String, TableEntry> = HashMap::new();
     let mut alias = HashMap::new();
     let mut lookup = vec![];
+    let mut canonical_name = None;
+    let mut current_name = None;
 
     for line in BufReader::new(input).lines() {
         let line = line?;
@@ -92,8 +138,8 @@ pub fn parse_space_group_table<T: Read>(input: T) -> Result<(), Error> {
         if content.is_empty() || content.starts_with('#') {
             continue;
         } else if line.starts_with(' ') {
-            let op = parse_operator(content);
-            // add op to operator list in current setting
+            let entry = table.get_mut(&current_name.clone().unwrap()).unwrap();
+            entry.operators.push(AffineMap::from_string(content).unwrap());
         } else {
             let fields: Vec<_> = content.split_whitespace().collect();
 
@@ -102,14 +148,46 @@ pub fn parse_space_group_table<T: Read>(input: T) -> Result<(), Error> {
                 let val = fields[2].to_string();
                 alias.insert(key, val);
             } else if fields[0].to_lowercase() == "lookup" {
-                lookup.push(Lookup {
-                    name: fields[1].to_string(),
-                    system: CrystalSystem3d::from_string(fields[2]).unwrap(),
-                    centering: Centering3d::from_string(fields[3]).unwrap(),
-                    from_std: CoordinateMap::new(
-                        &AffineMap::from_string(&fields[4..].join(" ")).unwrap()
-                    ),
-                });
+                let name = fields[1].to_string();
+                let op = fields[4..].join(" ");
+                let from_std = CoordinateMap::from_string(&op).unwrap();
+
+                if from_std.dim() == 2 {
+                    lookup.push(Lookup::Entry2d {
+                        name,
+                        system: CrystalSystem2d::from_string(fields[2]).unwrap(),
+                        centering: Centering2d::from_string(fields[3]).unwrap(),
+                        from_std,
+                    });
+                } else if from_std.dim() == 3 {
+                    lookup.push(Lookup::Entry3d {
+                        name,
+                        system: CrystalSystem3d::from_string(fields[2]).unwrap(),
+                        centering: Centering3d::from_string(fields[3]).unwrap(),
+                        from_std,
+                    });
+                }
+            } else {
+                let op = fields[1..].join(" ");
+                let transform: CoordinateMap<BigRational, Group, Setting> =
+                    CoordinateMap::from_string(&op).unwrap();
+
+                current_name = Some(fields[0].to_string());
+                if transform == CoordinateMap::new(
+                    &AffineMap::identity(transform.dim())
+                ) {
+                    canonical_name = current_name.clone();
+                }
+
+                table.insert(
+                    current_name.clone().unwrap(),
+                    TableEntry{
+                        name: current_name.clone().unwrap(),
+                        canonical_name: canonical_name.clone().unwrap(),
+                        transform,
+                        operators: vec![],
+                    }
+                );
             }
         }
     }
