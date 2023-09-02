@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 
 use num_bigint::BigInt;
 use num_rational::BigRational;
-use num_traits::{One, ToPrimitive, Signed, abs};
+use num_traits::{One, ToPrimitive, abs};
 use num_integer::Integer;
 
 use crate::arithmetic::linear_algebra::extend_basis;
@@ -174,20 +174,6 @@ fn rank<T>(vs: &[Vec<T>]) -> usize
 }
 
 
-fn dot<T>(v: &[T], w: &[T]) -> T
-    where T: Coord, for <'a> &'a T: CoordPtr<T>
-{
-    assert_eq!(v.len(), w.len());
-
-    let mut s = T::zero();
-    for i in 0..v.len() {
-        s = s + &v[i] * &w[i];
-    }
-
-    s
-}
-
-
 fn positive_direction<T>(v: &[T]) -> Vec<T>
     where T: Coord, for <'a> &'a T: CoordPtr<T>
 {
@@ -276,14 +262,27 @@ fn r_to_i32(x: &BigRational) -> Option<i32> {
 
 #[cfg(test)]
 mod tests {
-    use num_bigint::BigInt;
-    use num_rational::BigRational;
+    use num_traits::Signed;
 
     use super::*;
 
     fn r(x: i32) -> BigRational {
         BigRational::from(BigInt::from(x))
     }
+
+    fn dot<T>(v: &[T], w: &[T]) -> T
+        where T: Coord, for <'a> &'a T: CoordPtr<T>
+    {
+        assert_eq!(v.len(), w.len());
+
+        let mut s = T::zero();
+        for i in 0..v.len() {
+            s = s + &v[i] * &w[i];
+        }
+
+        s
+    }
+
 
     #[test]
     fn test_lattice_reduced2d() {
