@@ -1,15 +1,13 @@
 use std::collections::HashMap;
 use std::io::{BufRead, Read, BufReader, Error};
 
-use num_rational::Ratio;
-use num_traits::{Zero, One};
+use num_rational::{Ratio, BigRational};
 
 use crate::arithmetic::geometry::{AffineMap, Vector, CoordinateMap};
-use crate::arithmetic::linear_algebra::Scalar;
 use crate::arithmetic::matrices::Matrix;
 
 use super::parse_operator::parse_operator;
-use super::types::{CrystalSystem3d, Centering3d};
+use super::types::{CrystalSystem3d, Centering3d, Coord};
 
 
 #[derive(Clone, Debug, PartialEq)]
@@ -20,14 +18,11 @@ struct Group {}
 struct Setting {}
 
 
-type Fraction = Ratio<i32>;
-
-
 struct Lookup {
     name: String,
     system: CrystalSystem3d,
     centering: Centering3d,
-    from_std: CoordinateMap<Fraction, Group, Setting>,
+    from_std: CoordinateMap<BigRational, Group, Setting>,
 }
 
 
@@ -63,57 +58,26 @@ impl Centering3d {
 }
 
 
-impl Scalar for Ratio<i32> {
-    fn clear_column(col: usize, v: &mut Vec<Self>, b: &mut Vec<Self>) {
-        let f = v[col] / b[col];
-        v[col] = Self::zero();
-
-        for k in (col + 1)..v.len() {
-            v[k] -= &b[k] * &f;
-        }
-    }
-
-    fn normalize_column(col: usize, v: &mut Vec<Self>) {
-        let f = v[col];
-        v[col] = Self::one();
-
-        for k in (col + 1)..v.len() {
-            v[k] /= &f;
-        }
-    }
-
-    fn reduce_column(col: usize, v: &mut Vec<Self>, b: &Vec<Self>) {
-        let f = v[col];
-        v[col] = Self::zero();
-
-        for k in (col + 1)..v.len() {
-            let a = &b[k] * &f;
-            v[k] -= a;
-        }
-    }
-
-    fn solve_row(_a: &Vec<Self>, _x: &Vec<Vec<Self>>, b: &Vec<Self>)
-        -> Option<Vec<Self>>
-    {
-        Some(b.clone())
-    }
-}
-
-
-impl<CS: Clone> AffineMap<Fraction, CS> {
+impl<CS: Clone> AffineMap<BigRational, CS> {
     pub fn from_string(s: &str) -> Option<Self> {
         let (_, (linear, shift)) = parse_operator(s).ok()?;
 
         if linear.len() != shift.len() {
             None
         } else {
+            let linear: Vec<_> = linear.iter().map(promote_vec).collect();
             let rows: Vec<_> = linear.iter().map(|r| Matrix::row(r)).collect();
             let a = Matrix::vstack(&rows);
-            let t = Vector::new(&shift);
+            let t = Vector::new(&promote_vec(&shift));
 
             Some(AffineMap::new(&a, &t))
         }
     }
+}
+
+
+fn promote_vec<T: Coord>(v: &Vec<Ratio<i32>>) -> Vec<T> {
+    v.iter().map(|x| Coord::promote(*x)).collect()
 }
 
 
