@@ -47,6 +47,10 @@ enum Lookup {
 impl CrystalSystem2d {
     pub fn from_string(s: &str) -> Option<Self> {
         match &s.to_lowercase()[..] {
+            "square" => Some(CrystalSystem2d::Square),
+            "hexagonal" => Some(CrystalSystem2d::Hexagonal),
+            "rectangular" => Some(CrystalSystem2d::Rectangular),
+            "oblique" => Some(CrystalSystem2d::Oblique),
             _ => None,
         }
     }
@@ -56,6 +60,8 @@ impl CrystalSystem2d {
 impl Centering2d {
     pub fn from_string(s: &str) -> Option<Self> {
         match &s.to_lowercase()[..] {
+            "p" => Some(Centering2d::Primitive),
+            "c" => Some(Centering2d::Centered),
             _ => None,
         }
     }
