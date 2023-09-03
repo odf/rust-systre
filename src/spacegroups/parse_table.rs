@@ -13,14 +13,14 @@ use super::types::{
 
 
 #[derive(Clone, Debug, PartialEq)]
-struct Group {}
+pub struct Group {}
 
 
 #[derive(Clone, Debug, PartialEq)]
-struct Setting {}
+pub struct Setting {}
 
 
-struct TableEntry {
+pub struct TableEntry {
     name: String,
     canonical_name: String,
     transform: CoordinateMap<BigRational, Group, Setting>,
@@ -28,7 +28,7 @@ struct TableEntry {
 }
 
 
-enum Lookup {
+pub enum Lookup {
     Entry2d {
         name: String,
         system: CrystalSystem2d,
@@ -41,6 +41,13 @@ enum Lookup {
         centering: Centering3d,
         from_std: CoordinateMap<BigRational, Group, Setting>,
     },
+}
+
+
+pub struct Tables {
+    settings: HashMap<String, TableEntry>,
+    alias: HashMap<String, String>,
+    lookup: Vec<Lookup>,
 }
 
 
@@ -130,21 +137,21 @@ impl<CSIn: Clone, CSOut: Clone>  CoordinateMap<BigRational, CSIn, CSOut> {
 }
 
 
-pub fn parse_space_group_table<T: Read>(input: T) -> Result<(), Error> {
-    let mut table: HashMap<String, TableEntry> = HashMap::new();
+pub fn parse_space_group_table<T: Read>(input: T) -> Option<Tables> {
+    let mut settings: HashMap<String, TableEntry> = HashMap::new();
     let mut alias = HashMap::new();
     let mut lookup = vec![];
     let mut canonical_name = None;
     let mut current_name = None;
 
     for line in BufReader::new(input).lines() {
-        let line = line?;
+        let line = line.ok().unwrap();
         let content = line.trim();
 
         if content.is_empty() || content.starts_with('#') {
             continue;
         } else if line.starts_with(' ') {
-            let entry = table.get_mut(&current_name.clone().unwrap()).unwrap();
+            let entry = settings.get_mut(&current_name.clone().unwrap()).unwrap();
             entry.operators.push(AffineMap::from_string(content).unwrap());
         } else {
             let fields: Vec<_> = content.split_whitespace().collect();
@@ -185,7 +192,7 @@ pub fn parse_space_group_table<T: Read>(input: T) -> Result<(), Error> {
                     canonical_name = current_name.clone();
                 }
 
-                table.insert(
+                settings.insert(
                     current_name.clone().unwrap(),
                     TableEntry{
                         name: current_name.clone().unwrap(),
@@ -198,5 +205,5 @@ pub fn parse_space_group_table<T: Read>(input: T) -> Result<(), Error> {
         }
     }
 
-    Ok(())
+    Some(Tables { settings, alias, lookup })
 }
