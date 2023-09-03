@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::io::{BufRead, Read, BufReader, Error};
+use std::io::{BufRead, Read, BufReader};
 
 use num_rational::{Ratio, BigRational};
 
@@ -146,6 +146,7 @@ pub fn parse_space_group_table<T: Read>(input: T) -> Option<Tables> {
 
     for line in BufReader::new(input).lines() {
         let line = line.ok().unwrap();
+        println!("{}", line);
         let content = line.trim();
 
         if content.is_empty() || content.starts_with('#') {
