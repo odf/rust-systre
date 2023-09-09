@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::marker::PhantomData;
 use std::ops::{Neg, Add, AddAssign, Sub, SubAssign, Rem};
 use std::ops::{Mul, MulAssign, Div, DivAssign};
@@ -33,6 +34,12 @@ impl<T, CS> Vector<T, CS> {
 
     pub fn into_iter(self) -> IntoIter<T> {
         self.coords.into_iter()
+    }
+}
+
+impl <T: Display, CS> Display for Vector<T, CS> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.coords)
     }
 }
 
@@ -294,6 +301,12 @@ impl<T, CS> Point<T, CS> {
     }
 }
 
+impl <T: Display, CS> Display for Point<T, CS> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.coords)
+    }
+}
+
 impl<T, CS> Index<usize> for Point<T, CS> {
     type Output = T;
 
@@ -472,6 +485,12 @@ impl<T, CS> ScalarProduct<T, CS> {
     }
 }
 
+impl <T: Display, CS> Display for ScalarProduct<T, CS> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.coeffs)
+    }
+}
+
 impl<T, CS> Index<(usize, usize)> for ScalarProduct<T, CS> {
     type Output = T;
 
@@ -534,6 +553,24 @@ pub struct AffineMap<T, CS> {
 impl<T, CS> AffineMap<T, CS> {
     pub fn dim(&self) -> usize {
         self.shift.dim()
+    }
+}
+
+impl <T: Display, CS> Display for AffineMap<T, CS> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let m = &self.linear_coeffs;
+        let t = &self.shift;
+
+        let (nrows, ncols) = m.shape();
+
+        for i in 0..nrows {
+            for j in 0..ncols {
+                write!(f, " {}", m[(i, j)])?;
+            }
+            write!(f, "    {}\n", t[i])?;
+        }
+
+        Ok(())
     }
 }
 
@@ -669,6 +706,12 @@ pub struct CoordinateMap<T, CSIn, CSOut> {
 impl<T, CSIn, CSOut> CoordinateMap<T, CSIn, CSOut> {
     pub fn dim(&self) -> usize {
         self.forward.dim()
+    }
+}
+
+impl<T: Display, CSIn, CSOut> Display for CoordinateMap<T, CSIn, CSOut> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.forward)
     }
 }
 
