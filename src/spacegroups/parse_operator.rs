@@ -62,6 +62,10 @@ fn signed_term(input: &str) -> IResult<&str, Term> {
 fn unsigned_term(input: &str) -> IResult<&str, Term> {
     alt((
         map_opt(
+            separated_pair(unsigned_fraction, char('*'), axis),
+            |(q, a)| Some((q, a))
+        ),
+        map_opt(
             separated_pair(unsigned_fraction, space0, axis),
             |(q, a)| Some((q, a))
         ),
