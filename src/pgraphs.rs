@@ -527,14 +527,12 @@ impl<T, CS> Display for Graph<T, CS>
         CS: Eq + Hash
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut text = String::new();
-
         for e in &self.edges {
-            text.push_str(&format!("{}", e)[..]);
-            text.push('\n');
+            write!(f, "{}", e)?;
+            write!(f, "\n")?;
         }
 
-        f.write_str(&text[..])
+        Ok(())
     }
 }
 
