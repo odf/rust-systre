@@ -45,11 +45,11 @@ pub fn reduced_lattice_basis<T, F>(vs: &[Vec<T>], dot: F, epsilon: &T)
 
     let mut ws = dirichlet_vectors(vs, &dot, epsilon);
     ws.sort_by(|v, w| {
-        let d = dot(v, v).partial_cmp(&dot(w, w)).unwrap();
-        if d <= Ordering::Equal {
-            d
-        } else {
-            positive_direction(w).partial_cmp(&positive_direction(v)).unwrap()
+        match dot(v, v).partial_cmp(&dot(w, w)).unwrap() {
+            Ordering::Equal =>
+                positive_direction(w).partial_cmp(&positive_direction(v))
+                .unwrap(),
+            d => d
         }
     });
 
