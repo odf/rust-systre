@@ -560,11 +560,10 @@ impl <T: Display, CS> Display for AffineMap<T, CS> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let m = &self.linear_coeffs;
         let t = &self.shift;
+        let n = self.dim();
 
-        let (nrows, ncols) = m.shape();
-
-        for i in 0..nrows {
-            for j in 0..ncols {
+        for i in 0..n {
+            for j in 0..n {
                 write!(f, " {}", m[(i, j)])?;
             }
             write!(f, "    {}\n", t[i])?;
