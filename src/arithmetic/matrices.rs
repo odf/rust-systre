@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::ops::{Add, AddAssign, Sub, SubAssign, Neg};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
 use std::ops::{Index, IndexMut, Range};
@@ -44,6 +45,21 @@ impl<T> IndexMut<(usize, usize)> for Matrix<T> {
         assert!(j < self.ncols);
 
         &mut self.data[i * self.ncols + j]
+    }
+}
+
+impl<T: Display> Display for Matrix<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let (nrows, ncols) = self.shape();
+
+        for i in 0..nrows {
+            for j in 0..ncols {
+                write!(f, " {}", self[(i, j)])?;
+            }
+            write!(f, "\n")?;
+        }
+
+        Ok(())
     }
 }
 
