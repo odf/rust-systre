@@ -1,7 +1,9 @@
 use std::collections::HashMap;
+use std::fmt::Display;
 use std::io::{BufRead, Read, BufReader};
 
 use num_rational::{Ratio, BigRational};
+use num_traits::{Zero, Signed, One};
 
 use crate::arithmetic::geometry::{AffineMap, Vector, CoordinateMap};
 use crate::arithmetic::matrices::Matrix;
@@ -28,6 +30,72 @@ pub struct TableEntry {
 }
 
 
+impl Display for TableEntry {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Name: {}", self.name)?;
+        writeln!(f, "Canonical name: {}", self.canonical_name)?;
+        writeln!(f, "Transform:\n{}", self.transform)?;
+        writeln!(f, "Operators:")?;
+        for op in &self.operators {
+            write_op(f, &op)?;
+            writeln!(f, "")?;
+        }
+        Ok(())
+    }
+}
+
+fn write_op<CS>(
+    f: &mut std::fmt::Formatter<'_>,
+    op: &AffineMap<BigRational, CS>
+)
+    -> std::fmt::Result
+    where CS: Clone
+{
+    let m = op.linear_matrix();
+    let t = op.shift();
+    let d = op.dim();
+
+    if d == 3 {
+        for i in 0..3 {
+            let mut empty = true;
+            if i > 0 {
+                write!(f, ", ")?;
+            }
+
+            for (val, axis) in [
+                (&m[(i, 0)], "x"),
+                (&m[(i, 1)], "y"),
+                (&m[(i, 2)], "z"),
+                (&t[i], ""),
+            ] {
+                if !val.is_zero() {
+                    if !empty && val.is_positive() {
+                        write!(f, " + ")?;
+                    }
+                    if !val.is_one() {
+                        if val.abs().is_one() {
+                            write!(f, "-")?;
+                        } else {
+                            write!(f, "{}", val)?;
+                        }
+                    }
+                    write!(f, "{}", axis)?;
+                    empty = false;
+                }
+            }
+
+            if empty {
+                write!(f, "0")?;
+            }
+        }
+    } else {
+        writeln!(f, "{}", op)?;
+    }
+
+    Ok(())
+}
+
+
 pub enum Lookup {
     Entry2d {
         name: String,
@@ -45,9 +113,9 @@ pub enum Lookup {
 
 
 pub struct Tables {
-    settings: HashMap<String, TableEntry>,
-    alias: HashMap<String, String>,
-    lookup: Vec<Lookup>,
+    pub settings: HashMap<String, TableEntry>,
+    pub alias: HashMap<String, String>,
+    pub lookup: Vec<Lookup>,
 }
 
 
