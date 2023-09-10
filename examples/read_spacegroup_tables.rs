@@ -7,6 +7,7 @@ fn main() {
     let tables = parse_space_group_table(stdin()).unwrap();
     let settings = tables.settings;
 
-    println!("{}", settings.get("R3:R").unwrap());
-    println!("{}", settings.get("P4132").unwrap());
+    print!("{}\n\n", settings.get("c2mm").unwrap());
+    print!("{}\n\n", settings.get("R3:R").unwrap());
+    print!("{}\n\n", settings.get("P4132").unwrap());
 }

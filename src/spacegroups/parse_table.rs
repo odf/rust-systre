@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::io::{BufRead, Read, BufReader};
+use std::iter;
 
 use num_rational::{Ratio, BigRational};
 use num_traits::{Zero, Signed, One};
@@ -44,6 +45,7 @@ impl Display for TableEntry {
     }
 }
 
+
 fn write_op<CS>(
     f: &mut std::fmt::Formatter<'_>,
     op: &AffineMap<BigRational, CS>
@@ -51,45 +53,47 @@ fn write_op<CS>(
     -> std::fmt::Result
     where CS: Clone
 {
-    let m = op.linear_matrix();
-    let t = op.shift();
-    let d = op.dim();
-
-    if d == 3 {
-        for i in 0..3 {
-            let mut empty = true;
-            if i > 0 {
-                write!(f, ", ")?;
-            }
-
-            for (val, axis) in [
-                (&m[(i, 0)], "x"),
-                (&m[(i, 1)], "y"),
-                (&m[(i, 2)], "z"),
-                (&t[i], ""),
-            ] {
-                if !val.is_zero() {
-                    if !empty && val.is_positive() {
-                        write!(f, " + ")?;
-                    }
-                    if !val.is_one() {
-                        if val.abs().is_one() {
-                            write!(f, "-")?;
-                        } else {
-                            write!(f, "{}", val)?;
-                        }
-                    }
-                    write!(f, "{}", axis)?;
-                    empty = false;
-                }
-            }
-
-            if empty {
-                write!(f, "0")?;
-            }
-        }
-    } else {
+    if op.dim() > 3 {
         writeln!(f, "{}", op)?;
+    } else {
+        for i in 0..op.dim() {
+            if i > 0 {
+                write!(f, ",")?;
+            }
+            write_op_row(f, op.linear_matrix().get_row(i), &op.shift()[i])?;
+        }
+    }
+
+    Ok(())
+}
+
+
+fn write_op_row(
+    f: &mut std::fmt::Formatter<'_>,
+    row: Vec<BigRational>,
+    scalar: &BigRational
+) -> Result<(), std::fmt::Error>
+{
+    let parts: Vec<_> = (0..row.len())
+        .map(|j| (&row[j], ["x", "y", "z"][j]))
+        .chain(iter::once((scalar, "")))
+        .filter(|(val, _)| !val.is_zero())
+        .collect();
+
+    if parts.is_empty() {
+        write!(f, "0")?;
+    } else {
+        for (k, (val, axis)) in parts.iter().enumerate() {
+            if k > 0 && val.is_positive() {
+                write!(f, "+")?;
+            } else if val.is_negative() {
+                write!(f, "-")?;
+            }
+            if !val.abs().is_one() {
+                write!(f, "{}", val.abs())?;
+            }
+            write!(f, "{}", axis)?;
+        }
     }
 
     Ok(())
