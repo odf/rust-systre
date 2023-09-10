@@ -708,6 +708,12 @@ impl<T, CSIn, CSOut> CoordinateMap<T, CSIn, CSOut> {
     }
 }
 
+impl<T: Clone, CSIn: Clone, CSOut> CoordinateMap<T, CSIn, CSOut> {
+    pub fn forward(&self) -> AffineMap<T, CSIn> {
+        self.forward.clone()
+    }
+}
+
 impl<T: Display, CSIn, CSOut> Display for CoordinateMap<T, CSIn, CSOut> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.forward)

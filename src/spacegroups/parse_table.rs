@@ -35,7 +35,9 @@ impl Display for TableEntry {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "Name: {}", self.name)?;
         writeln!(f, "Canonical name: {}", self.canonical_name)?;
-        writeln!(f, "Transform:\n{}", self.transform)?;
+        write!(f, "Transform: ")?;
+        write_op(f, &self.transform.forward())?;
+        writeln!(f, "")?;
         writeln!(f, "Operators:")?;
         for op in &self.operators {
             write_op(f, &op)?;
