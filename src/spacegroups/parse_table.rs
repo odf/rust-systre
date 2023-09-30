@@ -33,8 +33,8 @@ pub struct TableEntry {
 
 impl Display for TableEntry {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "Name: {}", self.name)?;
-        writeln!(f, "Canonical name: {}", self.canonical_name)?;
+        writeln!(f, "Setting Name: {}", self.name)?;
+        writeln!(f, "Group name: {}", self.canonical_name)?;
         write!(f, "Transform: ")?;
         write_op(f, &self.transform.forward())?;
         writeln!(f, "")?;
@@ -115,6 +115,31 @@ pub enum Lookup {
         centering: Centering3d,
         from_std: CoordinateMap<BigRational, Group, Setting>,
     },
+}
+
+
+impl Display for Lookup {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Lookup::Entry2d { name, system, centering, from_std } => {
+                writeln!(f, "Lookup name: {}", name)?;
+                writeln!(f, "Crystal system: {}", system)?;
+                writeln!(f, "Centering: {}", centering)?;
+                write!(f, "Transform: ")?;
+                write_op(f, &from_std.forward())?;
+                writeln!(f)?;
+            },
+            Lookup::Entry3d { name, system, centering, from_std } => {
+                writeln!(f, "Lookup name: {}", name)?;
+                writeln!(f, "Crystal system: {}", system)?;
+                writeln!(f, "Centering: {}", centering)?;
+                write!(f, "Transform: ")?;
+                write_op(f, &from_std.forward())?;
+                writeln!(f)?;
+            },
+        }
+        Ok(())
+    }
 }
 
 

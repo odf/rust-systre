@@ -1,4 +1,4 @@
-use std::ops::{Add, Sub, Mul, Neg, SubAssign, AddAssign, MulAssign};
+use std::{ops::{Add, Sub, Mul, Neg, SubAssign, AddAssign, MulAssign}, fmt::Display};
 
 use num_bigint::BigInt;
 use num_traits::{Signed, Zero};
@@ -91,4 +91,60 @@ pub struct SpaceGroup2d {
     full_name: String,
     group_name: String,
     extension: String,
+}
+
+
+impl Display for CrystalSystem2d {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CrystalSystem2d::Oblique => write!(f, "oblique")?,
+            CrystalSystem2d::Rectangular => write!(f, "rectangular")?,
+            CrystalSystem2d::Square => write!(f, "square")?,
+            CrystalSystem2d::Hexagonal => write!(f, "hexagonal")?,
+        }
+        Ok(())
+    }
+}
+
+
+impl Display for CrystalSystem3d {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CrystalSystem3d::Cubic => write!(f, "cubic")?,
+            CrystalSystem3d::Orthorhombic => write!(f, "orthorhombic")?,
+            CrystalSystem3d::Hexagonal => write!(f, "hexagonal")?,
+            CrystalSystem3d::Tetragonal => write!(f, "tetragonal")?,
+            CrystalSystem3d::Trigonal => write!(f, "trigonal")?,
+            CrystalSystem3d::Monoclinic => write!(f, "monoclinic")?,
+            CrystalSystem3d::Triclinic => write!(f, "triclinic")?,
+        }
+        Ok(())
+    }
+}
+
+
+impl Display for Centering2d {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Centering2d::Primitive => write!(f, "p")?,
+            Centering2d::Centered => write!(f, "c")?,
+        }
+        Ok(())
+    }
+}
+
+
+impl Display for Centering3d {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Centering3d::Primitive => write!(f, "P")?,
+            Centering3d::FaceCentered => write!(f, "F")?,
+            Centering3d::BodyCentered => write!(f, "I")?,
+            Centering3d::Rhombohedral => write!(f, "R")?,
+            Centering3d::AFaceCentered => write!(f, "A")?,
+            Centering3d::BFaceCentered => write!(f, "B")?,
+            Centering3d::CFaceCentered => write!(f, "C")?,
+        }
+        Ok(())
+    }
 }
