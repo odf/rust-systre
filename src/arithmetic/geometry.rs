@@ -735,6 +735,12 @@ impl<T, CSIn, CSOut> CoordinateMap<T, CSIn, CSOut>
         }
     }
 
+    pub fn identity(dim: usize) -> Self
+        where T: Zero + One
+    {
+        Self::new(&AffineMap::identity(dim))
+    }
+
     pub fn inverse(&self) -> CoordinateMap<T, CSOut, CSIn> {
         CoordinateMap {
             forward: self.backward.clone(),
