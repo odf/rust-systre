@@ -600,6 +600,14 @@ impl<T: Clone, CS: Clone> AffineMap<T, CS> {
         AffineMap::new(&Matrix::identity(dim), &Vector::zero(dim))
     }
 
+    pub fn is_identity(&self) -> bool
+        where T: PartialEq + Zero + One
+    {
+        self.linear_coeffs.is_identity()
+        &&
+        self.shift.coords.iter().all(|x| x.is_zero())
+    }
+
     pub fn inverse(&self) -> Option<Self>
         where
             T: Neg<Output=T>,
@@ -739,6 +747,12 @@ impl<T, CSIn, CSOut> CoordinateMap<T, CSIn, CSOut>
         where T: Zero + One
     {
         Self::new(&AffineMap::identity(dim))
+    }
+
+    pub fn is_identity(&self) -> bool
+        where T: PartialEq + Zero + One
+    {
+        self.forward.is_identity()
     }
 
     pub fn inverse(&self) -> CoordinateMap<T, CSOut, CSIn> {
