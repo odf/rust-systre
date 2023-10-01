@@ -250,31 +250,31 @@ pub fn parse_space_group_table<T: Read>(input: T) -> Option<Tables> {
         if content.is_empty() || content.starts_with('#') {
             continue;
         } else if line.starts_with(' ') {
-            let entry = settings.get_mut(&current_name)?;
-            entry.operators.push(AffineMap::from_string(content)?);
+            let op = AffineMap::from_string(content)?;
+            settings.get_mut(&current_name)?.operators.push(op);
         } else {
             let fields: Vec<_> = content.split_whitespace().collect();
 
             if fields[0].to_lowercase() == "alias" {
-                let key = fields[1].to_string();
-                let val = fields[2].to_string();
-                alias.insert(key, val);
+                alias.insert(fields[1].into(), fields[2].into());
             } else if fields[0].to_lowercase() == "lookup" {
                 lookup.push(make_lookup_entry(&fields)?);
             } else {
                 let name = fields[0].to_string();
                 current_name = name.clone();
 
-                let op = fields[1..].join(" ");
-                let transform = CoordinateMap::from_string(&op)?;
+                let spec = fields[1..].join(" ");
+                let transform = CoordinateMap::from_string(&spec)?;
                 if transform.is_identity() {
                     canonical_name = name.clone();
                 }
 
                 let canonical_name = canonical_name.clone(); // local copy
                 let operators = vec![];
-                let entry = TableEntry{ name, canonical_name, transform, operators };
-                settings.insert(current_name.clone(), entry);
+                settings.insert(
+                    current_name.clone(),
+                    TableEntry{ name, canonical_name, transform, operators }
+                );
             }
         }
     }
@@ -285,22 +285,16 @@ pub fn parse_space_group_table<T: Read>(input: T) -> Option<Tables> {
 
 fn make_lookup_entry(fields: &Vec<&str>) -> Option<Lookup> {
     let name = fields[1].to_string();
-    let op = fields[4..].join(" ");
-    let from_std = CoordinateMap::from_string(&op)?;
+    let spec = fields[4..].join(" ");
+    let from_std = CoordinateMap::from_string(&spec)?;
 
     if from_std.dim() == 2 {
-        Some(Lookup::Entry2d {
-            name,
-            system: CrystalSystem2d::from_string(fields[2])?,
-            centering: Centering2d::from_string(fields[3])?,
-            from_std,
-        })
+        let system = CrystalSystem2d::from_string(fields[2])?;
+        let centering = Centering2d::from_string(fields[3])?;
+        Some(Lookup::Entry2d { name, system, centering, from_std })
     } else {
-        Some(Lookup::Entry3d {
-            name,
-            system: CrystalSystem3d::from_string(fields[2])?,
-            centering: Centering3d::from_string(fields[3])?,
-            from_std,
-        })
+        let system = CrystalSystem3d::from_string(fields[2])?;
+        let centering = Centering3d::from_string(fields[3])?;
+        Some(Lookup::Entry3d { name, system, centering, from_std })
     }
 }
