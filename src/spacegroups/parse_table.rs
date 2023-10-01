@@ -260,41 +260,24 @@ pub fn parse_space_group_table<T: Read>(input: T) -> Option<Tables> {
                 let val = fields[2].to_string();
                 alias.insert(key, val);
             } else if fields[0].to_lowercase() == "lookup" {
-                let name = fields[1].to_string();
-                let op = fields[4..].join(" ");
-                let from_std = CoordinateMap::from_string(&op).unwrap();
-
-                if from_std.dim() == 2 {
-                    lookup.push(Lookup::Entry2d {
-                        name,
-                        system: CrystalSystem2d::from_string(fields[2]).unwrap(),
-                        centering: Centering2d::from_string(fields[3]).unwrap(),
-                        from_std,
-                    });
-                } else if from_std.dim() == 3 {
-                    lookup.push(Lookup::Entry3d {
-                        name,
-                        system: CrystalSystem3d::from_string(fields[2]).unwrap(),
-                        centering: Centering3d::from_string(fields[3]).unwrap(),
-                        from_std,
-                    });
-                }
+                lookup.push(make_lookup_entry(&fields));
             } else {
                 let op = fields[1..].join(" ");
-                let transform: CoordinateMap<BigRational, Group, Setting> =
-                    CoordinateMap::from_string(&op).unwrap();
+                let transform = CoordinateMap::from_string(&op).unwrap();
+                let name = fields[0].to_string();
 
-                current_name = Some(fields[0].to_string());
+                current_name = Some(name.clone());
+
                 if transform == CoordinateMap::new(
                     &AffineMap::identity(transform.dim())
                 ) {
-                    canonical_name = current_name.clone();
+                    canonical_name = Some(name.clone());
                 }
 
                 settings.insert(
-                    current_name.clone().unwrap(),
+                    name.clone(),
                     TableEntry{
-                        name: current_name.clone().unwrap(),
+                        name: name,
                         canonical_name: canonical_name.clone().unwrap(),
                         transform,
                         operators: vec![],
@@ -305,4 +288,27 @@ pub fn parse_space_group_table<T: Read>(input: T) -> Option<Tables> {
     }
 
     Some(Tables { settings, alias, lookup })
+}
+
+
+fn make_lookup_entry(fields: &Vec<&str>) -> Lookup {
+    let name = fields[1].to_string();
+    let op = fields[4..].join(" ");
+    let from_std = CoordinateMap::from_string(&op).unwrap();
+
+    if from_std.dim() == 2 {
+        Lookup::Entry2d {
+            name,
+            system: CrystalSystem2d::from_string(fields[2]).unwrap(),
+            centering: Centering2d::from_string(fields[3]).unwrap(),
+            from_std,
+        }
+    } else {
+        Lookup::Entry3d {
+            name,
+            system: CrystalSystem3d::from_string(fields[2]).unwrap(),
+            centering: Centering3d::from_string(fields[3]).unwrap(),
+            from_std,
+        }
+    }
 }
