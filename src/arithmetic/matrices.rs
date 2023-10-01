@@ -195,6 +195,29 @@ impl<T: Clone + Zero + One> Matrix<T> {
         }
         id
     }
+
+    pub fn is_identity(&self) -> bool
+        where T: PartialEq
+    {
+        let (nrows, ncols) = self.shape();
+        if nrows != ncols {
+            return false
+        }
+        for i in 0..nrows {
+            for j in 0..ncols {
+                if j == i {
+                    if !self[(i, j)].is_one() {
+                        return false;
+                    }
+                } else {
+                    if !self[(i, j)].is_zero() {
+                        return false;
+                    }
+                }
+            }
+        }
+        true
+    }
 }
 
 
@@ -232,6 +255,10 @@ pub(crate) fn test_matrix_basics() {
         Matrix::identity(3),
         Matrix::new(3, &[1, 0, 0, 0, 1, 0, 0, 0, 1])
     );
+    assert!(Matrix::<f32>::identity(6).is_identity());
+    assert!(!Matrix::new(5, &[0, 0, 1, 0, 0]).is_identity());
+    assert!(!Matrix::new(3, &[1, 0, 0, 0, 2, 0, 0, 0, 1]).is_identity());
+    assert!(!Matrix::new(3, &[1, 0, 1, 0, 1, 0, 0, 0, 1]).is_identity());
 
     let t: Matrix<i64> = Matrix::new(3, &[]);
     assert_eq!(t.shape(), (0, 3));
