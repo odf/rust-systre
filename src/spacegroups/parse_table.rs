@@ -244,14 +244,14 @@ pub fn parse_space_group_table<T: Read>(input: T) -> Option<Tables> {
     let mut current_name = "".to_string();
 
     for line in BufReader::new(input).lines() {
-        let line = line.ok().unwrap();
+        let line = line.ok()?;
         let content = line.trim();
 
         if content.is_empty() || content.starts_with('#') {
             continue;
         } else if line.starts_with(' ') {
-            let entry = settings.get_mut(&current_name).unwrap();
-            entry.operators.push(AffineMap::from_string(content).unwrap());
+            let entry = settings.get_mut(&current_name)?;
+            entry.operators.push(AffineMap::from_string(content)?);
         } else {
             let fields: Vec<_> = content.split_whitespace().collect();
 
@@ -260,13 +260,13 @@ pub fn parse_space_group_table<T: Read>(input: T) -> Option<Tables> {
                 let val = fields[2].to_string();
                 alias.insert(key, val);
             } else if fields[0].to_lowercase() == "lookup" {
-                lookup.push(make_lookup_entry(&fields));
+                lookup.push(make_lookup_entry(&fields)?);
             } else {
                 let name = fields[0].to_string();
                 current_name = name.clone();
 
                 let op = fields[1..].join(" ");
-                let transform = CoordinateMap::from_string(&op).unwrap();
+                let transform = CoordinateMap::from_string(&op)?;
                 if transform.is_identity() {
                     canonical_name = name.clone();
                 }
@@ -283,24 +283,24 @@ pub fn parse_space_group_table<T: Read>(input: T) -> Option<Tables> {
 }
 
 
-fn make_lookup_entry(fields: &Vec<&str>) -> Lookup {
+fn make_lookup_entry(fields: &Vec<&str>) -> Option<Lookup> {
     let name = fields[1].to_string();
     let op = fields[4..].join(" ");
-    let from_std = CoordinateMap::from_string(&op).unwrap();
+    let from_std = CoordinateMap::from_string(&op)?;
 
     if from_std.dim() == 2 {
-        Lookup::Entry2d {
+        Some(Lookup::Entry2d {
             name,
-            system: CrystalSystem2d::from_string(fields[2]).unwrap(),
-            centering: Centering2d::from_string(fields[3]).unwrap(),
+            system: CrystalSystem2d::from_string(fields[2])?,
+            centering: Centering2d::from_string(fields[3])?,
             from_std,
-        }
+        })
     } else {
-        Lookup::Entry3d {
+        Some(Lookup::Entry3d {
             name,
-            system: CrystalSystem3d::from_string(fields[2]).unwrap(),
-            centering: Centering3d::from_string(fields[3]).unwrap(),
+            system: CrystalSystem3d::from_string(fields[2])?,
+            centering: Centering3d::from_string(fields[3])?,
             from_std,
-        }
+        })
     }
 }
