@@ -267,9 +267,7 @@ pub fn parse_space_group_table<T: Read>(input: T) -> Option<Tables> {
 
                 let op = fields[1..].join(" ");
                 let transform = CoordinateMap::from_string(&op).unwrap();
-                if transform == CoordinateMap::new(
-                    &AffineMap::identity(transform.dim())
-                ) {
+                if transform == CoordinateMap::identity(transform.dim()) {
                     canonical_name = name.clone();
                 }
 
