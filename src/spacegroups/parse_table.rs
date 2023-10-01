@@ -240,8 +240,8 @@ pub fn parse_space_group_table<T: Read>(input: T) -> Option<Tables> {
     let mut settings: HashMap<String, TableEntry> = HashMap::new();
     let mut alias = HashMap::new();
     let mut lookup = vec![];
-    let mut canonical_name = None;
-    let mut current_name = None;
+    let mut canonical_name = "".to_string();
+    let mut current_name = "".to_string();
 
     for line in BufReader::new(input).lines() {
         let line = line.ok().unwrap();
@@ -250,7 +250,7 @@ pub fn parse_space_group_table<T: Read>(input: T) -> Option<Tables> {
         if content.is_empty() || content.starts_with('#') {
             continue;
         } else if line.starts_with(' ') {
-            let entry = settings.get_mut(&current_name.clone().unwrap()).unwrap();
+            let entry = settings.get_mut(&current_name).unwrap();
             entry.operators.push(AffineMap::from_string(content).unwrap());
         } else {
             let fields: Vec<_> = content.split_whitespace().collect();
@@ -262,27 +262,21 @@ pub fn parse_space_group_table<T: Read>(input: T) -> Option<Tables> {
             } else if fields[0].to_lowercase() == "lookup" {
                 lookup.push(make_lookup_entry(&fields));
             } else {
+                let name = fields[0].to_string();
+                current_name = name.clone();
+
                 let op = fields[1..].join(" ");
                 let transform = CoordinateMap::from_string(&op).unwrap();
-                let name = fields[0].to_string();
-
-                current_name = Some(name.clone());
-
                 if transform == CoordinateMap::new(
                     &AffineMap::identity(transform.dim())
                 ) {
-                    canonical_name = Some(name.clone());
+                    canonical_name = name.clone();
                 }
 
-                settings.insert(
-                    name.clone(),
-                    TableEntry{
-                        name: name,
-                        canonical_name: canonical_name.clone().unwrap(),
-                        transform,
-                        operators: vec![],
-                    }
-                );
+                let canonical_name = canonical_name.clone(); // local copy
+                let operators = vec![];
+                let entry = TableEntry{ name, canonical_name, transform, operators };
+                settings.insert(current_name.clone(), entry);
             }
         }
     }
