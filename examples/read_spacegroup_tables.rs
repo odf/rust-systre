@@ -1,13 +1,21 @@
-use std::io::stdin;
+use rust_systre::spacegroups::parse_table::{parse_space_group_table, Tables};
 
-use rust_systre::spacegroups::parse_table::parse_space_group_table;
+#[macro_use]
+extern crate lazy_static;
+
+lazy_static! {
+    static ref TABLES: Tables = parse_space_group_table(
+        include_str!(
+            concat!(env!("CARGO_MANIFEST_DIR"), "/data/sgtable.data")
+        ).as_bytes()
+    ).unwrap();
+}
 
 
 fn main() {
-    let tables = parse_space_group_table(stdin()).unwrap();
-    let settings = tables.settings;
-    let alias = tables.alias;
-    let lookup = tables.lookup;
+    let settings = &TABLES.settings;
+    let alias = &TABLES.alias;
+    let lookup = &TABLES.lookup;
 
     print!("{}\n\n", settings.get("c2mm").unwrap());
     print!("{}\n\n", settings.get("R3:R").unwrap());
