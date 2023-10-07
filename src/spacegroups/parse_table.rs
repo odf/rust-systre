@@ -146,10 +146,9 @@ impl Tables {
 impl CrystalSystem {
     pub fn from_string(s: &str) -> Option<Self> {
         match &s.to_lowercase()[..] {
-            "square" => Some(CrystalSystem::Square2d),
-            //"hexagonal" => Some(CrystalSystem::Hexagonal2d), // TODO how to distinguish?
-            "rectangular" => Some(CrystalSystem::Rectangular2d),
-            "oblique" => Some(CrystalSystem::Oblique2d),
+            "square" => Some(CrystalSystem::Square),
+            "rectangular" => Some(CrystalSystem::Rectangular),
+            "oblique" => Some(CrystalSystem::Oblique),
             "cubic" => Some(CrystalSystem::Cubic),
             "orthorhombic" => Some(CrystalSystem::Orthorhombic),
             "hexagonal" => Some(CrystalSystem::Hexagonal),

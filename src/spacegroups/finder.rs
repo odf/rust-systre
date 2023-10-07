@@ -199,11 +199,11 @@ fn crystal_system_and_basis_2d<T>(ops: &[Matrix<T>])
 
     let crystal_system = match n {
         3 | 6 => CrystalSystem::Hexagonal,
-        4 => CrystalSystem::Square2d,
+        4 => CrystalSystem::Square,
         _ => if mirrors.len() > 0 {
-            CrystalSystem::Rectangular2d
+            CrystalSystem::Rectangular
         } else {
-            CrystalSystem::Oblique2d
+            CrystalSystem::Oblique
         }
     };
 
@@ -272,11 +272,11 @@ fn normalized_basis_2d<T>(crys: CrystalSystem, basis_in: &Vec<Matrix<T>>)
     let b = reduced_lattice_basis(&vs, dot, &T::epsilon()).unwrap();
 
     match crys {
-        CrystalSystem::Oblique2d => (
+        CrystalSystem::Oblique => (
             as_columns(b),
             Centering::Primitive2d
         ),
-        CrystalSystem::Rectangular2d => {
+        CrystalSystem::Rectangular => {
             if !b[0][0].is_zero() && !b[0][1].is_zero() {
                 (
                     as_columns(vec![
@@ -305,14 +305,14 @@ fn normalized_basis_2d<T>(crys: CrystalSystem, basis_in: &Vec<Matrix<T>>)
                 (as_columns(b), Centering::Primitive2d)
             }
         },
-        CrystalSystem::Square2d => (
+        CrystalSystem::Square => (
             as_columns(vec![
                 apply_operator("x, y", &b[0]),
                 apply_operator("-y, x", &b[0]),
             ]),
             Centering::Primitive2d
         ),
-        CrystalSystem::Hexagonal2d => (
+        CrystalSystem::Hexagonal => (
             as_columns(vec![
                 apply_operator("x, y", &b[0]),
                 apply_operator("-y, x-y", &b[0]),
@@ -498,7 +498,7 @@ mod tests {
             Matrix::new(2, &[r(-1), r(0), r(0), r(-1)])
         ];
         let (cs, b) = crystal_system_and_basis_2d(&ops);
-        assert_eq!(CrystalSystem::Oblique2d, cs);
+        assert_eq!(CrystalSystem::Oblique, cs);
         assert_eq!(
             &b,
             &vec![Matrix::col(&[r(1), r(0)]),Matrix::col(&[r(0), r(1)])]
@@ -509,7 +509,7 @@ mod tests {
             Matrix::new(2, &[r(1), r(0), r(0), r(-1)])
         ];
         let (cs, _) = crystal_system_and_basis_2d(&ops);
-        assert_eq!(CrystalSystem::Rectangular2d, cs);
+        assert_eq!(CrystalSystem::Rectangular, cs);
 
         let ops = vec![
             Matrix::new(2, &[r(1), r(0), r(0), r(1)]),
@@ -526,6 +526,6 @@ mod tests {
             Matrix::new(2, &[r(0), r(-1), r(1), r(0)]).transpose(),
         ];
         let (cs, _) = crystal_system_and_basis_2d(&ops);
-        assert_eq!(CrystalSystem::Square2d, cs);
+        assert_eq!(CrystalSystem::Square, cs);
     }
 }

@@ -53,13 +53,15 @@ impl CoordPtr<BigRational> for &BigRational {
 
 #[derive(Debug, PartialEq)]
 pub enum CrystalSystem {
-    Oblique2d,
-    Rectangular2d,
-    Square2d,
-    Hexagonal2d,
+    // 2d
+    Oblique,
+    Rectangular,
+    Square,
+    // 2d or 3d
+    Hexagonal,
+    // 3d
     Cubic,
     Orthorhombic,
-    Hexagonal,
     Tetragonal,
     Trigonal,
     Monoclinic,
@@ -69,8 +71,10 @@ pub enum CrystalSystem {
 
 #[derive(Debug, PartialEq)]
 pub enum Centering {
+    // 2d
     Primitive2d,
     Centered2d,
+    // 3d
     Primitive,
     FaceCentered,
     BodyCentered,
@@ -94,10 +98,9 @@ pub struct SpaceGroup {
 impl Display for CrystalSystem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CrystalSystem::Oblique2d => write!(f, "oblique")?,
-            CrystalSystem::Rectangular2d => write!(f, "rectangular")?,
-            CrystalSystem::Square2d => write!(f, "square")?,
-            CrystalSystem::Hexagonal2d => write!(f, "hexagonal")?,
+            CrystalSystem::Oblique => write!(f, "oblique")?,
+            CrystalSystem::Rectangular => write!(f, "rectangular")?,
+            CrystalSystem::Square => write!(f, "square")?,
             CrystalSystem::Cubic => write!(f, "cubic")?,
             CrystalSystem::Orthorhombic => write!(f, "orthorhombic")?,
             CrystalSystem::Hexagonal => write!(f, "hexagonal")?,
