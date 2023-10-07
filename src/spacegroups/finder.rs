@@ -158,7 +158,7 @@ fn operator_axis<T>(matrix: &Matrix<T>) -> Option<Vec<T>>
 
 
 pub fn identitify_spacegroup_2d<T, CSIn, CSOut>(ops: &[AffineMap<T, CSIn>])
-    -> (SpaceGroup2d, CoordinateMap<T, CSIn, CSOut>)
+    -> (SpaceGroup, CoordinateMap<T, CSIn, CSOut>)
     where
         T: Coord, for <'a> &'a T: CoordPtr<T>,
         CSIn: Clone + PartialEq,
@@ -183,7 +183,7 @@ pub fn identitify_spacegroup_2d<T, CSIn, CSOut>(ops: &[AffineMap<T, CSIn>])
 
 
 fn crystal_system_and_basis_2d<T>(ops: &[Matrix<T>])
-    -> (CrystalSystem2d, Vec<Matrix<T>>)
+    -> (CrystalSystem, Vec<Matrix<T>>)
     where
         T: Coord, for <'a> &'a T: CoordPtr<T>,
         Matrix<T>: LinearAlgebra<T>
@@ -198,12 +198,12 @@ fn crystal_system_and_basis_2d<T>(ops: &[Matrix<T>])
     let m = if n == 6 { 3 } else { n };
 
     let crystal_system = match n {
-        3 | 6 => CrystalSystem2d::Hexagonal,
-        4 => CrystalSystem2d::Square,
+        3 | 6 => CrystalSystem::Hexagonal,
+        4 => CrystalSystem::Square2d,
         _ => if mirrors.len() > 0 {
-            CrystalSystem2d::Rectangular
+            CrystalSystem::Rectangular2d
         } else {
-            CrystalSystem2d::Oblique
+            CrystalSystem::Oblique2d
         }
     };
 
@@ -262,8 +262,8 @@ fn primitive_cell<T, CS>(ops: &[AffineMap<T, CS>]) -> Vec<Matrix<T>>
 }
 
 
-fn normalized_basis_2d<T>(crys: CrystalSystem2d, basis_in: &Vec<Matrix<T>>)
-    -> (Vec<Matrix<T>>, Centering2d)
+fn normalized_basis_2d<T>(crys: CrystalSystem, basis_in: &Vec<Matrix<T>>)
+    -> (Vec<Matrix<T>>, Centering)
     where
         T: Coord, for <'a> &'a T: CoordPtr<T>,
         Matrix<T>: LinearAlgebra<T>
@@ -272,18 +272,18 @@ fn normalized_basis_2d<T>(crys: CrystalSystem2d, basis_in: &Vec<Matrix<T>>)
     let b = reduced_lattice_basis(&vs, dot, &T::epsilon()).unwrap();
 
     match crys {
-        CrystalSystem2d::Oblique => (
+        CrystalSystem::Oblique2d => (
             as_columns(b),
-            Centering2d::Primitive
+            Centering::Primitive2d
         ),
-        CrystalSystem2d::Rectangular => {
+        CrystalSystem::Rectangular2d => {
             if !b[0][0].is_zero() && !b[0][1].is_zero() {
                 (
                     as_columns(vec![
                         apply_operator("0, 2y", &b[0]),
                         apply_operator("2x, 0", &b[0]),
                     ]),
-                    Centering2d::Centered
+                    Centering::Centered2d
                 )
             } else if !b[1][0].is_zero() && !b[1][1].is_zero() {
                 (
@@ -291,7 +291,7 @@ fn normalized_basis_2d<T>(crys: CrystalSystem2d, basis_in: &Vec<Matrix<T>>)
                         apply_operator("0, 2y", &b[1]),
                         apply_operator("2x, 0", &b[1]),
                     ]),
-                    Centering2d::Centered
+                    Centering::Centered2d
                 )
             } else if b[0][1].is_zero() {
                 (
@@ -299,26 +299,27 @@ fn normalized_basis_2d<T>(crys: CrystalSystem2d, basis_in: &Vec<Matrix<T>>)
                         apply_operator("x, y", &b[1]),
                         apply_operator("-x, -y", &b[0]),
                     ]),
-                    Centering2d::Primitive
+                    Centering::Primitive2d
                 )
             } else {
-                (as_columns(b), Centering2d::Primitive)
+                (as_columns(b), Centering::Primitive2d)
             }
         },
-        CrystalSystem2d::Square => (
+        CrystalSystem::Square2d => (
             as_columns(vec![
                 apply_operator("x, y", &b[0]),
                 apply_operator("-y, x", &b[0]),
             ]),
-            Centering2d::Primitive
+            Centering::Primitive2d
         ),
-        CrystalSystem2d::Hexagonal => (
+        CrystalSystem::Hexagonal2d => (
             as_columns(vec![
                 apply_operator("x, y", &b[0]),
                 apply_operator("-y, x-y", &b[0]),
             ]),
-            Centering2d::Primitive
+            Centering::Primitive2d
         ),
+        _ => todo!()
     }
 }
 
@@ -497,7 +498,7 @@ mod tests {
             Matrix::new(2, &[r(-1), r(0), r(0), r(-1)])
         ];
         let (cs, b) = crystal_system_and_basis_2d(&ops);
-        assert_eq!(CrystalSystem2d::Oblique, cs);
+        assert_eq!(CrystalSystem::Oblique2d, cs);
         assert_eq!(
             &b,
             &vec![Matrix::col(&[r(1), r(0)]),Matrix::col(&[r(0), r(1)])]
@@ -508,7 +509,7 @@ mod tests {
             Matrix::new(2, &[r(1), r(0), r(0), r(-1)])
         ];
         let (cs, _) = crystal_system_and_basis_2d(&ops);
-        assert_eq!(CrystalSystem2d::Rectangular, cs);
+        assert_eq!(CrystalSystem::Rectangular2d, cs);
 
         let ops = vec![
             Matrix::new(2, &[r(1), r(0), r(0), r(1)]),
@@ -516,7 +517,7 @@ mod tests {
             Matrix::new(2, &[r(-1), r(-1), r(1), r(0)]).transpose(),
         ];
         let (cs, _) = crystal_system_and_basis_2d(&ops);
-        assert_eq!(CrystalSystem2d::Hexagonal, cs);
+        assert_eq!(CrystalSystem::Hexagonal, cs);
 
         let ops = vec![
             Matrix::new(2, &[r(1), r(0), r(0), r(1)]),
@@ -525,6 +526,6 @@ mod tests {
             Matrix::new(2, &[r(0), r(-1), r(1), r(0)]).transpose(),
         ];
         let (cs, _) = crystal_system_and_basis_2d(&ops);
-        assert_eq!(CrystalSystem2d::Square, cs);
+        assert_eq!(CrystalSystem::Square2d, cs);
     }
 }

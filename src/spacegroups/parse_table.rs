@@ -10,9 +10,7 @@ use crate::arithmetic::geometry::{AffineMap, Vector, CoordinateMap};
 use crate::arithmetic::matrices::Matrix;
 
 use super::parse_operator::parse_operator;
-use super::types::{
-    Coord, CrystalSystem2d, Centering2d, CrystalSystem3d, Centering3d
-};
+use super::types::{ Coord, CrystalSystem, Centering };
 
 
 #[derive(Clone, Debug, PartialEq)]
@@ -102,42 +100,22 @@ fn write_op_row(
 }
 
 
-pub enum Lookup {
-    Entry2d {
-        name: String,
-        system: CrystalSystem2d,
-        centering: Centering2d,
-        from_std: CoordinateMap<BigRational, Group, Setting>,
-    },
-    Entry3d {
-        name: String,
-        system: CrystalSystem3d,
-        centering: Centering3d,
-        from_std: CoordinateMap<BigRational, Group, Setting>,
-    },
+pub struct Lookup {
+    name: String,
+    system: CrystalSystem,
+    centering: Centering,
+    from_std: CoordinateMap<BigRational, Group, Setting>,
 }
 
 
 impl Display for Lookup {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Lookup::Entry2d { name, system, centering, from_std } => {
-                writeln!(f, "Lookup name: {}", name)?;
-                writeln!(f, "Crystal system: {}", system)?;
-                writeln!(f, "Centering: {}", centering)?;
-                write!(f, "Transform: ")?;
-                write_op(f, &from_std.forward())?;
-                writeln!(f)?;
-            },
-            Lookup::Entry3d { name, system, centering, from_std } => {
-                writeln!(f, "Lookup name: {}", name)?;
-                writeln!(f, "Crystal system: {}", system)?;
-                writeln!(f, "Centering: {}", centering)?;
-                write!(f, "Transform: ")?;
-                write_op(f, &from_std.forward())?;
-                writeln!(f)?;
-            },
-        }
+        writeln!(f, "Lookup name: {}", self.name)?;
+        writeln!(f, "Crystal system: {}", self.system)?;
+        writeln!(f, "Centering: {}", self.centering)?;
+        write!(f, "Transform: ")?;
+        write_op(f, &self.from_std.forward())?;
+        writeln!(f)?;
         Ok(())
     }
 }
@@ -150,56 +128,53 @@ pub struct Tables {
 }
 
 
-impl CrystalSystem2d {
+impl Tables {
+    pub fn lookup_settings(&self, s: CrystalSystem, c: Centering)
+        -> Vec<(String, CoordinateMap<BigRational, Group, Setting>)>
+    {
+        self.lookup.iter().filter_map(|lkp|
+            if s == lkp.system && c == lkp.centering {
+                Some((lkp.name.clone(), lkp.from_std.clone()))
+            } else {
+                None
+            }
+        ).collect()
+    }
+}
+
+
+impl CrystalSystem {
     pub fn from_string(s: &str) -> Option<Self> {
         match &s.to_lowercase()[..] {
-            "square" => Some(CrystalSystem2d::Square),
-            "hexagonal" => Some(CrystalSystem2d::Hexagonal),
-            "rectangular" => Some(CrystalSystem2d::Rectangular),
-            "oblique" => Some(CrystalSystem2d::Oblique),
+            "square" => Some(CrystalSystem::Square2d),
+            //"hexagonal" => Some(CrystalSystem::Hexagonal2d), // TODO how to distinguish?
+            "rectangular" => Some(CrystalSystem::Rectangular2d),
+            "oblique" => Some(CrystalSystem::Oblique2d),
+            "cubic" => Some(CrystalSystem::Cubic),
+            "orthorhombic" => Some(CrystalSystem::Orthorhombic),
+            "hexagonal" => Some(CrystalSystem::Hexagonal),
+            "tetragonal" => Some(CrystalSystem::Tetragonal),
+            "trigonal" => Some(CrystalSystem::Trigonal),
+            "monoclinic" => Some(CrystalSystem::Monoclinic),
+            "triclinic" => Some(CrystalSystem::Triclinic),
             _ => None,
         }
     }
 }
 
 
-impl Centering2d {
-    pub fn from_string(s: &str) -> Option<Self> {
-        match &s.to_lowercase()[..] {
-            "p" => Some(Centering2d::Primitive),
-            "c" => Some(Centering2d::Centered),
-            _ => None,
-        }
-    }
-}
-
-
-impl CrystalSystem3d {
-    pub fn from_string(s: &str) -> Option<Self> {
-        match &s.to_lowercase()[..] {
-            "cubic" => Some(CrystalSystem3d::Cubic),
-            "orthorhombic" => Some(CrystalSystem3d::Orthorhombic),
-            "hexagonal" => Some(CrystalSystem3d::Hexagonal),
-            "tetragonal" => Some(CrystalSystem3d::Tetragonal),
-            "trigonal" => Some(CrystalSystem3d::Trigonal),
-            "monoclinic" => Some(CrystalSystem3d::Monoclinic),
-            "triclinic" => Some(CrystalSystem3d::Triclinic),
-            _ => None,
-        }
-    }
-}
-
-
-impl Centering3d {
+impl Centering {
     pub fn from_string(s: &str) -> Option<Self> {
         match s {
-            "P" => Some(Centering3d::Primitive),
-            "F" => Some(Centering3d::FaceCentered),
-            "I" => Some(Centering3d::BodyCentered),
-            "R" => Some(Centering3d::Rhombohedral),
-            "A" => Some(Centering3d::AFaceCentered),
-            "B" => Some(Centering3d::BFaceCentered),
-            "C" => Some(Centering3d::CFaceCentered),
+            "p" => Some(Centering::Primitive2d),
+            "c" => Some(Centering::Centered2d),
+            "P" => Some(Centering::Primitive),
+            "F" => Some(Centering::FaceCentered),
+            "I" => Some(Centering::BodyCentered),
+            "R" => Some(Centering::Rhombohedral),
+            "A" => Some(Centering::AFaceCentered),
+            "B" => Some(Centering::BFaceCentered),
+            "C" => Some(Centering::CFaceCentered),
             _ => None,
         }
     }
@@ -258,7 +233,7 @@ pub fn parse_space_group_table<T: Read>(input: T) -> Option<Tables> {
             if fields[0].to_lowercase() == "alias" {
                 alias.insert(fields[1].into(), fields[2].into());
             } else if fields[0].to_lowercase() == "lookup" {
-                lookup.push(make_lookup_entry(&fields)?);
+                lookup.push(make_lookup_entry_2d(&fields)?);
             } else {
                 let name = fields[0].to_string();
                 current_name = name.clone();
@@ -283,18 +258,12 @@ pub fn parse_space_group_table<T: Read>(input: T) -> Option<Tables> {
 }
 
 
-fn make_lookup_entry(fields: &Vec<&str>) -> Option<Lookup> {
+fn make_lookup_entry_2d(fields: &Vec<&str>) -> Option<Lookup> {
     let name = fields[1].to_string();
     let spec = fields[4..].join(" ");
     let from_std = CoordinateMap::from_string(&spec)?;
 
-    if from_std.dim() == 2 {
-        let system = CrystalSystem2d::from_string(fields[2])?;
-        let centering = Centering2d::from_string(fields[3])?;
-        Some(Lookup::Entry2d { name, system, centering, from_std })
-    } else {
-        let system = CrystalSystem3d::from_string(fields[2])?;
-        let centering = Centering3d::from_string(fields[3])?;
-        Some(Lookup::Entry3d { name, system, centering, from_std })
-    }
+    let system = CrystalSystem::from_string(fields[2])?;
+    let centering = Centering::from_string(fields[3])?;
+    Some(Lookup { name, system, centering, from_std })
 }

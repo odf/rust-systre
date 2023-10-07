@@ -52,14 +52,11 @@ impl CoordPtr<BigRational> for &BigRational {
 
 
 #[derive(Debug, PartialEq)]
-pub enum CrystalSystem2d {
-    Oblique,
-    Rectangular,
-    Square,
-    Hexagonal,
-}
-
-pub enum CrystalSystem3d {
+pub enum CrystalSystem {
+    Oblique2d,
+    Rectangular2d,
+    Square2d,
+    Hexagonal2d,
     Cubic,
     Orthorhombic,
     Hexagonal,
@@ -69,12 +66,11 @@ pub enum CrystalSystem3d {
     Triclinic,
 }
 
-pub enum Centering2d {
-    Primitive,
-    Centered,
-}
 
-pub enum Centering3d {
+#[derive(Debug, PartialEq)]
+pub enum Centering {
+    Primitive2d,
+    Centered2d,
     Primitive,
     FaceCentered,
     BodyCentered,
@@ -84,66 +80,49 @@ pub enum Centering3d {
     CFaceCentered,
 }
 
-pub struct SpaceGroup2d {
+
+pub struct SpaceGroup {
     dimension: usize,
-    crystal_system: CrystalSystem2d,
-    centering: Centering2d,
+    crystal_system: CrystalSystem,
+    centering: Centering,
     full_name: String,
     group_name: String,
     extension: String,
 }
 
 
-impl Display for CrystalSystem2d {
+impl Display for CrystalSystem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CrystalSystem2d::Oblique => write!(f, "oblique")?,
-            CrystalSystem2d::Rectangular => write!(f, "rectangular")?,
-            CrystalSystem2d::Square => write!(f, "square")?,
-            CrystalSystem2d::Hexagonal => write!(f, "hexagonal")?,
+            CrystalSystem::Oblique2d => write!(f, "oblique")?,
+            CrystalSystem::Rectangular2d => write!(f, "rectangular")?,
+            CrystalSystem::Square2d => write!(f, "square")?,
+            CrystalSystem::Hexagonal2d => write!(f, "hexagonal")?,
+            CrystalSystem::Cubic => write!(f, "cubic")?,
+            CrystalSystem::Orthorhombic => write!(f, "orthorhombic")?,
+            CrystalSystem::Hexagonal => write!(f, "hexagonal")?,
+            CrystalSystem::Tetragonal => write!(f, "tetragonal")?,
+            CrystalSystem::Trigonal => write!(f, "trigonal")?,
+            CrystalSystem::Monoclinic => write!(f, "monoclinic")?,
+            CrystalSystem::Triclinic => write!(f, "triclinic")?,
         }
         Ok(())
     }
 }
 
 
-impl Display for CrystalSystem3d {
+impl Display for Centering {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CrystalSystem3d::Cubic => write!(f, "cubic")?,
-            CrystalSystem3d::Orthorhombic => write!(f, "orthorhombic")?,
-            CrystalSystem3d::Hexagonal => write!(f, "hexagonal")?,
-            CrystalSystem3d::Tetragonal => write!(f, "tetragonal")?,
-            CrystalSystem3d::Trigonal => write!(f, "trigonal")?,
-            CrystalSystem3d::Monoclinic => write!(f, "monoclinic")?,
-            CrystalSystem3d::Triclinic => write!(f, "triclinic")?,
-        }
-        Ok(())
-    }
-}
-
-
-impl Display for Centering2d {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Centering2d::Primitive => write!(f, "p")?,
-            Centering2d::Centered => write!(f, "c")?,
-        }
-        Ok(())
-    }
-}
-
-
-impl Display for Centering3d {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Centering3d::Primitive => write!(f, "P")?,
-            Centering3d::FaceCentered => write!(f, "F")?,
-            Centering3d::BodyCentered => write!(f, "I")?,
-            Centering3d::Rhombohedral => write!(f, "R")?,
-            Centering3d::AFaceCentered => write!(f, "A")?,
-            Centering3d::BFaceCentered => write!(f, "B")?,
-            Centering3d::CFaceCentered => write!(f, "C")?,
+            Centering::Primitive2d => write!(f, "p")?,
+            Centering::Centered2d => write!(f, "c")?,
+            Centering::Primitive => write!(f, "P")?,
+            Centering::FaceCentered => write!(f, "F")?,
+            Centering::BodyCentered => write!(f, "I")?,
+            Centering::Rhombohedral => write!(f, "R")?,
+            Centering::AFaceCentered => write!(f, "A")?,
+            Centering::BFaceCentered => write!(f, "B")?,
+            Centering::CFaceCentered => write!(f, "C")?,
         }
         Ok(())
     }
