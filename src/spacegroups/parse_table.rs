@@ -21,10 +21,12 @@ pub struct Group {}
 pub struct Setting {}
 
 
+type SettingCoordinateMap = CoordinateMap<BigRational, Group, Setting>;
+
 pub struct TableEntry {
     name: String,
     canonical_name: String,
-    transform: CoordinateMap<BigRational, Group, Setting>,
+    transform: SettingCoordinateMap,
     operators: Vec<AffineMap<BigRational, Setting>>,
 }
 
@@ -104,7 +106,7 @@ pub struct Lookup {
     name: String,
     system: CrystalSystem,
     centering: Centering,
-    from_std: CoordinateMap<BigRational, Group, Setting>,
+    from_std: SettingCoordinateMap,
 }
 
 
@@ -130,7 +132,7 @@ pub struct Tables {
 
 impl Tables {
     pub fn lookup_settings(&self, s: CrystalSystem, c: Centering)
-        -> Vec<(String, CoordinateMap<BigRational, Group, Setting>)>
+        -> Vec<(String, SettingCoordinateMap)>
     {
         self.lookup.iter().filter_map(|lkp|
             if s == lkp.system && c == lkp.centering {
