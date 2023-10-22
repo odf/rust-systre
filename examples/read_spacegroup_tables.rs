@@ -6,7 +6,7 @@ extern crate lazy_static;
 lazy_static! {
     static ref TABLES: Tables = parse_space_group_table(
         include_str!(
-            concat!(env!("CARGO_MANIFEST_DIR"), "/data/sgtable.data")
+            concat!(env!("CARGO_MANIFEST_DIR"), "/src/data/sgtable.data")
         ).as_bytes()
     ).unwrap();
 }
