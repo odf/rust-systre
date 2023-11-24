@@ -234,7 +234,7 @@ pub fn parse_space_group_table<T: Read>(input: T) -> Option<Tables> {
             if fields[0].to_lowercase() == "alias" {
                 alias.insert(fields[1].into(), fields[2].into());
             } else if fields[0].to_lowercase() == "lookup" {
-                lookup.push(make_lookup_entry_2d(&fields)?);
+                lookup.push(make_lookup_entry(&fields)?);
             } else {
                 let name = fields[0].to_string();
                 current_name = name.clone();
@@ -259,7 +259,7 @@ pub fn parse_space_group_table<T: Read>(input: T) -> Option<Tables> {
 }
 
 
-fn make_lookup_entry_2d(fields: &Vec<&str>) -> Option<Lookup> {
+fn make_lookup_entry(fields: &Vec<&str>) -> Option<Lookup> {
     let name = fields[1].to_string();
     let spec = fields[4..].join(" ");
     let from_std = CoordinateMap::from_string(&spec)?;
